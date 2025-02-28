@@ -134,20 +134,12 @@ void LogContext::Enum(
 {
     const char*const StringTable[] =
     {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
         "Default",
         "Disable",
         "_1D_64_Threads",
         "_1D_128_Threads",
         "_1D_256_Threads",
         "_1D_512_Threads",
-#else
-        "Default (1D_64_Threads)", // 0x0,
-        "Disable",                 // 0x1,
-        "1D_128_Threads",          // 0x2,
-        "1D_256_Threads",          // 0x3,
-        "1D_512_Threads",          // 0x4,
-#endif
     };
 
     static_assert(ArrayLen32(StringTable) == static_cast<uint32>(DispatchInterleaveSize::Count),
@@ -1090,8 +1082,11 @@ void LogContext::Enum(
         "Navi33",        // 11.0.2
         "Phoenix1",      // 11.0.3
         "Phoenix2",      // 11.0.3
-#if PAL_BUILD_STRIX1
         "Strix1",        // 11.5.0
+#if PAL_BUILD_STRIX_HALO
+        "StrixHalo",     // 11.5.1
+#endif
+#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif
 #if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif

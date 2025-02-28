@@ -27,7 +27,6 @@
 
 #include "core/hw/gfxip/gfxBlendOptimizer.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
-#include "core/hw/gfxip/gfxCmdStream.h"
 #include "palDeque.h"
 
 namespace Pal
@@ -86,12 +85,8 @@ struct GraphicsState
 {
     PipelineState               pipelineState;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-    DynamicGraphicsShaderInfos  dynamicGraphicsInfo; // Info used during pipeline bind.
-#else
     DynamicGraphicsShaderInfos  dynamicGraphicsInfo; // Dynamic gfx pipeline info.
     DynamicGraphicsState        dynamicState;        // Dynamic pipeline bind state.
-#endif
 
     BindTargetParams            bindTargets;
     // Lower MaxColorTargets bits are used. Each indicate how this slot is bound.
@@ -157,17 +152,26 @@ struct GraphicsState
 
 struct ValidateDrawInfo
 {
-    uint32       vtxIdxCount;           // Vertex or index count for the draw (depending on if the it is indexed).
-    uint32       instanceCount;         // Instance count for the draw. A count of zero indicates draw-indirect.
-    uint32       firstVertex;           // First vertex
-    uint32       firstInstance;         // First instance
-    uint32       firstIndex;            // First index
-    uint32       drawIndex;             // draw index
-    DispatchDims meshDispatchDims;      // Dispatch dimensions of mesh shader
-    bool         useOpaque;             // If draw opaque
-    bool         multiIndirectDraw;     // Is multi indirect draw?
-    bool         isAdvancedIndirect;    // Is Execute Indirect or task+mesh draw call?
-    uint32       indirectDrawArgsHi;    // High part of GPU virtual address argument from the client indirect draw
+    uint32       vtxIdxCount;            // Vertex or index count for the draw (depending on if the it is indexed).
+    uint32       instanceCount;          // Instance count for the draw. A count of zero indicates draw-indirect.
+    uint32       firstVertex;            // First vertex
+    uint32       firstInstance;          // First instance
+    uint32       firstIndex;             // First index
+    uint32       drawIndex;              // draw index
+    DispatchDims meshDispatchDims;       // Dispatch dimensions of mesh shader
+    uint32       indirectDrawArgsHi;     // High part of GPU virtual address argument from the client indirect draw
+    struct
+    {
+        uint32   useOpaque          :  1; // If draw opaque
+        uint32   reserved0          :  7; // Reserved
+        uint32   multiIndirectDraw  :  1; // Is multi indirect draw?
+        uint32   reserved1          :  7; // Reserved
+        uint32   isAdvancedIndirect :  1; // Is Execute Indirect or task+mesh draw call?
+        uint32   reserved2          :  7; // Reserved
+        uint32   isIndirect         :  1; // Is indirect?
+        uint32   isIndexed          :  1; // Is indexed?
+        uint32   reserved3          :  6; // Reserved
+    };
 };
 
 // =====================================================================================================================
@@ -215,8 +219,7 @@ public:
 
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const override;
 
-    virtual uint32 NumCmdStreamsInSubQueue(int32 subQueueIndex) const override;
-    virtual const CmdStream* GetCmdStreamInSubQueue(int32 subQueueIndex, uint32 cmdStreamIndex) const override;
+    virtual const CmdStream* GetCmdStreamInSubQueue(int32 subQueueIndex) const override;
 
     // Universal command buffers support every type of query
     virtual bool IsQueryAllowed(QueryPoolType queryPoolType) const override { return true; }
@@ -227,7 +230,7 @@ public:
     // Increments the submit-count of the command stream(s) contained in this command buffer.
     virtual void IncrementSubmitCount() override
     {
-        m_pDeCmdStream->IncrementSubmitCount();
+        m_pCmdStream->IncrementSubmitCount();
 
         if (m_pAceCmdStream != nullptr)
         {
@@ -253,15 +256,13 @@ public:
         SwizzledFormat            swizzledFormat,
         uint32                    targetIndex) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     void CmdCloneImageData(const IImage& srcImage, const IImage& dstImage);
-#endif
 
 protected:
     UniversalCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
-        const GfxBarrierMgr*       pBarrierMgr,
+        const GfxBarrierMgr&       barrierMgr,
         GfxCmdStream*              pDeCmdStream,
         GfxCmdStream*              pAceCmdStream,
         bool                       blendOptEnable,
@@ -301,7 +302,7 @@ protected:
     GfxBlendOptimizer::BlendOpts  m_blendOpts[MaxColorTargets]; // Current blend optimization state
 
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
-        { return pCmdSpace + m_pDeCmdStream->BuildNop(numDwords, pCmdSpace); }
+        { return pCmdSpace + m_pCmdStream->BuildNop(numDwords, pCmdSpace); }
 
     // Late-initialized ACE command buffer stream.
     // Ace command stream is used for ganged submit of compute workloads (task shader workloads)
@@ -313,11 +314,8 @@ protected:
     uint8 m_contextStatesPerBin;
     uint8 m_persistentStatesPerBin;
 
-    const GfxDevice& m_device;
-
 private:
-    GfxCmdStream*const m_pDeCmdStream; // Draw engine command buffer stream.
-    const bool         m_blendOptEnable;
+    const bool m_blendOptEnable;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);

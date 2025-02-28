@@ -38,6 +38,8 @@
 namespace Util
 {
 
+constexpr char SettingsDirEnvVar[] = "AMD_CONFIG_DIR";
+
 /**
  ***********************************************************************************************************************
  * @brief Parses a plain text config file filled with key/value pairs that describe user-desired driver settings.  The

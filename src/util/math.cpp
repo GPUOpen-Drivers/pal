@@ -447,19 +447,10 @@ float UFixedToFloat(
     }
     else
     {
-        // Soft assert here if the fixed point representation cannot be converted to a float32. This will cause precision
-        // loss
-        PAL_ALERT(fracBits > 23);
-        PAL_ALERT((fracBits + intBits) > 24);
-
-        // Calculate the scaling factor.
-        const uint32 factor = (1 << fracBits);
-
-        // Directly convert the unsigned fixed point number to float.
-        const float intVal = static_cast<float>(fixedPtNum);
-
-        // Perform scaling.
-        result = intVal / factor;
+        const float factor = static_cast<float>(1u << fracBits);
+        result = static_cast<float>(fixedPtNum) / factor;
+        // Alert if does not round-trip.
+        PAL_ALERT(static_cast<uint32>(result * factor) != fixedPtNum);
     }
 
     return result;

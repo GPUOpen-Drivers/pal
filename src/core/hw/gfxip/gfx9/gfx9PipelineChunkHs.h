@@ -63,7 +63,8 @@ struct HsRegs
     } dynamic;
 
     static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
-    static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
+    static constexpr uint32 NumShReg      =
+        (sizeof(Sh) / sizeof(uint32_t)) + 1; // + 1 for m_pHsPerfDataInfo->regOffset
 };
 
 // =====================================================================================================================
@@ -81,25 +82,31 @@ public:
     ~PipelineChunkHs() { }
 
     void LateInit(
+        const Device&                           device,
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         CodeObjectUploader*                     pUploader);
 
+    template <bool Pm4OptEnabled>
     uint32* WriteShCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
+    template <bool Pm4OptEnabled>
     uint32* WriteDynamicRegs(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         const DynamicStageInfo& hsStageInfo) const;
 
+    template <bool Pm4OptEnabled>
     uint32* WriteContextCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-    void AccumulateShRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
-    void AccumulateContextRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
+    template <typename T>
+    void AccumulateShRegs(T* pRegPairs, uint32* pNumRegs) const;
+    template <typename T>
+    void AccumulateContextRegs(T* pRegPairs, uint32* pNumRegs) const;
 
     gpusize LsProgramGpuVa() const
     {
@@ -112,7 +119,11 @@ public:
 
     void AccumulateRegistersHash(Util::MetroHash64& hasher)  const { hasher.Update(m_regs.context); }
 private:
-    const Device&  m_device;
+    struct
+    {
+        uint8 supportSpp : 1;
+        uint8 reserved   : 7;
+    } m_flags;
 
     HsRegs m_regs;
 

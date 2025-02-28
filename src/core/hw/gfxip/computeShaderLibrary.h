@@ -75,7 +75,7 @@ protected:
     explicit ComputeShaderLibrary(Device* pDevice);
 
     // internal Destructor.
-    virtual ~ComputeShaderLibrary();
+    virtual ~ComputeShaderLibrary() {}
 
     virtual Result PostInit(
         const Util::PalAbi::CodeObjectMetadata& metadata,

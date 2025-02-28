@@ -301,6 +301,7 @@ Result ArchiveFile::Init(
             result = Result::ErrorUnknown;
 
             const ArchiveFileFooter* footerCheck = CastOffset<ArchiveFileFooter*>(curOffset);
+
             TRY_ACCESS_FILE_VIEW (footerCheck != nullptr)
             {
                 if (ArchiveFileHelper::ValidateFooter(footerCheck))
@@ -344,6 +345,13 @@ Result ArchiveFile::Init(
             CATCH_ACCESS_FILE_VIEW
             {
                 PAL_ASSERT_ALWAYS();
+                break;
+            }
+
+            // If the mapping failed, CastOffset is NULL
+            if (footerCheck == nullptr)
+            {
+                // curOffset will not be changed, exit the loop
                 break;
             }
         }
@@ -617,6 +625,14 @@ Result ArchiveFile::FillEntryHeaderTable(
                 CATCH_ACCESS_FILE_VIEW
                 {
                     PAL_ASSERT_ALWAYS();
+                    break;
+                }
+
+                // If the mapping failed, CastOffset is NULL
+                if (pHeaderInFile == nullptr)
+                {
+                    // pEntriesFilled should not be changed
+                    (*pEntriesFilled) = 0;
                     break;
                 }
 

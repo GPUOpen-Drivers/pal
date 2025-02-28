@@ -96,6 +96,7 @@ DD_RESULT {{ClassName}}::SetupDefaultsAndPopulateMap()
 void {{ClassName}}::ReadSettings()
 {
 {% for setting in Settings %}
+{% set skip_registry = SkipRegistry and not setting.Whitelist %}
 {% if setting.Structure %}
 
 {% for subs in setting.Structure %}
@@ -105,19 +106,21 @@ void {{ClassName}}::ReadSettings()
 {% if subs.IsOptional %}
     {
         decltype({{var_name}})::ValueType valueRead{};
-        if (ReadSetting(
+        if ({% if not skip_registry %}ReadSetting{% else %}ReadSettingFromFile{% endif %}(
             {%+ if subs.Scope == "PublicCatalystKey" %}"{{setting.Name}}.{{subs.Name}}"{% else %}p{{setting.Name}}_{{subs.VariableName}}HashStr{% endif %},
             {{subs.PalType}},
-            &valueRead{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %}))
+            &valueRead{% if IsPalSettings and not skip_registry %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %}))
         {
             {{var_name}} = valueRead;
         }
     }
 {% else %}
-    ReadSetting(
+    {% if not skip_registry %}
+    ReadSetting{% else %}
+    ReadSettingFromFile{% endif %}(
         {%+ if subs.Scope == "PublicCatalystKey" %}"{{setting.Name}}.{{subs.Name}}"{% else %}p{{setting.Name}}_{{subs.VariableName}}HashStr{% endif %},
         {{subs.PalType}},
-        &{{var_name}}{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %});
+        &{{var_name}}{% if IsPalSettings and not skip_registry %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %});
 {% endif %}
 {{ prep_cond_end(subs.BuildTypes, subs.OrBuildTypes) -}}
 {% endfor %}
@@ -127,19 +130,21 @@ void {{ClassName}}::ReadSettings()
 {% if setting.IsOptional %}
     {
         decltype({{var_name}})::ValueType valueRead{};
-        if (ReadSetting(
+        if ({% if not skip_registry %}ReadSetting{% else %}ReadSettingFromFile{% endif %}(
             {%+ if setting.Scope == "PublicCatalystKey" %}"{{setting.Name}}"{% else %}p{{setting.Name}}HashStr{% endif %},
             {{setting.PalType}},
-            &valueRead{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %}))
+            &valueRead{% if IsPalSettings and not skip_registry %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %}))
         {
             {{var_name}} = valueRead;
         }
     }
 {% else %}
-    ReadSetting(
+    {% if not skip_registry %}
+    ReadSetting{% else %}
+    ReadSettingFromFile{% endif %}(
         {%+ if setting.Scope == "PublicCatalystKey" %}"{{setting.Name}}"{% else %}p{{setting.Name}}HashStr{% endif %},
         {{setting.PalType}},
-        &{{var_name}}{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %});
+        &{{var_name}}{% if IsPalSettings and not skip_registry %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %});
 {% endif %}
 {{ prep_cond_end(setting.BuildTypes, setting.OrBuildTypes) -}}
 {% endif %}

@@ -310,28 +310,23 @@ void SettingsLoader::ValidateSettings(
         m_settings.gfx11SampleMaskTrackerWatermark = ((m_settings.gfx11SampleMaskTrackerWatermark == 0) ?
             0 : Clamp(m_settings.gfx11SampleMaskTrackerWatermark, 3u, 15u));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 818
         // Replace the "PublicSetting" enum with a final value. The rest of PAL can ignore Ac01WaPublicSetting.
         if (m_settings.waDisableAc01 == Ac01WaPublicSetting)
         {
             m_settings.waDisableAc01 = pPalSettings->ac01WaNotNeeded ? Ac01WaAllowAc01 : Ac01WaForbidAc01;
         }
-#endif
 
         if (m_settings.waNoOpaqueOreo && (m_settings.gfx11OreoModeControl == OMODE_O_THEN_B))
         {
             m_settings.gfx11OreoModeControl = OMODE_BLEND;
         }
 
-#if PAL_BUILD_GFX115
         if (IsGfx115(*m_pDevice))
         {
             // The "ONE_PRIM_PER_BATCH" mode will be removed in GFX11.5 and later
             // This means that "BINNING_DISABLED__GFX11" is the only valid value that disables binning.
             m_settings.disableBinningMode = BINNING_DISABLED__GFX11;
         }
-#endif
-
     }
     else
     {
@@ -676,7 +671,7 @@ static void SetupGfx11Workarounds(
     PAL_ASSERT(waFound);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00284B00 }; // Workarounds handled by PAL.
+    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00684B00 }; // Workarounds handled by PAL.
     constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000714FC }; // Workarounds handled by other components.
     constexpr uint32 MissingWaMask[] = { 0x00004000, 0x0000A001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
@@ -694,7 +689,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 54, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 55, "Workaround count mismatch between PAL and SWD");
 
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
     {
@@ -717,20 +712,16 @@ static void SetupGfx11Workarounds(
     pSettings->waLineStippleReset          = workarounds.geometryPaPALineStippleResetError_A_;
     pSettings->waCwsrThreadgroupTrap       = workarounds.shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_;
 
-    // These two settings are different ways of solving the same problem.  We've experimentally
-    // determined that "intrinsic rate enable" has better performance.
-    pSettings->gfx11DisableRbPlusWithBlending = false;
-    pSettings->waEnableIntrinsicRateEnable    = workarounds.sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_;
+    // We've experimentally determined that "intrinsic rate enable" has better perf than disabling RB+ when blending.
+    pSettings->waEnableIntrinsicRateEnable = workarounds.sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_;
 
     // This workaround requires disabling use of the AC01 clear codees, which is what the "force regular clear code"
     // panel setting is already designed to do.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 818
     if (workarounds.ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_ != 0)
     {
         // Note that the public setting defaults to "enable the workaround".
         pSettings->waDisableAc01 = Ac01WaPublicSetting;
     }
-#endif
 
     pSettings->waSqgTtWptrOffsetFixup = workarounds.shaderSqSqgSQGTTWPTRIssues_A_;
 
@@ -901,6 +892,13 @@ void SettingsLoader::OverrideDefaults(
     {
         if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
+#if PAL_BUILD_STRIX_HALO
+            if (IsStrixHalo(device))
+            {
+                m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize32B;
+            }
+            else
+#endif
             {
                 //
                 //

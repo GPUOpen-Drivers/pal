@@ -47,11 +47,11 @@ static const PipelineBinary*const GetRpmGraphicsPipelineTable(
     {
     case Pal::IpTriple({ 10, 1, 0 }):
     case Pal::IpTriple({ 10, 1, 1 }):
-        pTable = rpmGfxBinaryTableNavi10;
+        pTable = rpmGfxBinaryTable10_1_0;
         break;
 
     case Pal::IpTriple({ 10, 1, 2 }):
-        pTable = rpmGfxBinaryTableNavi14;
+        pTable = rpmGfxBinaryTable10_1_2;
         break;
 
     case Pal::IpTriple({ 10, 3, 0 }):
@@ -59,27 +59,30 @@ static const PipelineBinary*const GetRpmGraphicsPipelineTable(
     case Pal::IpTriple({ 10, 3, 2 }):
     case Pal::IpTriple({ 10, 3, 4 }):
     case Pal::IpTriple({ 10, 3, 5 }):
-        pTable = rpmGfxBinaryTableNavi21;
+        pTable = rpmGfxBinaryTable10_3_0;
         break;
 
     case Pal::IpTriple({ 10, 3, 6 }):
-        pTable = rpmGfxBinaryTableRaphael;
+        pTable = rpmGfxBinaryTable10_3_6;
         break;
 
     case Pal::IpTriple({ 11, 0, 0 }):
     case Pal::IpTriple({ 11, 0, 1 }):
     case Pal::IpTriple({ 11, 0, 2 }):
-        pTable = rpmGfxBinaryTableNavi31;
+        pTable = rpmGfxBinaryTable11_0_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 3 }):
-        pTable = rpmGfxBinaryTablePhoenix1;
+        pTable = rpmGfxBinaryTable11_0_3;
         break;
 
-#if PAL_BUILD_STRIX1
     case Pal::IpTriple({ 11, 5, 0 }):
-    case Pal::IpTriple({ 11, 5, 65535 }):
-        pTable = rpmGfxBinaryTableStrix1;
+        pTable = rpmGfxBinaryTable11_5_0;
+        break;
+
+#if  PAL_BUILD_STRIX_HALO
+    case Pal::IpTriple({ 11, 5, 1 }):
+        pTable = rpmGfxBinaryTable11_5_1;
         break;
 #endif
 
@@ -110,14 +113,7 @@ Result CreateRpmGraphicsPipelines(
         return Result::ErrorUnknown;
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[CopyDepth].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[CopyDepth].pBuffer;
@@ -139,14 +135,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[CopyDepthStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[CopyDepthStencil].pBuffer;
@@ -168,14 +157,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[CopyMsaaDepth].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[CopyMsaaDepth].pBuffer;
@@ -197,14 +179,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[CopyMsaaDepthStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[CopyMsaaDepthStencil].pBuffer;
@@ -226,14 +201,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[CopyMsaaStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[CopyMsaaStencil].pBuffer;
@@ -259,14 +227,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[CopyStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[CopyStencil].pBuffer;
@@ -292,14 +253,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[DccDecompress].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[DccDecompress].pBuffer;
@@ -328,7 +282,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[DepthExpand].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[DepthExpand].pBuffer;
@@ -350,14 +304,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[DepthResummarize].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[DepthResummarize].pBuffer;
@@ -379,7 +326,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[DepthSlowDraw].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[DepthSlowDraw].pBuffer;
@@ -401,14 +348,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[FastClearElim].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[FastClearElim].pBuffer;
@@ -437,10 +377,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[FmaskDecompress].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[FmaskDecompress].pBuffer;
@@ -469,14 +406,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Copy_32ABGR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Copy_32ABGR].pBuffer;
@@ -502,14 +432,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Copy_32GR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Copy_32GR].pBuffer;
@@ -535,14 +458,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Copy_32R].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Copy_32R].pBuffer;
@@ -568,14 +484,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Copy_FP16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Copy_FP16].pBuffer;
@@ -601,14 +510,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Copy_SINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Copy_SINT16].pBuffer;
@@ -634,14 +536,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Copy_SNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Copy_SNORM16].pBuffer;
@@ -667,14 +562,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Copy_UINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Copy_UINT16].pBuffer;
@@ -700,14 +588,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Copy_UNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Copy_UNORM16].pBuffer;
@@ -733,10 +614,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[ResolveFixedFunc_32ABGR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32ABGR].pBuffer;
@@ -765,10 +643,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[ResolveFixedFunc_32GR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32GR].pBuffer;
@@ -797,10 +672,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[ResolveFixedFunc_32R].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_32R].pBuffer;
@@ -829,10 +701,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[ResolveFixedFunc_FP16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_FP16].pBuffer;
@@ -861,10 +730,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[ResolveFixedFunc_SINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_SINT16].pBuffer;
@@ -893,10 +759,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[ResolveFixedFunc_SNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_SNORM16].pBuffer;
@@ -925,10 +788,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[ResolveFixedFunc_UINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_UINT16].pBuffer;
@@ -957,10 +817,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[ResolveFixedFunc_UNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveFixedFunc_UNORM16].pBuffer;
@@ -989,14 +846,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy2d_32ABGR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32ABGR].pBuffer;
@@ -1022,14 +872,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy2d_32GR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32GR].pBuffer;
@@ -1055,14 +898,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy2d_32R].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_32R].pBuffer;
@@ -1088,14 +924,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy2d_FP16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_FP16].pBuffer;
@@ -1121,14 +950,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy2d_SINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_SINT16].pBuffer;
@@ -1154,14 +976,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy2d_SNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_SNORM16].pBuffer;
@@ -1187,14 +1002,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy2d_UINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_UINT16].pBuffer;
@@ -1220,14 +1028,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy2d_UNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy2d_UNORM16].pBuffer;
@@ -1253,14 +1054,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy3d_32ABGR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32ABGR].pBuffer;
@@ -1286,14 +1080,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy3d_32GR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32GR].pBuffer;
@@ -1319,14 +1106,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy3d_32R].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_32R].pBuffer;
@@ -1352,14 +1132,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy3d_FP16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_FP16].pBuffer;
@@ -1385,14 +1158,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy3d_SINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_SINT16].pBuffer;
@@ -1418,14 +1184,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy3d_SNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_SNORM16].pBuffer;
@@ -1451,14 +1210,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy3d_UINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_UINT16].pBuffer;
@@ -1484,14 +1236,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopy3d_UNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopy3d_UNORM16].pBuffer;
@@ -1517,7 +1262,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[SlowColorClear_32ABGR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear_32ABGR].pBuffer;
@@ -1543,7 +1288,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[SlowColorClear_32GR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear_32GR].pBuffer;
@@ -1569,7 +1314,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[SlowColorClear_32R].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear_32R].pBuffer;
@@ -1595,7 +1340,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[SlowColorClear_FP16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear_FP16].pBuffer;
@@ -1621,7 +1366,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[SlowColorClear_SINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear_SINT16].pBuffer;
@@ -1647,7 +1392,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[SlowColorClear_SNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear_SNORM16].pBuffer;
@@ -1673,7 +1418,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[SlowColorClear_UINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear_UINT16].pBuffer;
@@ -1699,7 +1444,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[SlowColorClear_UNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[SlowColorClear_UNORM16].pBuffer;
@@ -1725,12 +1470,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Gfx11ResolveGraphics_32ABGR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32ABGR].pBuffer;
@@ -1756,12 +1496,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Gfx11ResolveGraphics_32GR].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32GR].pBuffer;
@@ -1787,12 +1522,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Gfx11ResolveGraphics_32R].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32R].pBuffer;
@@ -1818,12 +1548,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Gfx11ResolveGraphics_FP16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_FP16].pBuffer;
@@ -1849,12 +1574,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Gfx11ResolveGraphics_SINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_SINT16].pBuffer;
@@ -1880,12 +1600,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Gfx11ResolveGraphics_SNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_SNORM16].pBuffer;
@@ -1911,12 +1626,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Gfx11ResolveGraphics_UINT16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_UINT16].pBuffer;
@@ -1942,12 +1652,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[Gfx11ResolveGraphics_UNORM16].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_UNORM16].pBuffer;
@@ -1973,14 +1678,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ResolveDepth].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveDepth].pBuffer;
@@ -2002,14 +1700,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ResolveDepthCopy].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveDepthCopy].pBuffer;
@@ -2035,14 +1726,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ResolveStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveStencil].pBuffer;
@@ -2063,14 +1747,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ResolveStencilCopy].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ResolveStencilCopy].pBuffer;
@@ -2095,14 +1772,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopyDepth].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyDepth].pBuffer;
@@ -2124,14 +1794,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopyDepthStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyDepthStencil].pBuffer;
@@ -2153,14 +1816,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopyImageColorKey].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyImageColorKey].pBuffer;
@@ -2186,14 +1842,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopyMsaaDepth].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyMsaaDepth].pBuffer;
@@ -2215,14 +1864,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopyMsaaDepthStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyMsaaDepthStencil].pBuffer;
@@ -2244,14 +1886,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopyMsaaStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyMsaaStencil].pBuffer;
@@ -2277,14 +1912,7 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[ScaledCopyStencil].pBuffer != nullptr))
     {
         pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyStencil].pBuffer;

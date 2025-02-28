@@ -46,11 +46,7 @@ struct FenceCreateInfo
         {
             uint32 signaled            : 1;  ///< Specify whether the initial status of the fence is signaled or not.
             uint32 eventCanBeInherited : 1;  ///< The event handle can be inherited by child process.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 830
             uint32 shareable           : 1;  ///< This fence may be opened for use by a different device.
-#else
-            uint32 reserved1           : 1;  ///< Reserved for future use.
-#endif
             uint32 reserved            : 29; ///< Reserved for future use.
         };
         uint32 u32All;      ///< Flags packed as 32-bit uint.

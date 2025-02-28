@@ -119,13 +119,9 @@ constexpr CacheSyncOps& operator|=(CacheSyncOps& lhs, CacheSyncOps rhs)
 
 // This family of constexpr bitmasks defines which source/prior stages require EOP or EOS events to wait for idle.
 // They're mainly used to pick our Release barrier event but are also reused in other places in PAL.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
 constexpr uint32 EopWaitStageMask = (PipelineStageSampleRate  | PipelineStageDsTarget    |
                                      PipelineStageColorTarget | PipelineStageBottomOfPipe);
-#else
-constexpr uint32 EopWaitStageMask = (PipelineStageDsTarget    | PipelineStageColorTarget |
-                                     PipelineStageBottomOfPipe);
-#endif
+
 // PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
 // which is done in GE. So need VsDone to make sure indices fetch done.
 constexpr uint32 VsWaitStageMask  = (PipelineStageFetchIndices | PipelineStageStreamOut |
@@ -439,8 +435,6 @@ private:
     void FillCacheOperations(const SyncReqs& syncReqs, Developer::BarrierOperations* pOperations) const;
 
     bool EnableReleaseMemWaitCpDma() const;
-
-    static CmdStream* GetCmdStream(GfxCmdBuffer* pCmdBuf);
 
     const CmdUtil&   m_cmdUtil;
     const GfxIpLevel m_gfxIpLevel;

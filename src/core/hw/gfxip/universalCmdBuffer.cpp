@@ -47,19 +47,17 @@ namespace Pal
 UniversalCmdBuffer::UniversalCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
-    const GfxBarrierMgr*       pBarrierMgr,
+    const GfxBarrierMgr&       barrierMgr,
     GfxCmdStream*              pDeCmdStream,
     GfxCmdStream*              pAceCmdStream,
     bool                       blendOptEnable,
     bool                       useUpdateUserData)
     :
-    GfxCmdBuffer(device, createInfo, pBarrierMgr),
+    GfxCmdBuffer(device, createInfo, pDeCmdStream, barrierMgr, true),
     m_graphicsState{},
     m_graphicsRestoreState{},
     m_blendOpts{},
     m_pAceCmdStream(pAceCmdStream),
-    m_device(device),
-    m_pDeCmdStream(pDeCmdStream),
     m_blendOptEnable(blendOptEnable),
     m_contextStatesPerBin(1),
     m_persistentStatesPerBin(1)
@@ -132,7 +130,7 @@ Result UniversalCmdBuffer::BeginCommandStreams(
 
     if (doReset)
     {
-        m_pDeCmdStream->Reset(nullptr, true);
+        m_pCmdStream->Reset(nullptr, true);
 
         if (m_pAceCmdStream != nullptr)
         {
@@ -142,7 +140,7 @@ Result UniversalCmdBuffer::BeginCommandStreams(
 
     if (result == Result::Success)
     {
-        result = m_pDeCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
+        result = m_pCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
     }
 
     if ((result == Result::Success) && (m_pAceCmdStream != nullptr))
@@ -164,7 +162,7 @@ Result UniversalCmdBuffer::End()
 
     if (result == Result::Success)
     {
-        result = m_pDeCmdStream->End();
+        result = m_pCmdStream->End();
     }
 
     if ((result == Result::Success) && (m_pAceCmdStream != nullptr))
@@ -177,7 +175,7 @@ Result UniversalCmdBuffer::End()
 
         m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
 
-        const Pal::CmdStream* cmdStreams[] = { m_pDeCmdStream, m_pAceCmdStream };
+        const Pal::CmdStream* cmdStreams[] = { m_pCmdStream, m_pAceCmdStream };
         EndCmdBufferDump(cmdStreams, 2);
     }
 
@@ -195,7 +193,7 @@ Result UniversalCmdBuffer::Reset(
 
     if (result == Result::Success)
     {
-        m_pDeCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
+        m_pCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
 
         if (m_pAceCmdStream != nullptr)
         {
@@ -254,15 +252,13 @@ void UniversalCmdBuffer::CmdBindPipeline(
 {
     if (params.pipelineBindPoint == PipelineBindPoint::Graphics)
     {
-        m_graphicsState.pipelineState.dirtyFlags.pipeline |= (m_graphicsState.pipelineState.pPipeline !=
-                                                             static_cast<const Pipeline*>(params.pPipeline)) ? 1 : 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-        m_graphicsState.dynamicGraphicsInfo = params.graphics;
-#else
-        m_graphicsState.dynamicGraphicsInfo = params.gfxShaderInfo;
-        m_graphicsState.dynamicState        = params.gfxDynState;
-#endif
-        m_graphicsState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
+        const auto*const pNewPipeline = static_cast<const Pipeline*>(params.pPipeline);
+
+        m_graphicsState.pipelineState.dirtyFlags.pipeline |= (m_graphicsState.pipelineState.pPipeline != pNewPipeline);
+
+        m_graphicsState.dynamicGraphicsInfo      = params.gfxShaderInfo;
+        m_graphicsState.dynamicState             = params.gfxDynState;
+        m_graphicsState.pipelineState.pPipeline  = pNewPipeline;
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
     }
 
@@ -435,7 +431,7 @@ void UniversalCmdBuffer::DumpCmdStreamsToFile(
     CmdBufDumpFormat mode
     ) const
 {
-    m_pDeCmdStream->DumpCommands(pFile, "# Universal Queue - DE Command length = ", mode);
+    m_pCmdStream->DumpCommands(pFile, "# Universal Queue - DE Command length = ", mode);
 
     if (m_pAceCmdStream != nullptr)
     {
@@ -556,7 +552,6 @@ void UniversalCmdBuffer::SetGraphicsState(
     SetGraphicsState(newGraphicsState, setGraphicsStateFlags, setPipelineStateFlags);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -568,7 +563,6 @@ void UniversalCmdBuffer::CmdCloneImageData(
                                   static_cast<const Pal::Image&>(srcImage),
                                   static_cast<const Pal::Image&>(dstImage));
 }
-#endif
 
 // =====================================================================================================================
 // Set all specified state on this command buffer.
@@ -583,29 +577,19 @@ void UniversalCmdBuffer::SetGraphicsState(
 
     if (setPipelineStateFlags.pipeline ||
         pipelineState.pPipeline != m_graphicsState.pipelineState.pPipeline ||
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-        (memcmp(&newGraphicsState.dynamicGraphicsInfo.dynamicState,
-                &m_graphicsState.dynamicGraphicsInfo.dynamicState,
-                sizeof(DynamicGraphicsState)) != 0)
-#else
         (memcmp(&newGraphicsState.dynamicState,
                 &m_graphicsState.dynamicState,
                 sizeof(m_graphicsState.dynamicState)) != 0) ||
         (memcmp(&newGraphicsState.dynamicGraphicsInfo,
                 &m_graphicsState.dynamicGraphicsInfo,
                 sizeof(m_graphicsState.dynamicGraphicsInfo)) != 0)
-#endif
         )
     {
         PipelineBindParams bindParams = {};
         bindParams.pipelineBindPoint  = PipelineBindPoint::Graphics;
         bindParams.pPipeline          = pipelineState.pPipeline;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-        bindParams.graphics           = newGraphicsState.dynamicGraphicsInfo;
-#else
         bindParams.gfxShaderInfo      = newGraphicsState.dynamicGraphicsInfo;
         bindParams.gfxDynState        = newGraphicsState.dynamicState;
-#endif
         bindParams.apiPsoHash         = pipelineState.apiPsoHash;
 
         CmdBindPipeline(bindParams);
@@ -1019,7 +1003,7 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
         pStream = (ImplicitGangedSubQueueCount() > 0) ? m_pAceCmdStream : nullptr;
         break;
     case 1:
-        pStream = m_pDeCmdStream;
+        pStream = m_pCmdStream;
         break;
     }
 
@@ -1027,31 +1011,15 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
 }
 
 // =====================================================================================================================
-// Returns the number of command streams associated with this command buffer, for the specified ganged sub-queue index.
-uint32 UniversalCmdBuffer::NumCmdStreamsInSubQueue(
-    int32 subQueueIndex
-    ) const
-{
-    PAL_ASSERT(subQueueIndex < int32(AceStreamCount));
-
-    // The main sub-queue has one stream (DE), other ganged sub-queues have one stream (ACE).
-    return 1;
-}
-
-// =====================================================================================================================
 // Returns a pointer to the command stream specified by the given ganged sub-queue index and command stream index.
 const CmdStream* UniversalCmdBuffer::GetCmdStreamInSubQueue(
-    int32  subQueueIndex,
-    uint32 cmdStreamIndex
+    int32  subQueueIndex
     ) const
 {
-    PAL_ASSERT(cmdStreamIndex < NumCmdStreamsInSubQueue(subQueueIndex));
-
     const CmdStream* pStream = nullptr;
     if (subQueueIndex == MainSubQueueIdx)
     {
-        PAL_ASSERT(cmdStreamIndex == 0);
-        pStream = m_pDeCmdStream;
+        pStream = m_pCmdStream;
     }
     else
     {
@@ -1071,7 +1039,7 @@ uint32 UniversalCmdBuffer::GetUsedSize(
 
     if (type == CommandDataAlloc)
     {
-        sizeInBytes += m_pDeCmdStream->GetUsedCmdMemorySize();
+        sizeInBytes += m_pCmdStream->GetUsedCmdMemorySize();
     }
 
     return sizeInBytes;

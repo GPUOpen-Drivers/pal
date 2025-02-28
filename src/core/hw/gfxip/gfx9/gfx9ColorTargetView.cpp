@@ -58,10 +58,11 @@ ColorTargetView::ColorTargetView(
 
     memset(&m_subresource, 0, sizeof(m_subresource));
 
+    PAL_ASSERT(createInfo.flags.imageVaLocked);
+
     m_flags.u32All = 0;
     // Note that buffer views have their VA ranges locked because they cannot have their memory rebound.
     m_flags.isBufferView = createInfo.flags.isBufferView;
-    m_flags.viewVaLocked = (createInfo.flags.imageVaLocked | createInfo.flags.isBufferView);
     m_swizzledFormat     = createInfo.swizzledFormat;
 
     if (m_flags.isBufferView == 0)
@@ -419,11 +420,6 @@ uint32* ColorTargetView::WriteCommandsCommon(
 
     if (m_flags.isBufferView == 0)
     {
-        if ((m_flags.viewVaLocked == 0) && m_pImage->Parent()->GetBoundGpuMemory().IsBound())
-        {
-            UpdateImageVa(pRegs);
-        }
-
         if (ImageLayoutToColorCompressionState(m_layoutToState, imageLayout) == ColorCompressed)
         {
             if (pRegs->fastClearMetadataGpuVa != 0)
@@ -576,7 +572,7 @@ Gfx10ColorTargetView::Gfx10ColorTargetView(
                                                          bufferInfo.extent,
                                                          Gfx10AllowBigPageBuffers);
     }
-    else if (IsVaLocked())
+    else
     {
         m_flags.colorBigPage = IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
         m_flags.fmaskBigPage = IsFmaskBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
@@ -611,8 +607,7 @@ void Gfx10ColorTargetView::InitRegisters(
     const GpuChipProperties& chipProps = palDevice.ChipProperties();
     const Gfx9PalSettings&   settings  = device.Settings();
 
-    const MergedFlatFmtInfo*const pFmtInfoTbl =
-        MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel, &device.GetPlatform()->PlatformSettings());
+    const MergedFlatFmtInfo*const pFmtInfoTbl = MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel);
 
     m_regs.cbColorInfo = InitCbColorInfo(device, pFmtInfoTbl);
 
@@ -729,18 +724,6 @@ uint32* Gfx10ColorTargetView::WriteCommands(
 {
     Gfx10ColorTargetViewRegs regs = m_regs;
     pCmdSpace = WriteCommandsCommon(slot, imageLayout, pCmdStream, pCmdSpace, &regs);
-    if ((m_flags.viewVaLocked == 0)                       &&
-        m_pImage->Parent()->GetBoundGpuMemory().IsBound() &&
-        m_flags.hasCmaskFmask)
-    {
-        const gpusize cmask256BAddrSwizzled     = m_pImage->GetCmask256BAddrSwizzled();
-        const gpusize fmask256BAddrSwizzled     = m_pImage->GetFmask256BAddrSwizzled();
-
-        regs.cbColorCmask.bits.BASE_256B        = LowPart(cmask256BAddrSwizzled);
-        regs.cbColorFmask.bits.BASE_256B        = LowPart(fmask256BAddrSwizzled);
-        regs.cbColorCmaskBaseExt.bits.BASE_256B = HighPart(cmask256BAddrSwizzled);
-        regs.cbColorFmaskBaseExt.bits.BASE_256B = HighPart(fmask256BAddrSwizzled);
-    }
 
     const uint32 slotOffset = (slot * CbRegsPerSlot);
 
@@ -801,18 +784,11 @@ void Gfx10ColorTargetView::GetImageSrd(
     void*         pOut
     ) const
 {
-    if (m_flags.viewVaLocked == 0)
-    {
-        UpdateImageSrd(device, pOut);
-    }
-    else
-    {
-        memcpy(pOut, &m_uavExportSrd, sizeof(m_uavExportSrd));
-    }
+    memcpy(pOut, &m_uavExportSrd, sizeof(m_uavExportSrd));
 }
 
 // =====================================================================================================================
-// Updates the cached image SRD (for UAV exports). This may need to get called at draw-time if viewVaLocked is false
+// Updates the cached image SRD (for UAV exports).
 void Gfx10ColorTargetView::UpdateImageSrd(
     const Device& device,
     void*         pOut
@@ -836,21 +812,14 @@ void Gfx10ColorTargetView::UpdateImageSrd(
 // Reports if the color target view can support setting COLOR_BIG_PAGE in CB_RMI_GLC2_CACHE_CONTROL.
 bool Gfx10ColorTargetView::IsColorBigPage() const
 {
-    // Buffer views and viewVaLocked image views have already computed whether they can support BIG_PAGE or not.  Other
-    // cases have to check now in case the bound memory has changed.
-    return ((m_flags.viewVaLocked | m_flags.isBufferView) != 0)
-                ? m_flags.colorBigPage
-                : IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
+    return m_flags.colorBigPage;
 }
 
 // =====================================================================================================================
 // Reports if the color target view can support setting FMASK_BIG_PAGE in CB_RMI_GLC2_CACHE_CONTROL.
 bool Gfx10ColorTargetView::IsFmaskBigPage() const
 {
-    // viewVaLocked image views have already computed whether they can support BIG_PAGE or not.  Other cases have to
-    // check now in case the bound memory has changed.
-    return IsVaLocked() ? (m_flags.fmaskBigPage != 0)
-                        : IsFmaskBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
+    return (m_flags.fmaskBigPage != 0);
 }
 
 // =====================================================================================================================
@@ -876,7 +845,7 @@ Gfx11ColorTargetView::Gfx11ColorTargetView(
                                                          bufferInfo.extent,
                                                          Gfx10AllowBigPageBuffers);
     }
-    else if (IsVaLocked())
+    else
     {
         m_flags.colorBigPage = IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
 
@@ -900,8 +869,7 @@ void Gfx11ColorTargetView::InitRegisters(
     const Gfx9PalSettings&   settings        = device.Settings();
     const PalPublicSettings* pPublicSettings = palDevice.GetPublicSettings();
 
-    const MergedFlatFmtInfo*const pFmtInfoTbl =
-        MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel, &device.GetPlatform()->PlatformSettings());
+    const MergedFlatFmtInfo*const pFmtInfoTbl = MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel);
 
     m_regs.cbColorInfo = InitCbColorInfo(device, pFmtInfoTbl);
 
@@ -993,9 +961,7 @@ void Gfx11ColorTargetView::InitRegisters(
 
         // Set any hardware limit on the number of fragments supported by DCC compression.
         if (settings.waDccMaxCompFrags && (IsPhoenix2(palDevice)
-#if PAL_BUILD_STRIX
                                            || IsStrixFamily(palDevice)
-#endif
             ))
         {
             m_regs.cbColorDccControl.most.MAX_COMP_FRAGS = (imageCreateInfo.samples >= 4);
@@ -1070,18 +1036,11 @@ void Gfx11ColorTargetView::GetImageSrd(
     void*         pOut
     ) const
 {
-    if (m_flags.viewVaLocked == 0)
-    {
-        UpdateImageSrd(device, pOut);
-    }
-    else
-    {
-        memcpy(pOut, &m_uavExportSrd, sizeof(m_uavExportSrd));
-    }
+    memcpy(pOut, &m_uavExportSrd, sizeof(m_uavExportSrd));
 }
 
 // =====================================================================================================================
-// Updates the cached image SRD (for UAV exports). This may need to get called at draw-time if viewVaLocked is false
+// Updates the cached image SRD (for UAV exports).
 void Gfx11ColorTargetView::UpdateImageSrd(
     const Device& device,
     void*         pOut
@@ -1105,11 +1064,7 @@ void Gfx11ColorTargetView::UpdateImageSrd(
 // Reports if the color target view can support setting COLOR_BIG_PAGE in CB_RMI_GLC2_CACHE_CONTROL.
 bool Gfx11ColorTargetView::IsColorBigPage() const
 {
-    // Buffer views and viewVaLocked image views have already computed whether they can support BIG_PAGE or not.  Other
-    // cases have to check now in case the bound memory has changed.
-    return ((m_flags.viewVaLocked | m_flags.isBufferView) != 0)
-                ? m_flags.colorBigPage
-                : IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
+    return m_flags.colorBigPage;
 }
 
 } // Gfx9

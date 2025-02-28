@@ -54,17 +54,6 @@ ComputeShaderLibrary::ComputeShaderLibrary(
 }
 
 // =====================================================================================================================
-ComputeShaderLibrary::~ComputeShaderLibrary()
-{
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-    for (auto info : m_functionList)
-    {
-        PAL_FREE(info.pSymbolName, m_pDevice->GetPlatform());
-    }
-#endif
-}
-
-// =====================================================================================================================
 // Helper function for common init operations after HwlInit
 Result ComputeShaderLibrary::PostInit(
     const PalAbi::CodeObjectMetadata& metadata,
@@ -188,12 +177,9 @@ Result ComputeShaderLibrary::InitFunctionListFromMetadata(
 
                 if (result == Result::Success)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-                    ShaderLibraryFunctionInfo info = { nullptr, 0 };
-#else
                     StringView<char> symbolName(static_cast<const char*>(item.str.start), item.str.length);
                     ShaderLibraryFunctionInfo info = { symbolName, 0 };
-#endif
+
                     result = m_functionList.PushBack(info);
                 }
 
@@ -220,11 +206,7 @@ void ComputeShaderLibrary::GetFunctionGpuVirtAddrs(
     for (uint32 i = 0; i < funcCount; ++i)
     {
         GpuSymbol symbol = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-        if (uploader.GetGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
-#else
         if (uploader.GetGpuSymbol(pFuncInfoList[i].symbolName, &symbol) == Result::Success)
-#endif
         {
             pFuncInfoList[i].gpuVirtAddr = symbol.gpuVirtAddr;
             PAL_ASSERT(pFuncInfoList[i].gpuVirtAddr != 0);

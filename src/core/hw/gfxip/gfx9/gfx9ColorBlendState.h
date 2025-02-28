@@ -52,7 +52,6 @@ public:
     uint32 BlendReadsDestMask() const { return m_flags.blendReadsDst; }
 
     uint8 WriteBlendOptimizations(
-        CmdStream*                     pCmdStream,
         const SwizzledFormat*          pTargetFormats,
         const uint8*                   pTargetWriteMasks,
         uint32                         numRenderTargets,
@@ -74,7 +73,7 @@ public:
 private:
     virtual ~ColorBlendState() { }
 
-    void Init(const ColorBlendStateCreateInfo& createInfo);
+    void Init(const Device& device, const ColorBlendStateCreateInfo& createInfo);
     void InitBlendOpts(const ColorBlendStateCreateInfo& createInfo);
     void InitBlendMasks(const ColorBlendStateCreateInfo& createInfo);
 
@@ -91,12 +90,11 @@ private:
             uint32  blendReadsDst    :  8; // Indicates if blending will read the destination
             uint32  dualSourceBlend  :  1; // Indicates if dual-source blending is enabled
             uint32  rbPlus           :  1; // Indicates if RBPlus is enabled
-            uint32  reserved         :  6;
+            uint32  isGfx11          :  1;
+            uint32  reserved         :  5;
         };
         uint32  u32All;
     } m_flags;
-
-    const Device& m_device;
 
     struct Regs
     {

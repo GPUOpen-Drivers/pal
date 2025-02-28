@@ -359,20 +359,18 @@ struct PresentSwapChainInfo
     {
         struct
         {
-            uint32 notifyOnly           :  1;   ///< True if it is a notify-only present
-            uint32 isTemporaryMono      :  1;   ///< True if WS Stereo is enabled, but 3D display mode turned off.
-            uint32 turboSyncEnabled     :  1;   ///< Whether TurboSync is enabled.
+            uint32 notifyOnly           :  1; ///< True if it is a notify-only present
+            uint32 isTemporaryMono      :  1; ///< True if WS Stereo is enabled, but 3D display mode turned off.
+            uint32 turboSyncEnabled     :  1; ///< Whether TurboSync is enabled.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 872
-            uint32 syncIntervalOverride : 1;    ///< Override default syncInterval with the value in syncInterval
-                                                ///  Supported only on Windows wsiPlatforms.
-            uint32 reserved872          : 2;
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 849
-            uint32 syncInterval         : 3;    ///< 0 - The presentation occurs immediately, there is no synchronization.
-                                                ///< 1 through 4 - Synchronize presentation after the nth vertical blank.
+            uint32 syncIntervalOverride :  1; ///< Override default syncInterval with the value in syncInterval
+                                              ///  Supported only on Windows wsiPlatforms.
+            uint32 reserved872          :  2;
 #else
-            uint32 reserved848      :  3;
+            uint32 syncInterval         :  3; ///< 0 - The presentation occurs immediately, there is no synchronization.
+                                              ///  1 through 4 - Synchronize presentation after the nth vertical blank.
 #endif
-            uint32 reserved         : 26; ///< Reserved for future use.
+            uint32 reserved             : 26; ///< Reserved for future use.
         };
         uint32 u32All;                    ///< Flags packed as 32-bit uint.
     } flags;                              ///< PresentSwapChainInfo flags.

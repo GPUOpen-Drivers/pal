@@ -44,7 +44,6 @@ template <size_t RegisterCount>
 static bool UpdateRegState(
     uint32 newRegVal,
     uint32 regOffset,
-    bool   tempDisableOptimizer,
     void*  pCurRegState) // [in,out] Current state of register being set, will be updated.
 {
     bool mustKeep = false;
@@ -58,8 +57,7 @@ static bool UpdateRegState(
     // - Optimizer is temporarily disabled.
     if ((pRegState->state[regOffset].value           != newRegVal) ||
         (pRegState->state[regOffset].flags.valid     == 0)         ||
-        (pRegState->state[regOffset].flags.mustWrite == 1)         ||
-        tempDisableOptimizer)
+        (pRegState->state[regOffset].flags.mustWrite == 1))
     {
 #if PAL_DEVELOPER_BUILD
         pRegState->keptSets[regOffset]++;
@@ -85,9 +83,6 @@ Pm4Optimizer::Pm4Optimizer(
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_splitPackets(device.CoreSettings().cmdBufOptimizePm4Split)
-#if PAL_ENABLE_PRINTS_ASSERTS
-    , m_dstContainsSrc(false)
-#endif
 {
     Reset();
 }
@@ -130,9 +125,6 @@ void Pm4Optimizer::Reset()
     // Reset the SET_BASE address state
     memset(&m_setBaseStateGfx, 0, sizeof(m_setBaseStateGfx));
     memset(&m_setBaseStateCompute, 0, sizeof(m_setBaseStateCompute));
-
-    // Always start enabled
-    m_isTempDisabled = false;
 }
 
 // =====================================================================================================================
@@ -145,7 +137,7 @@ bool Pm4Optimizer::MustKeepSetContextReg(
     PAL_ASSERT(m_cmdUtil.IsContextReg(regAddr));
 
     return UpdateRegState<CntxRegUsedRangeSize>(
-                regData, (regAddr - CONTEXT_SPACE_START), m_isTempDisabled, &m_cntxRegs);
+                regData, (regAddr - CONTEXT_SPACE_START), &m_cntxRegs);
 }
 
 // =====================================================================================================================
@@ -156,7 +148,7 @@ bool Pm4Optimizer::MustKeepSetShReg(
     uint32 regData)
 {
     PAL_ASSERT(m_cmdUtil.IsShReg(regAddr));
-    return UpdateRegState<ShRegUsedRangeSize>(regData, (regAddr - PERSISTENT_SPACE_START), m_isTempDisabled, &m_shRegs);
+    return UpdateRegState<ShRegUsedRangeSize>(regData, (regAddr - PERSISTENT_SPACE_START), &m_shRegs);
 }
 
 // =====================================================================================================================
@@ -181,7 +173,7 @@ bool Pm4Optimizer::MustKeepContextRegRmw(
         // Computed according to the formula stated in the definition of CmdUtil::BuildContextRegRmw.
         const uint32 newRegVal = (m_cntxRegs.state[regOffset].value & ~regMask) | (regData & regMask);
 
-        mustKeep = UpdateRegState<CntxRegUsedRangeSize>(newRegVal, regOffset, m_isTempDisabled, &m_cntxRegs);
+        mustKeep = UpdateRegState<CntxRegUsedRangeSize>(newRegVal, regOffset, &m_cntxRegs);
     }
 
     return mustKeep;
@@ -236,10 +228,6 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqShRegs(
     const uint32*     pData,
     uint32*           pCmdSpace)
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    m_dstContainsSrc = false;
-#endif
-
     return OptimizePm4SetReg(setData, pData, pCmdSpace, &m_shRegs);
 }
 
@@ -251,10 +239,6 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
     const uint32*           pData,
     uint32*                 pCmdSpace)
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    m_dstContainsSrc = false;
-#endif
-
     return OptimizePm4SetReg(setData, pData, pCmdSpace, &m_cntxRegs);
 }
 
@@ -262,88 +246,263 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <Pm4ShaderType ShaderType>
 uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs(
-    PackedRegisterPair* pRegPairs,
-    uint32              numRegs,
-    uint32*             pCmdSpace)
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace)
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    m_dstContainsSrc = false;
-#endif
-    return OptimizePm4SetRegPairsPacked<ShaderType, true>(pRegPairs, numRegs, pCmdSpace);
+    constexpr RegisterRangeType RegType = (ShaderType == ShaderGraphics) ? RegRangeGfxSh : RegRangeCsSh;
+
+    return OptimizePm4SetRegPairsPacked<RegType>(pRegPairs, numRegs, pCmdSpace);
 }
 
 template
 uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs<ShaderGraphics>(
-    PackedRegisterPair* pRegPairs,
-    uint32              numRegs,
-    uint32*             pCmdSpace);
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace);
 template
 uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs<ShaderCompute>(
-    PackedRegisterPair* pRegPairs,
-    uint32              numRegs,
-    uint32*             pCmdSpace);
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace);
+
+// =====================================================================================================================
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <Pm4ShaderType ShaderType>
+uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegs,
+    uint32*                  pCmdSpace)
+{
+    constexpr RegisterRangeType RegType = (ShaderType == ShaderGraphics) ? RegRangeGfxSh : RegRangeCsSh;
+
+    return OptimizePm4SetRegPairs<RegType>(pRegPairs, numRegs, pCmdSpace);
+}
+
+template
+uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs<ShaderGraphics>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegs,
+    uint32*                  pCmdSpace);
 
 // =====================================================================================================================
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* Pm4Optimizer::WriteOptimizedSetContextRegPairs(
-    PackedRegisterPair* pRegPairs,
-    uint32              numRegs,
-    uint32*             pCmdSpace)
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegs,
+    uint32*                  pCmdSpace)
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    m_dstContainsSrc = false;
-#endif
-    return OptimizePm4SetRegPairsPacked<ShaderGraphics, false>(pRegPairs, numRegs, pCmdSpace);
+    return OptimizePm4SetRegPairs<RegRangeContext>(pRegPairs, numRegs, pCmdSpace);
+}
+
+// =====================================================================================================================
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+uint32* Pm4Optimizer::WriteOptimizedSetContextRegPairs(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace)
+{
+    return OptimizePm4SetRegPairsPacked<RegRangeContext>(pRegPairs, numRegs, pCmdSpace);
 }
 
 // =====================================================================================================================
 // Returns a pointer to the next free location in the optimized command stream.
-template <Pm4ShaderType ShaderType, bool IsShReg>
-uint32* Pm4Optimizer::OptimizePm4SetRegPairsPacked(
-    PackedRegisterPair* pRegPairs,
-    uint32              numRegs,
-    uint32*             pDstCmd)
+template <RegisterRangeType RegType>
+uint32* Pm4Optimizer::OptimizePm4SetRegPairs(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegs,
+    uint32*                  pCmdSpace)
 {
-    // Determine which of the registers written by this set command can't be skipped because they must always be set or
-    // are taking on a new value.
-    //
-    // We assume that no more than 32 registers are being set.
-    // If we ever encounter a set command with more than 32 registers that has redundant values the assert below
-    // will trigger.
-    constexpr uint32 NumShaderStages = (ShaderType == ShaderCompute) ? Gfx11NumRegPairSupportedStagesCs
-                                                                     : Gfx11NumRegPairSupportedStagesGfx;
-    constexpr uint32 RegisterCount   = IsShReg ? ShRegUsedRangeSize : CntxRegUsedRangeSize;
+    static_assert((RegType == RegRangeContext) || (RegType == RegRangeGfxSh) || (RegType == RegRangeCsSh));
+
+    constexpr uint32 RegisterCount = (RegType == RegRangeContext) ? CntxRegUsedRangeSize : ShRegUsedRangeSize;
 
     // We cast to void to avoid the compiler complaining about mismatching RegisterCount despite matching types.
-    void* pRegState = IsShReg ? static_cast<void*>(&m_shRegs) : static_cast<void*>(&m_cntxRegs);
+    void* pRegState = (RegType == RegRangeContext) ?  static_cast<void*>(&m_cntxRegs) : static_cast<void*>(&m_shRegs);
 
-    uint32 keepRegCount               = 0;
-    uint32 validMask[NumShaderStages] = {};
+    uint32* pStart      = pCmdSpace;
+    uint32  numRegsKept = 0;
+    size_t  packetSize  = 0;
+
+    // Reserve a spot for the header.
+    pCmdSpace++;
+
     for (uint32 i = 0; i < numRegs; i++)
     {
-        const uint32 pairIdx = i / 2;
-        const auto&  pair    = pRegPairs[pairIdx];
-
-        const uint16 offset = ((i % 2) == 0) ? pair.offset0 : pair.offset1;
-        const uint32 value  = ((i % 2) == 0) ? pair.value0  : pair.value1;
-
-        if (UpdateRegState<RegisterCount>(value, offset, m_isTempDisabled, pRegState))
+        // Check if we must keep this register - if so add it to the command space.
+        if (UpdateRegState<RegisterCount>(pRegPairs[i].value, pRegPairs[i].offset, pRegState))
         {
-            WideBitfieldSetBit(validMask, i);
-            keepRegCount++;
+            pCmdSpace[0] = pRegPairs[i].offset;
+            pCmdSpace[1] = pRegPairs[i].value;
+            pCmdSpace += 2;
+
+            numRegsKept++;
         }
     }
 
-    if (keepRegCount == numRegs)
+    if (numRegsKept > 0)
     {
-        pDstCmd += m_cmdUtil.BuildSetPackedRegPairs<ShaderType>(pRegPairs, keepRegCount, IsShReg, pDstCmd);
+        packetSize = CmdUtil::BuildSetRegPairsHeader<RegType>(numRegsKept, pStart);
     }
-    else if (keepRegCount > 0)
+    else
     {
-        // Keep some register pairs
-        pDstCmd +=
-            m_cmdUtil.BuildSetMaskedPackedRegPairs<ShaderType, NumShaderStages>(pRegPairs, validMask, IsShReg, pDstCmd);
+        // Remove the header reservation if we filtered all regs.
+        pCmdSpace--;
     }
+
+    PAL_DEBUG_BUILD_ONLY_ASSERT(packetSize == size_t(pCmdSpace - pStart));
+
+    return pCmdSpace;
+}
+
+template
+uint32* Pm4Optimizer::OptimizePm4SetRegPairs<RegRangeGfxSh>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegs,
+    uint32*                  pCmdSpace);
+template
+uint32* Pm4Optimizer::OptimizePm4SetRegPairs<RegRangeContext>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegs,
+    uint32*                  pCmdSpace);
+
+static constexpr uint32 PackedRegisterPairSizeInDws = sizeof(PackedRegisterPair) / sizeof(uint32);
+
+// =====================================================================================================================
+// Local helper for OptimizePm4SetRegPairsPacked.
+// This helper accumulates register state into a local PackedRegisterPair until it is full and them emits it into the
+// command stream.
+static uint32* OptPm4SetRegPairsPackedAddRegHelper(
+    uint32              offsetToAdd,
+    uint32              valueToAdd,
+    PackedRegisterPair* pTempStorage,
+    uint32*             pPendingRegs,
+    uint32*             pNumPairsAdded,
+    uint32*             pDstCmd)
+{
+    // If one register is already pending in pTempStorage:
+    //   Add the new offset/value, emit PackedRegisterPair into the command stream and update associated metadata.
+    if (*pPendingRegs == 1)
+    {
+        pTempStorage->offset1 = offsetToAdd;
+        pTempStorage->value1  = valueToAdd;
+
+        memcpy(pDstCmd, pTempStorage, sizeof(PackedRegisterPair));
+
+        pDstCmd += PackedRegisterPairSizeInDws;
+        *pPendingRegs = 0;
+        (*pNumPairsAdded)++;
+    }
+    // If no registers are pending:
+    //   Simply add the new offset/value to pTempStorage and update pPendingRegs.
+    else
+    {
+        PAL_DEBUG_BUILD_ONLY_ASSERT(*pPendingRegs == 0);
+
+        pTempStorage->offset0 = offsetToAdd;
+        pTempStorage->value0  = valueToAdd;
+        *pPendingRegs = 1;
+    }
+
+    return pDstCmd;
+}
+
+// =====================================================================================================================
+// Returns a pointer to the next free location in the optimized command stream.
+template <RegisterRangeType RegType>
+uint32* Pm4Optimizer::OptimizePm4SetRegPairsPacked(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pDstCmd)
+{
+    static_assert((RegType == RegRangeContext) || (RegType == RegRangeGfxSh) || (RegType == RegRangeCsSh));
+
+    constexpr bool          IsCtx         = (RegType == RegRangeContext);
+    constexpr Pm4ShaderType ShaderType    = (RegType == RegRangeCsSh) ? ShaderCompute : ShaderGraphics;
+    constexpr uint32        RegisterCount = IsCtx ? CntxRegUsedRangeSize : ShRegUsedRangeSize;
+
+    // We cast to void to avoid the compiler complaining about mismatching RegisterCount despite matching types.
+    void*        pRegState     = IsCtx ? static_cast<void*>(&m_cntxRegs) : static_cast<void*>(&m_shRegs);
+    const bool   numRegsIsEven = ((numRegs % 2) == 0);
+    const uint32 loopCount     = Pow2Align(numRegs, 2) / 2;
+
+    uint32*            pStart              = pDstCmd;
+    uint32             numPackedPairsAdded = 0;
+    uint32             pendingRegs         = 0;
+    size_t             packetSize          = 0;
+    PackedRegisterPair tempStorage;
+
+    // Reserve SetRegPairsPackedHeaderSizeInDwords DWs (2) for the header/regCount.
+    pDstCmd += CmdUtil::SetRegPairsPackedHeaderSizeInDwords;
+
+    // Loop over each pair of regs
+    for (uint32 i = 0; i < loopCount; i++)
+    {
+        const bool isLastLoop = (i == (loopCount - 1));
+
+        // Check if value0 is unique - this is always valid.
+        if (UpdateRegState<RegisterCount>(pRegPairs[i].value0, pRegPairs[i].offset0, pRegState))
+        {
+            pDstCmd = OptPm4SetRegPairsPackedAddRegHelper(pRegPairs[i].offset0, pRegPairs[i].value0, &tempStorage,
+                                                          &pendingRegs, &numPackedPairsAdded, pDstCmd);
+        }
+
+        // Check if value1 is unique - only valid if an even # of regs is set or we're not on the last loop
+        // When setting an off # of regs, the last value1 is not valid.
+        if (numRegsIsEven || (isLastLoop == false))
+        {
+            if (UpdateRegState<RegisterCount>(pRegPairs[i].value1, pRegPairs[i].offset1, pRegState))
+            {
+                pDstCmd = OptPm4SetRegPairsPackedAddRegHelper(pRegPairs[i].offset1, pRegPairs[i].value1, &tempStorage,
+                                                              &pendingRegs, &numPackedPairsAdded, pDstCmd);
+            }
+        }
+    }
+
+    PAL_DEBUG_BUILD_ONLY_ASSERT((pendingRegs == 0) || (pendingRegs == 1));
+
+    // If we already added any packed pairs - we will need to use a REG_PAIRS_PACKED packet.
+    if (numPackedPairsAdded > 0)
+    {
+        // If we have a pending reg, fill in the last slot with the very first reg and add the "pair".
+        // It is important that we fill out the extra slot with a register offset/value far away from
+        // it as there are specific rules about restrictions with close offset/value pairs.
+        // Using the first one should always be safe.
+        if (pendingRegs > 0)
+        {
+            tempStorage.offset1 = pRegPairs[0].offset0;
+            tempStorage.value1  = pRegPairs[0].value0;
+
+            memcpy(pDstCmd, &tempStorage, sizeof(PackedRegisterPair));
+            pDstCmd += PackedRegisterPairSizeInDws;
+
+            numPackedPairsAdded++;
+        }
+
+        // Add the header for the REG_PAIRS_PACKED packet.
+        packetSize = m_cmdUtil.BuildSetRegPairsPackedHeader<RegType>(numPackedPairsAdded * 2, pStart);
+    }
+    // We only have a single register to write, use the normal SET_*_REG packet.
+    else if (pendingRegs > 0)
+    {
+        packetSize = IsCtx ?
+                     m_cmdUtil.BuildSetOneContextReg(tempStorage.offset0 + CONTEXT_SPACE_START, pStart) :
+                     m_cmdUtil.BuildSetOneShReg(tempStorage.offset0 + PERSISTENT_SPACE_START, ShaderType, pStart);
+
+        // All potential packets have 2 DWs of fixed header size.
+        static_assert((CmdUtil::ContextRegSizeDwords == 2) && (CmdUtil::ShRegSizeDwords == 2),
+                      "Context and Sh packet sizes do not match REG_PAIRS_PACKED!");
+
+        pDstCmd[0] = tempStorage.value0; //< pDstCmd already incremented to the payload.
+        pDstCmd++;
+    }
+    else
+    {
+        // No unique regs added, remove the pre-allocated header space.
+        pDstCmd -= CmdUtil::SetRegPairsPackedHeaderSizeInDwords;
+    }
+
+    PAL_DEBUG_BUILD_ONLY_ASSERT(packetSize == size_t(pDstCmd - pStart));
 
     return pDstCmd;
 }
@@ -374,7 +533,7 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
     uint32 keepRegMask  = 0;
     for (uint32 i = 0; i < numRegs; i++)
     {
-        if (UpdateRegState<RegisterCount>(pRegData[i], (regOffset + i), m_isTempDisabled, pRegState))
+        if (UpdateRegState<RegisterCount>(pRegData[i], (regOffset + i), pRegState))
         {
             keepRegCount++;
             keepRegMask |= 1 << i;
@@ -430,11 +589,6 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
 
                 memmove(pDstCmd, pRegData + clauseStartIdx, clauseRegCount * sizeof(uint32));
                 pDstCmd += clauseRegCount;
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-                // If we're reading and writing to the same buffer we can't write past the end of this clause's data.
-                PAL_ASSERT((m_dstContainsSrc == false) || (pDstCmd <= pRegData + clauseEndIdx + 1));
-#endif
 
                 // The next clause begins at the current index.
                 clauseStartIdx = curRegIdx;

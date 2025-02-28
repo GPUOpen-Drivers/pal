@@ -62,64 +62,33 @@ MsaaState::MsaaState(
     const MsaaStateCreateInfo& createInfo)
     :
     Pal::MsaaState(createInfo),
-    m_log2Samples(0),
-    m_log2OcclusionQuerySamples(0)
+    m_log2Samples(Log2(createInfo.coverageSamples)),
+    m_log2OcclusionQuerySamples(Log2(createInfo.occlusionQuerySamples))
 {
-    m_paScAaConfig.u32All = 0;
-
     m_flags.u32All = 0;
     m_flags.waFixPostZConservativeRasterization = device.Settings().waFixPostZConservativeRasterization;
-    m_flags.gfx10_3 = IsGfx103Plus(*device.Parent());
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 854
-    m_flags.forceSampleRateShading = createInfo.flags.forceSampleRateShading;
-#endif
-
-    memset(&m_regs, 0, sizeof(m_regs));
-    Init(device, createInfo);
+    m_flags.forceSampleRateShading              = createInfo.flags.forceSampleRateShading;
+    m_flags.usesLinesStipple                    = createInfo.flags.enableLineStipple;
 }
 
 // =====================================================================================================================
-// Copies this MSAA state's PM4 commands into the specified command buffer. Returns the next unused DWORD in pCmdSpace.
-uint32* MsaaState::WriteCommands(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const
-{
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_EQAA, m_regs.dbEqaa.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_AA_MASK_X0Y0_X1Y0,
-                                                   mmPA_SC_AA_MASK_X0Y1_X1Y1,
-                                                   &m_regs.paScAaMask1,
-                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_MODE_CNTL_0, m_regs.paScModeCntl0.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_ALPHA_TO_MASK, m_regs.dbAlphaToMask.u32All, pCmdSpace);
-
-        if (m_flags.waFixPostZConservativeRasterization != 0)
-        {
-            uint32 dbReservedReg2Mask = static_cast<uint32_t>(~DB_RESERVED_REG_2__FIELD_1_MASK);
-
-            pCmdSpace = pCmdStream->WriteContextRegRmw(mmDB_RESERVED_REG_2,
-                                                       dbReservedReg2Mask,
-                                                       m_regs.dbReservedReg2,
-                                                       pCmdSpace);
-        }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Pre-constructs all the packets required to set the MSAA state
-void MsaaState::Init(
-    const Device&              device,
-    const MsaaStateCreateInfo& msaaState)
+static inline void SetupRegs(
+    const Device&                             device,
+    const MsaaStateCreateInfo&                msaaState,
+    regDB_EQAA*                               pDbEqaa,
+    regDB_ALPHA_TO_MASK*                      pDbAlphaToMask,
+    uint32*                                   pDbReservedReg2,
+    regPA_SC_AA_MASK_X0Y0_X1Y0*               pPaScAaMask1,
+    regPA_SC_AA_MASK_X0Y1_X1Y1*               pPaScAaMask2,
+    regPA_SC_MODE_CNTL_0*                     pPaScModeCntl0,
+    regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL* pPaScConsRastCntl,
+    regPA_SC_AA_CONFIG*                       pPaScAaConfig)
 {
     const auto& settings = GetGfx9Settings(*device.Parent());
 
-    m_log2Samples               = Log2(msaaState.coverageSamples);
-    m_log2OcclusionQuerySamples = Log2(msaaState.occlusionQuerySamples);
-
     // Use the supplied sample mask to initialize the PA_SC_AA_MASK_** registers:
-    uint32 usedMask    = (msaaState.sampleMask & ((1 << NumSamples()) - 1));
-    uint32 maskSamples = NumSamples();
+    uint32 usedMask    = (msaaState.sampleMask & ((1 << msaaState.coverageSamples) - 1));
+    uint32 maskSamples = msaaState.coverageSamples;
 
     // HW requires us to replicate the sample mask to all 16 bits if there are fewer than 16 samples active.
     while (maskSamples < 16)
@@ -128,41 +97,45 @@ void MsaaState::Init(
         maskSamples <<= 1;
     }
 
-    m_regs.paScAaMask1.u32All = ((usedMask << 16) | usedMask);
-    m_regs.paScAaMask2.u32All = ((usedMask << 16) | usedMask);
+    pPaScAaMask1->u32All = ((usedMask << 16) | usedMask);
+    pPaScAaMask2->u32All = ((usedMask << 16) | usedMask);
 
     // Setup the PA_SC_MODE_CNTL_0 register
-    m_regs.paScModeCntl0.u32All = 0;
-    m_regs.paScModeCntl0.bits.LINE_STIPPLE_ENABLE  = msaaState.flags.enableLineStipple;
-    m_regs.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE = 1;
-    m_regs.paScModeCntl0.bits.MSAA_ENABLE          = (((NumSamples() > 1) ||
-                                                      (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
-    m_regs.paScModeCntl0.bits.ALTERNATE_RBS_PER_TILE = 1;
+    pPaScModeCntl0->u32All                      = 0;
+    pPaScModeCntl0->bits.LINE_STIPPLE_ENABLE    = msaaState.flags.enableLineStipple;
+    pPaScModeCntl0->bits.VPORT_SCISSOR_ENABLE   = 1;
+    pPaScModeCntl0->bits.MSAA_ENABLE            = (((msaaState.coverageSamples > 1) ||
+                                                    (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
+    pPaScModeCntl0->bits.ALTERNATE_RBS_PER_TILE = 1;
 
     // Setup the PA_SC_AA_CONFIG and DB_EQAA registers.
-    m_regs.dbEqaa.bits.STATIC_ANCHOR_ASSOCIATIONS = 1;
-    m_regs.dbEqaa.bits.HIGH_QUALITY_INTERSECTIONS = 1;
-    m_regs.dbEqaa.bits.INCOHERENT_EQAA_READS      = 1;
+    pDbEqaa->u32All                          = 0;
+    pDbEqaa->bits.STATIC_ANCHOR_ASSOCIATIONS = 1;
+    pDbEqaa->bits.HIGH_QUALITY_INTERSECTIONS = 1;
+    pDbEqaa->bits.INCOHERENT_EQAA_READS      = 1;
 
     // INTERPOLATE_COMP_Z should always be set to 0
-    m_regs.dbEqaa.bits.INTERPOLATE_COMP_Z = 0;
+    pDbEqaa->bits.INTERPOLATE_COMP_Z         = 0;
+
+    pPaScAaConfig->u32All = 0;
 
     if ((msaaState.coverageSamples > 1) || (msaaState.flags.enable1xMsaaSampleLocations))
     {
         const uint32 log2ShaderExportSamples = Log2(msaaState.shaderExportMaskSamples);
 
-        m_paScAaConfig.bits.MSAA_EXPOSED_SAMPLES = Log2(msaaState.exposedSamples);
+        pPaScAaConfig->bits.MSAA_EXPOSED_SAMPLES = Log2(msaaState.exposedSamples);
 
-        m_regs.dbEqaa.bits.MAX_ANCHOR_SAMPLES        = Log2(msaaState.depthStencilSamples);
-        m_regs.dbEqaa.bits.PS_ITER_SAMPLES           = Log2(msaaState.pixelShaderSamples);
-        m_regs.dbEqaa.bits.MASK_EXPORT_NUM_SAMPLES   = log2ShaderExportSamples;
-        m_regs.dbEqaa.bits.ALPHA_TO_MASK_NUM_SAMPLES = Log2(msaaState.alphaToCoverageSamples);
-        m_regs.dbEqaa.bits.OVERRASTERIZATION_AMOUNT  = log2ShaderExportSamples - Log2(msaaState.sampleClusters);
+        pDbEqaa->bits.MAX_ANCHOR_SAMPLES        = Log2(msaaState.depthStencilSamples);
+        pDbEqaa->bits.PS_ITER_SAMPLES           = Log2(msaaState.pixelShaderSamples);
+        pDbEqaa->bits.MASK_EXPORT_NUM_SAMPLES   = log2ShaderExportSamples;
+        pDbEqaa->bits.ALPHA_TO_MASK_NUM_SAMPLES = Log2(msaaState.alphaToCoverageSamples);
+        pDbEqaa->bits.OVERRASTERIZATION_AMOUNT  = log2ShaderExportSamples - Log2(msaaState.sampleClusters);
     }
 
     // The DB_SHADER_CONTROL register has a "ALPHA_TO_MASK_DISABLE" field that overrides this one.  DB_SHADER_CONTROL
     // is owned by the pipeline.  Always set this bit here and use the DB_SHADER_CONTROL to control the enabling.
-    m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_ENABLE = 1;
+    pDbAlphaToMask->u32All                    = 0;
+    pDbAlphaToMask->bits.ALPHA_TO_MASK_ENABLE = 1;
 
     // The following code sets up the alpha to mask dithering pattern.
     // If all offsets are set to the same value then there will be no dithering, and the number of gradations of
@@ -171,51 +144,53 @@ void MsaaState::Init(
     // coverage.
     if (msaaState.flags.disableAlphaToCoverageDither)
     {
-        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET0 = 2;
-        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET1 = 2;
-        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET2 = 2;
-        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET3 = 2;
-        m_regs.dbAlphaToMask.bits.OFFSET_ROUND          = 0;
+        pDbAlphaToMask->bits.ALPHA_TO_MASK_OFFSET0 = 2;
+        pDbAlphaToMask->bits.ALPHA_TO_MASK_OFFSET1 = 2;
+        pDbAlphaToMask->bits.ALPHA_TO_MASK_OFFSET2 = 2;
+        pDbAlphaToMask->bits.ALPHA_TO_MASK_OFFSET3 = 2;
+        pDbAlphaToMask->bits.OFFSET_ROUND          = 0;
     }
     else
     {
-        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET0 = 3;
-        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET1 = 1;
-        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET2 = 0;
-        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET3 = 2;
-        m_regs.dbAlphaToMask.bits.OFFSET_ROUND          = 1;
+        pDbAlphaToMask->bits.ALPHA_TO_MASK_OFFSET0 = 3;
+        pDbAlphaToMask->bits.ALPHA_TO_MASK_OFFSET1 = 1;
+        pDbAlphaToMask->bits.ALPHA_TO_MASK_OFFSET2 = 0;
+        pDbAlphaToMask->bits.ALPHA_TO_MASK_OFFSET3 = 2;
+        pDbAlphaToMask->bits.OFFSET_ROUND          = 1;
     }
+
+    pPaScConsRastCntl->u32All = 0;
 
     if (msaaState.flags.enableConservativeRasterization)
     {
-        m_paScAaConfig.bits.AA_MASK_CENTROID_DTMN = 1;
+        pPaScAaConfig->bits.AA_MASK_CENTROID_DTMN = 1;
 
-        m_regs.paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 0;
-        m_regs.paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 1;
-        m_regs.paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 1;
-        m_regs.paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 1;
+        pPaScConsRastCntl->bits.NULL_SQUAD_AA_MASK_ENABLE     = 0;
+        pPaScConsRastCntl->bits.PREZ_AA_MASK_ENABLE           = 1;
+        pPaScConsRastCntl->bits.POSTZ_AA_MASK_ENABLE          = 1;
+        pPaScConsRastCntl->bits.CENTROID_SAMPLE_OVERRIDE      = 1;
 
-        m_regs.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION = 0;
-        m_regs.dbEqaa.bits.OVERRASTERIZATION_AMOUNT       = 4;
+        pDbEqaa->bits.ENABLE_POSTZ_OVERRASTERIZATION = 0;
+        pDbEqaa->bits.OVERRASTERIZATION_AMOUNT       = 4;
 
         switch (msaaState.conservativeRasterizationMode)
         {
         case ConservativeRasterizationMode::Overestimate:
-            m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE              = 1;
-            m_regs.paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 0;
-            m_regs.paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
-            m_regs.paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 1;
-            m_regs.paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 1;
-            m_regs.paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = (settings.disableCoverageAaMask ? 0 : 1);
+            pPaScConsRastCntl->bits.OVER_RAST_ENABLE              = 1;
+            pPaScConsRastCntl->bits.OVER_RAST_SAMPLE_SELECT       = 0;
+            pPaScConsRastCntl->bits.UNDER_RAST_ENABLE             = 0;
+            pPaScConsRastCntl->bits.UNDER_RAST_SAMPLE_SELECT      = 1;
+            pPaScConsRastCntl->bits.PBB_UNCERTAINTY_REGION_ENABLE = 1;
+            pPaScConsRastCntl->bits.COVERAGE_AA_MASK_ENABLE       = (settings.disableCoverageAaMask ? 0 : 1);
             break;
 
         case ConservativeRasterizationMode::Underestimate:
-            m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
-            m_regs.paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 1;
-            m_regs.paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 1;
-            m_regs.paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 0;
-            m_regs.paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
-            m_regs.paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = 0;
+            pPaScConsRastCntl->bits.OVER_RAST_ENABLE              = 0;
+            pPaScConsRastCntl->bits.OVER_RAST_SAMPLE_SELECT       = 1;
+            pPaScConsRastCntl->bits.UNDER_RAST_ENABLE             = 1;
+            pPaScConsRastCntl->bits.UNDER_RAST_SAMPLE_SELECT      = 0;
+            pPaScConsRastCntl->bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
+            pPaScConsRastCntl->bits.COVERAGE_AA_MASK_ENABLE       = 0;
             break;
 
         case ConservativeRasterizationMode::Count:
@@ -225,17 +200,17 @@ void MsaaState::Init(
     }
     else
     {
-        m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
-        m_regs.paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
-        m_regs.paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
-        m_regs.paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 1;
-        m_regs.paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 0;
-        m_regs.paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 0;
-        m_regs.paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 0;
+        pPaScConsRastCntl->bits.OVER_RAST_ENABLE              = 0;
+        pPaScConsRastCntl->bits.UNDER_RAST_ENABLE             = 0;
+        pPaScConsRastCntl->bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
+        pPaScConsRastCntl->bits.NULL_SQUAD_AA_MASK_ENABLE     = 1;
+        pPaScConsRastCntl->bits.PREZ_AA_MASK_ENABLE           = 0;
+        pPaScConsRastCntl->bits.POSTZ_AA_MASK_ENABLE          = 0;
+        pPaScConsRastCntl->bits.CENTROID_SAMPLE_OVERRIDE      = 0;
     }
 
     if (settings.waFixPostZConservativeRasterization &&
-        (TestAllFlagsSet(m_regs.paScAaMask1.u32All, ((1 << msaaState.exposedSamples) - 1)) == false))
+        (TestAllFlagsSet(pPaScAaMask1->u32All, ((1 << msaaState.exposedSamples) - 1)) == false))
     {
         //    We have an issue in Navi10 related to Late - Z Conservative rasterization when the mask is partially lit.
         //
@@ -249,11 +224,15 @@ void MsaaState::Init(
 
         // NOTE: A check to confirm equivalence b/w DB_RESERVED_REG_2__FIELD_1_MASK offset for Gfx101 and Gfx103 is
         //       already performed in WriteCommands() above.
-        m_regs.dbReservedReg2 = DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
+        *pDbReservedReg2 = DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
+    }
+    else
+    {
+        *pDbReservedReg2 = 0;
     }
 
     // Make sure we don't write outside of the state this class owns.
-    PAL_ASSERT((m_paScAaConfig.u32All & (~PcScAaConfigMask)) == 0);
+    PAL_ASSERT((pPaScAaConfig->u32All & (~MsaaState::PcScAaConfigMask)) == 0);
 }
 
 // =====================================================================================================================
@@ -431,6 +410,128 @@ uint32* MsaaState::WriteSamplePositions(
                                                    mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3,
                                                    &paScSampleQuad,
                                                    pCmdSpace);
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+Gfx11MsaaStateRs64::Gfx11MsaaStateRs64(
+    const Device&              device,
+    const MsaaStateCreateInfo& msaaState)
+    :
+    Gfx9::MsaaState(device, msaaState)
+{
+    uint32 dbReservedReg2; //< Not needed for GFX11
+
+    Regs::Init(m_regs);
+
+    SetupRegs(device,
+              msaaState,
+              Regs::Get<mmDB_EQAA, DB_EQAA>(m_regs),
+              Regs::Get<mmDB_ALPHA_TO_MASK, DB_ALPHA_TO_MASK>(m_regs),
+              &dbReservedReg2,
+              Regs::Get<mmPA_SC_AA_MASK_X0Y0_X1Y0, PA_SC_AA_MASK_X0Y0_X1Y0>(m_regs),
+              Regs::Get<mmPA_SC_AA_MASK_X0Y1_X1Y1, PA_SC_AA_MASK_X0Y1_X1Y1>(m_regs),
+              Regs::Get<mmPA_SC_MODE_CNTL_0, PA_SC_MODE_CNTL_0>(m_regs),
+              &m_paScConsRastCntl,
+              &m_paScAaConfig);
+
+    Regs::Finalize(m_regs);
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind the state object to the specified bind point. Returns the next unused DWORD
+// in pCmdSpace.
+uint32* Gfx11MsaaStateRs64::WriteCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    PAL_ASSERT(m_flags.waFixPostZConservativeRasterization == 0); //< Navi10 only SWA
+
+    return pCmdStream->WriteSetConstContextRegPairs(m_regs, Regs::NumRegsWritten(), pCmdSpace);
+}
+
+// =====================================================================================================================
+Gfx11MsaaStateF32::Gfx11MsaaStateF32(
+    const Device&              device,
+    const MsaaStateCreateInfo& msaaState)
+    :
+    Gfx9::MsaaState(device, msaaState)
+{
+    uint32 dbReservedReg2; //< Not needed for GFX11
+
+    Regs::Init(m_regs);
+
+    SetupRegs(device,
+              msaaState,
+              Regs::Get<mmDB_EQAA, DB_EQAA>(m_regs),
+              Regs::Get<mmDB_ALPHA_TO_MASK, DB_ALPHA_TO_MASK>(m_regs),
+              &dbReservedReg2,
+              Regs::Get<mmPA_SC_AA_MASK_X0Y0_X1Y0, PA_SC_AA_MASK_X0Y0_X1Y0>(m_regs),
+              Regs::Get<mmPA_SC_AA_MASK_X0Y1_X1Y1, PA_SC_AA_MASK_X0Y1_X1Y1>(m_regs),
+              Regs::Get<mmPA_SC_MODE_CNTL_0, PA_SC_MODE_CNTL_0>(m_regs),
+              &m_paScConsRastCntl,
+              &m_paScAaConfig);
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind the state object to the specified bind point. Returns the next unused DWORD
+// in pCmdSpace.
+uint32* Gfx11MsaaStateF32::WriteCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    PAL_ASSERT(m_flags.waFixPostZConservativeRasterization == 0); //< Navi10 only SWA
+
+    return pCmdStream->WriteSetContextRegPairs(m_regs, Regs::Size(), pCmdSpace);
+}
+
+// =====================================================================================================================
+Gfx10MsaaState::Gfx10MsaaState(
+    const Device&              device,
+    const MsaaStateCreateInfo& msaaState)
+    :
+    Gfx9::MsaaState(device, msaaState)
+{
+    SetupRegs(device,
+              msaaState,
+              &(m_regs.dbEqaa),
+              &(m_regs.dbAlphaToMask),
+              &m_dbReservedReg2,
+              &(m_regs.paScAaMask1),
+              &(m_regs.paScAaMask2),
+              &(m_regs.paScModeCntl0),
+              &m_paScConsRastCntl,
+              &m_paScAaConfig);
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind the state object to the specified bind point. Returns the next unused DWORD
+// in pCmdSpace.
+uint32* Gfx10MsaaState::WriteCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_EQAA, m_regs.dbEqaa.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_AA_MASK_X0Y0_X1Y0,
+                                                   mmPA_SC_AA_MASK_X0Y1_X1Y1,
+                                                   &m_regs.paScAaMask1,
+                                                   pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_MODE_CNTL_0, m_regs.paScModeCntl0.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_ALPHA_TO_MASK, m_regs.dbAlphaToMask.u32All, pCmdSpace);
+
+    if (m_flags.waFixPostZConservativeRasterization != 0)
+    {
+        uint32 dbReservedReg2Mask = static_cast<uint32>(~DB_RESERVED_REG_2__FIELD_1_MASK);
+
+        pCmdSpace = pCmdStream->WriteContextRegRmw(mmDB_RESERVED_REG_2,
+                                                   dbReservedReg2Mask,
+                                                   m_dbReservedReg2,
+                                                   pCmdSpace);
+    }
 
     return pCmdSpace;
 }

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -661,6 +661,9 @@ BOOL_32 Gfx11Lib::HwlInitGlobalParams(
     // And more importantly, SW AddrLib doesn't support sw equation/pattern for PI != 256 case.
     ADDR_ASSERT(m_pipeInterleaveBytes == ADDR_PIPEINTERLEAVE_256B);
 
+    // Gfx10+ chips treat packed 8-bit 422 formats as 32bpe with 2pix/elem.
+    m_configFlags.use32bppFor422Fmt = TRUE;
+
     // These fields are deprecated on GFX11; they do nothing on HW.
     m_maxCompFrag     = 1;
     m_maxCompFragLog2 = 0;
@@ -730,7 +733,7 @@ ChipFamily Gfx11Lib::HwlConvertChipFamily(
 #endif
             break;
 
-#if ADDR_STRIX1_BUILD
+#if ADDR_STRIX1_BUILD|| ADDR_STRIX_HALO_BUILD
         case FAMILY_STX:
             {
                 m_settings.isStrix = 1;
@@ -746,9 +749,6 @@ ChipFamily Gfx11Lib::HwlConvertChipFamily(
             ADDR_ASSERT(!"Unknown chip family");
             break;
     }
-
-    // TODO: figure out whether following logic is correct with more coming details in spec
-    m_configFlags.use32bppFor422Fmt = TRUE;
 
     return family;
 }
@@ -1733,7 +1733,7 @@ UINT_32 Gfx11Lib::GetValidDisplaySwizzleModes(
 #if ADDR_PHOENIX_BUILD
             || (m_settings.isPhoenix)
 #endif
-#if ADDR_STRIX1_BUILD
+#if ADDR_STRIX1_BUILD|| ADDR_STRIX_HALO_BUILD
             || (m_settings.isStrix)
 #endif
            )

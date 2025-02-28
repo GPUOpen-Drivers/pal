@@ -284,11 +284,8 @@ Result CmdBuffer::Begin(
                 // Reset and initialize all internal state before we start building commands.
                 ResetState();
 
-                result = AddPreamble();
-            }
+                AddPreamble();
 
-            if (result == Result::Success)
-            {
                 m_recordState = CmdBufferRecordState::Building;
 
                 // Don't really need to do this unless PM4 dumping has been enabled in the settings, but it takes
@@ -343,15 +340,15 @@ Result CmdBuffer::End()
     }
     else if (m_recordState == CmdBufferRecordState::Building)
     {
-        result = AddPostamble();
+        AddPostamble();
 
         // Update the last paging fence to reflect that of the command allocator and of all nested command buffers
         // called by this command buffer (if any).
         UpdateLastPagingFence(m_pCmdAllocator->LastPagingFence());
 
         // NOTE: The root chunk comes from the last command stream in this command buffer because for universal command
-        // buffers, the order of command streams is CE, DE. We always want the "DE" to be the root since the CE may not
-        // have any commands, depending on what operations get recorded to the command buffer.
+        // buffers, the order of command streams is ACE, DE. We always want the "DE" to be the root since the ACE may
+        // not have any commands, depending on what operations get recorded to the command buffer.
         const Pal::CmdStream*const pCmdStream = GetCmdStream(NumCmdStreams() - 1);
 
         if (pCmdStream->GetNumChunks() > 0)
@@ -378,10 +375,7 @@ Result CmdBuffer::End()
 
         }
 
-        if (result == Result::Success)
-        {
-            m_recordState = CmdBufferRecordState::Executable;
-        }
+        m_recordState = CmdBufferRecordState::Executable;
     }
     else
     {
@@ -765,7 +759,7 @@ void CmdBuffer::CmdBarrier(
     AutoBuffer<bool, 32, Platform>  processed(barrierInfo.transitionCount, m_device.GetPlatform());
     if (processed.Capacity() >= barrierInfo.transitionCount)
     {
-        memset(&processed[0], 0, sizeof(bool) * barrierInfo.transitionCount);
+        memset(processed.Data(), 0, sizeof(bool) * barrierInfo.transitionCount);
 
         for (uint32  idx = 0; idx < barrierInfo.transitionCount; idx++)
         {
@@ -1355,15 +1349,26 @@ void CmdBuffer::GetCmdBufDumpFilename(
 
 // =====================================================================================================================
 // Gets the subEngineId for dump headers
-const uint32 GetSubEngineId(
+uint32 GetSubEngineId(
     const SubEngineType subEngineType,
     const EngineType    engineType,
     const bool          isPreamble)
 {
     uint32 subEngineId = 0; // DE subengine ID
 
-    if ((engineType == EngineType::EngineTypeCompute) ||
-        (subEngineType == SubEngineType::AsyncCompute))
+    if (subEngineType == SubEngineType::ConstantEngine)
+    {
+        if (isPreamble)
+        {
+            subEngineId = 2; // CE preamble subengine ID
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS(); // Should not hit here
+        }
+    }
+    else if ((engineType == EngineType::EngineTypeCompute) ||
+             (subEngineType == SubEngineType::AsyncCompute))
     {
         subEngineId = 3; // Compute subengine ID
     }
@@ -1501,9 +1506,9 @@ void CmdBuffer::VerifyBarrierTransitions(
     ) const
 {
     AutoBuffer<bool, 16, Platform>  processed(barrierInfo.imageBarrierCount, m_device.GetPlatform());
-    if (processed.Capacity() >= barrierInfo.imageBarrierCount)
+    if ((barrierInfo.imageBarrierCount > 0) && (processed.Capacity() >= barrierInfo.imageBarrierCount))
     {
-        memset(&processed[0], 0, sizeof(bool) * barrierInfo.imageBarrierCount);
+        memset(processed.Data(), 0, sizeof(bool) * barrierInfo.imageBarrierCount);
 
         for (uint32  idx = 0; idx < barrierInfo.imageBarrierCount; idx++)
         {

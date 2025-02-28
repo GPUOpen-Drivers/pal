@@ -62,12 +62,7 @@ public:
     virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
 
     void FinishTrace();
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     void UpdateFrame(Pal::IQueue *pQueue);
-#else
-    void UpdateFrame(Pal::CmdBuffer* pCmdBuffer);
-#endif
     void OnFrameUpdated();
 
     Pal::uint32 FrameCount() const { return m_frameCount; }
@@ -95,26 +90,23 @@ private:
                                     bool              traceEnd,
                                     Pal::ICmdBuffer** ppCmdBuf) const;
 
-    Pal::Platform* const m_pPlatform;          // Platform associated with this TraceController
-    Pal::uint64          m_supportedGpuMask;   // Bit mask of GPU indices that are capable of participating in the trace
-    CaptureMode          m_captureMode;        // Modality for determining the start frame of a trace
-    Pal::uint64          m_frameCount;         // The "global" frame count, incremented on every frame
-    Pal::uint64          m_prepStartIndex;     // The relative or absolute frame index indicating trace begin
-    Pal::uint64          m_frameTraceAccepted; // The frame number when the trace was accepted
-    Pal::uint32          m_numPrepFrames;      // Number of "warm-up" frames before the start frame
-    Pal::uint32          m_captureFrameCount;  // Number of frames to wait before ending the trace
-    Util::Mutex          m_framePresentLock;   // Lock over UpdateFrame/OnFrameUpdated
-    TraceSession*        m_pTraceSession;      // TraceSession owning this TraceController
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
-    Pal::IQueue*         m_pQueue;             // The queue being used to submit Begin/End GPU trace command buffers
-    Pal::ICmdBuffer*     m_pCmdBufTraceBegin;  // Command buffer to submit Trace Begin
-    Pal::ICmdBuffer*     m_pCmdBufTraceEnd;    // Command buffer to submit Trace End
-    Pal::IFence*         m_pTraceEndFence;     // Fence to wait for Trace End command buffer completion
-#else
-    Pal::CmdBuffer*      m_pCurrentCmdBuffer;  // GPU CmdBuffers for TraceSources to submit gpu-work at trace start/end
-#endif
+    Pal::Platform*const m_pPlatform;        // Platform associated with this TraceController
+
+    Pal::uint64      m_supportedGpuMask;    // Bit mask of GPU indices that are capable of participating in the trace
+    CaptureMode      m_captureMode;         // Modality for determining the start frame of a trace
+    Pal::uint64      m_frameCount;          // The "global" frame count, incremented on every frame
+    Pal::uint64      m_prepStartIndex;      // The relative or absolute frame index indicating trace begin
+    Pal::uint64      m_frameTraceAccepted;  // The frame number when the trace was accepted
+    Pal::uint32      m_numPrepFrames;       // Number of "warm-up" frames before the start frame
+    Pal::uint32      m_captureFrameCount;   // Number of frames to wait before ending the trace
+    Util::Mutex      m_framePresentLock;    // Lock over UpdateFrame/OnFrameUpdated
+    TraceSession*    m_pTraceSession;       // TraceSession owning this TraceController
+    Pal::IQueue*     m_pQueue;              // The queue being used to submit Begin/End GPU trace command buffers
+    Pal::ICmdBuffer* m_pCmdBufTraceBegin;   // Command buffer to submit Trace Begin
+    Pal::ICmdBuffer* m_pCmdBufTraceEnd;     // Command buffer to submit Trace End
+    Pal::IFence*     m_pTraceEndFence;      // Fence to wait for Trace End command buffer completion
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
-    Pal::ICmdBuffer*     m_pCmdBufTracePrepare; // Command buffer for recording during the prep phase
+    Pal::ICmdBuffer* m_pCmdBufTracePrepare; // Command buffer for recording during the prep phase
 #endif
 };
 

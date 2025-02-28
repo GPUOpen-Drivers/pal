@@ -184,11 +184,32 @@ Result Queue::Submit(
 
                 if (pCmdBuffer != nullptr)
                 {
-                    result = pendingInfo.pStateList->PushBack(pCmdBuffer->GetMemoryChunk());
+                    if (result == Result::Success)
+                    {
+                        result = pendingInfo.pStateList->PushBack(pCmdBuffer->GetMemoryChunk());
+                    }
 
                     if (result == Result::Success)
                     {
                         result = pendingInfo.pEventList->PushBack(pCmdBuffer->GetEventCache());
+                    }
+
+                    for (EventCache* pNestedEventCache : pCmdBuffer->GetNestedEventCaches())
+                    {
+                        if (result == Result::Success)
+                        {
+                            pNestedEventCache->TakeReference();
+                            result = pendingInfo.pEventList->PushBack(pNestedEventCache);
+                        }
+                    }
+
+                    for (MemoryChunk* pNestedMemoryChunk : pCmdBuffer->GetNestedMemoryChunks())
+                    {
+                        if (result == Result::Success)
+                        {
+                            pNestedMemoryChunk->TakeReference();
+                            result = pendingInfo.pStateList->PushBack(pNestedMemoryChunk);
+                        }
                     }
 
                     if (result != Result::Success)

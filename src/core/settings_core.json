@@ -343,6 +343,19 @@
       "Description": "This settings determines whether PAL supports native fence or not."
     },
     {
+      "Name": "FenceNoGpuAccess",
+      "Tags": [
+        "General",
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "If set, ask WDDM to manage these fences on the CPU (needed until KMD has full 64 bit fence support)."
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [

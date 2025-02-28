@@ -986,14 +986,13 @@ void ConvertClearColorToNativeFormat(
 // provided. For YUV formats, this will just call ConvertYuvColor(). A helper function to consolidate calls to the clear
 // color manipulation functions in palFormatInfo.h
 void ConvertAndPackClearColor(
-    const ClearColor& color,
-    SwizzledFormat    imgFormat,
-    SwizzledFormat    clearFormat,
-    SwizzledFormat    rawFormat,
-    uint32            plane,
-    bool              convertToNativeFmt,
-    bool              clearWithRawFmt,
-    uint32*           pPackedColor)
+    const ClearColor&     color,
+    SwizzledFormat        imgFormat,
+    SwizzledFormat        clearFormat,
+    const SwizzledFormat* pRawFormat,
+    uint32                plane,
+    bool                  clearWithRawFmt,
+    uint32*               pPackedColor)
 {
     // First, pack the clear color into the raw format and write it to user data 1-4. We also build the write-disabled
     // bitmasks while we're dealing with clear color bit representations.
@@ -1023,11 +1022,13 @@ void ConvertAndPackClearColor(
             memcpy(convertedColor, color.u32Color, sizeof(convertedColor));
         }
 
-        // RB expects shader outputs to be in the native format, whereas RPM compute shaders always write with
-        // raw UINT formats. This variable should be set (only) for GFX clears so the conversion can take place.
-        if (convertToNativeFmt)
+        // At this point, "convertedColor" will contain the per-channel color data in its raw format. Compute clears
+        // will prefer this in order to do a raw bit copy, but the RB requires shader outputs to be in their native
+        // format for GFX draws. If the caller specifies the raw format for this function, then we need to convert the
+        // color back to its native format.
+        if (pRawFormat != nullptr)
         {
-            RpmUtil::ConvertClearColorToNativeFormat(clearFormat, rawFormat, convertedColor);
+            RpmUtil::ConvertClearColorToNativeFormat(clearFormat, *pRawFormat, convertedColor);
         }
 
         // If we can clear with raw format replacement which is more efficient, swizzle it into the order

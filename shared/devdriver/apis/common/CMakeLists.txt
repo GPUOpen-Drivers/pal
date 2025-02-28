@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -58,6 +58,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
             src/dd_platform_info_windows.cpp
             src/dd_result_windows.cpp
             src/dd_thread_windows.cpp
+            src/dd_registry_utils.cpp
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_sources(dd_common

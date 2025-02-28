@@ -95,9 +95,7 @@ enum class CmdBufCallId : uint32
     CmdScaledCopyImage,
     CmdGenerateMipmaps,
     CmdColorSpaceConversionCopy,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     CmdCloneImageData,
-#endif
     CmdCopyMemoryToImage,
     CmdCopyImageToMemory,
     CmdClearColorBuffer,
@@ -223,9 +221,7 @@ constexpr const char* CmdBufCallIdStrings[] =
     "CmdScaledCopyImage()",
     "CmdGenerateMipmaps()",
     "CmdColorSpaceConversionCopy()",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     "CmdCloneImageData()",
-#endif
     "CmdCopyMemoryToImage()",
     "CmdCopyImageToMemory()",
     "CmdClearColorBuffer()",

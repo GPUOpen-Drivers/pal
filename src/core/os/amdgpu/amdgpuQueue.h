@@ -56,15 +56,6 @@ class GpuMemory;
 class SwapChain;
 class Platform;
 
-enum class CommandListType : uint32
-{
-    Context0 = 0,   // Used for the QueueContext's optional first command stream
-    Context1,       // Used for the QueueContext's optional second command stream
-    Ce,             // Used for the command buffers' CE command stream
-    De,             // used for hte command buffers' DE command stream
-    Count,
-};
-
 enum class SubmitType : uint32
 {
     SingleQueue,

@@ -202,7 +202,6 @@ struct ImageInternalCreateInfo
     InternalImageFlags flags;                // Flags to create an internal image object
     SharedMetadataInfo sharedMetadata;       // Shared metadata info
 };
-
 // Contains the information describing a image's sub-resource.
 struct SubResourceInfo
 {
@@ -505,6 +504,10 @@ public:
     // Returns true if this is an EQAA image (i.e., fragment and sample counts differ).
     bool IsEqaa() const
         { return (m_createInfo.samples != m_createInfo.fragments); }
+
+    // Returns true if this is an MSAA image (more than one sample).
+    bool IsMsaa() const
+        { return (m_createInfo.samples > 1); }
 
     const ImageInternalCreateInfo& GetInternalCreateInfo() const { return m_imageInfo.internalCreateInfo; }
 

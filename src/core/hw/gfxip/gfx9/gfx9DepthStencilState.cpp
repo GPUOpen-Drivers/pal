@@ -33,20 +33,6 @@ namespace Gfx9
 {
 
 // =====================================================================================================================
-DepthStencilState::DepthStencilState(
-    const DepthStencilStateCreateInfo& createInfo)
-    :
-    Pal::DepthStencilState(createInfo)
-{
-    memset(&m_flags, 0, sizeof(m_flags));
-
-    m_dbDepthControl.u32All   = 0;
-    m_dbStencilControl.u32All = 0;
-
-    Init(createInfo);
-}
-
-// =====================================================================================================================
 // Helper method to determine if a depth/stencil test operation allows out of order rendering
 static bool CanRunOutOfOrder(
     CompareFunc func)
@@ -59,86 +45,93 @@ static bool CanRunOutOfOrder(
 }
 
 // =====================================================================================================================
-// Performs Gfx9 hardware-specific initialization for a depth/stencil state object, including:
-// Set up the image of PM4 commands used to write the pipeline to HW.
-void DepthStencilState::Init(
-    const DepthStencilStateCreateInfo& dsState)
+DepthStencilState::DepthStencilState(
+    const DepthStencilStateCreateInfo& createInfo)
+    :
+    Pal::DepthStencilState(createInfo)
 {
-    m_flags.isDepthEnabled   = dsState.depthEnable;
-    m_flags.isStencilEnabled = dsState.stencilEnable;
+    memset(&m_flags, 0, sizeof(m_flags));
+
+    m_flags.isDepthEnabled   = createInfo.depthEnable;
+    m_flags.isStencilEnabled = createInfo.stencilEnable;
 
     m_flags.isDepthWriteEnabled =
-        dsState.depthEnable      &&
-        dsState.depthWriteEnable &&
-        (dsState.depthFunc != CompareFunc::Never);
+        createInfo.depthEnable      &&
+        createInfo.depthWriteEnable &&
+        (createInfo.depthFunc != CompareFunc::Never);
 
     m_flags.isStencilWriteEnabled =
-        dsState.stencilEnable           &&
-        ((dsState.front.stencilFailOp != Pal::StencilOp::Keep)      ||
-         (dsState.front.stencilPassOp != Pal::StencilOp::Keep)      ||
-         (dsState.front.stencilDepthFailOp != Pal::StencilOp::Keep) ||
-         (dsState.back.stencilFailOp != Pal::StencilOp::Keep)       ||
-         (dsState.back.stencilPassOp != Pal::StencilOp::Keep)       ||
-         (dsState.back.stencilDepthFailOp != Pal::StencilOp::Keep));
+        createInfo.stencilEnable           &&
+        ((createInfo.front.stencilFailOp != Pal::StencilOp::Keep)      ||
+         (createInfo.front.stencilPassOp != Pal::StencilOp::Keep)      ||
+         (createInfo.front.stencilDepthFailOp != Pal::StencilOp::Keep) ||
+         (createInfo.back.stencilFailOp != Pal::StencilOp::Keep)       ||
+         (createInfo.back.stencilPassOp != Pal::StencilOp::Keep)       ||
+         (createInfo.back.stencilDepthFailOp != Pal::StencilOp::Keep));
 
     m_flags.canDepthRunOutOfOrder =
-        (dsState.depthEnable == false)         ||
+        (createInfo.depthEnable == false)      ||
         (m_flags.isDepthWriteEnabled == false) ||
-        CanRunOutOfOrder(dsState.depthFunc);
+        CanRunOutOfOrder(createInfo.depthFunc);
 
     m_flags.canStencilRunOutOfOrder =
-        (dsState.stencilEnable == false)             ||
+        (createInfo.stencilEnable == false)          ||
         (m_flags.isStencilWriteEnabled == false)     ||
-        (CanRunOutOfOrder(dsState.front.stencilFunc) &&
-         CanRunOutOfOrder(dsState.back.stencilFunc));
+        (CanRunOutOfOrder(createInfo.front.stencilFunc) &&
+         CanRunOutOfOrder(createInfo.back.stencilFunc));
 
     m_flags.depthForcesOrdering =
-        dsState.depthEnable                        &&
-        (dsState.depthFunc != CompareFunc::Always) &&
-        (dsState.depthFunc != CompareFunc::NotEqual);
+        createInfo.depthEnable                        &&
+        (createInfo.depthFunc != CompareFunc::Always) &&
+        (createInfo.depthFunc != CompareFunc::NotEqual);
 
-    // Setup DB_DEPTH_CONTROL.
-    m_dbDepthControl.bits.Z_ENABLE       = (dsState.depthEnable ? 1 : 0);
-    m_dbDepthControl.bits.Z_WRITE_ENABLE = (dsState.depthWriteEnable ? 1 : 0);
-    m_dbDepthControl.bits.ZFUNC          = HwDepthCompare(dsState.depthFunc);
-
-    m_dbDepthControl.bits.STENCIL_ENABLE = (dsState.stencilEnable ? 1 : 0);
-    m_dbDepthControl.bits.STENCILFUNC    = HwStencilCompare(dsState.front.stencilFunc);
-    m_dbDepthControl.bits.STENCILFUNC_BF = HwStencilCompare(dsState.back.stencilFunc);
-
-    m_dbDepthControl.bits.DEPTH_BOUNDS_ENABLE = (dsState.depthBoundsEnable ? 1 : 0);
-    // NOTE: Always on
-    m_dbDepthControl.bits.BACKFACE_ENABLE = 1;
-
-    // Force off as this is not linked to any API features. Their need/use is unclear.
-    m_dbDepthControl.bits.ENABLE_COLOR_WRITES_ON_DEPTH_FAIL  = 0;
-    m_dbDepthControl.bits.DISABLE_COLOR_WRITES_ON_DEPTH_PASS = 0;
-
-    // Setup DB_STENCIL_CONTROL.
-
-    // front stencil
-    m_dbStencilControl.bits.STENCILFAIL  = HwStencilOp(dsState.front.stencilFailOp);
-    m_dbStencilControl.bits.STENCILZFAIL = HwStencilOp(dsState.front.stencilDepthFailOp);
-    m_dbStencilControl.bits.STENCILZPASS = HwStencilOp(dsState.front.stencilPassOp);
-
-    // back stencil
-    m_dbStencilControl.bits.STENCILFAIL_BF  = HwStencilOp(dsState.back.stencilFailOp);
-    m_dbStencilControl.bits.STENCILZFAIL_BF = HwStencilOp(dsState.back.stencilDepthFailOp);
-    m_dbStencilControl.bits.STENCILZPASS_BF = HwStencilOp(dsState.back.stencilPassOp);
+    m_flags.isDepthBoundsEnabled = createInfo.depthBoundsEnable;
 }
 
 // =====================================================================================================================
-// Writes the PM4 commands required to bind the state object to the specified bind point. Returns the next unused DWORD
-// in pCmdSpace.
-uint32* DepthStencilState::WriteCommands(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const
+DB_DEPTH_CONTROL DepthStencilState::SetupDbDepthControl(
+    const DepthStencilStateCreateInfo& createInfo)
 {
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_CONTROL,   m_dbDepthControl.u32All,   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_STENCIL_CONTROL, m_dbStencilControl.u32All, pCmdSpace);
+    DB_DEPTH_CONTROL dbDepthControl;
+    dbDepthControl.u32All = 0;
 
-    return pCmdSpace;
+    dbDepthControl.bits.Z_ENABLE       = (createInfo.depthEnable ? 1 : 0);
+    dbDepthControl.bits.Z_WRITE_ENABLE = (createInfo.depthWriteEnable ? 1 : 0);
+    dbDepthControl.bits.ZFUNC          = HwDepthCompare(createInfo.depthFunc);
+
+    dbDepthControl.bits.STENCIL_ENABLE = (createInfo.stencilEnable ? 1 : 0);
+    dbDepthControl.bits.STENCILFUNC    = HwStencilCompare(createInfo.front.stencilFunc);
+    dbDepthControl.bits.STENCILFUNC_BF = HwStencilCompare(createInfo.back.stencilFunc);
+
+    dbDepthControl.bits.DEPTH_BOUNDS_ENABLE = (createInfo.depthBoundsEnable ? 1 : 0);
+    // NOTE: Always on
+    dbDepthControl.bits.BACKFACE_ENABLE = 1;
+
+    // Force off as this is not linked to any API features. Their need/use is unclear.
+    dbDepthControl.bits.ENABLE_COLOR_WRITES_ON_DEPTH_FAIL  = 0;
+    dbDepthControl.bits.DISABLE_COLOR_WRITES_ON_DEPTH_PASS = 0;
+
+    return dbDepthControl;
+}
+
+// =====================================================================================================================
+DB_STENCIL_CONTROL DepthStencilState::SetupDbStencilControl(
+    const DepthStencilStateCreateInfo& createInfo)
+{
+    DB_STENCIL_CONTROL dbStencilControl;
+    dbStencilControl.u32All = 0;
+
+    // front stencil
+    dbStencilControl.bits.STENCILFAIL  = HwStencilOp(createInfo.front.stencilFailOp);
+    dbStencilControl.bits.STENCILZFAIL = HwStencilOp(createInfo.front.stencilDepthFailOp);
+    dbStencilControl.bits.STENCILZPASS = HwStencilOp(createInfo.front.stencilPassOp);
+
+    // back stencil
+    dbStencilControl.bits.STENCILFAIL_BF  = HwStencilOp(createInfo.back.stencilFailOp);
+    dbStencilControl.bits.STENCILZFAIL_BF = HwStencilOp(createInfo.back.stencilDepthFailOp);
+    dbStencilControl.bits.STENCILZPASS_BF = HwStencilOp(createInfo.back.stencilPassOp);
+
+    return dbStencilControl;
 }
 
 // =====================================================================================================================
@@ -199,6 +192,84 @@ CompareRef DepthStencilState::HwStencilCompare(
     };
 
     return StencilCompareTbl[static_cast<int32>(func)];
+}
+
+// =====================================================================================================================
+Gfx11DepthStencilStateRs64::Gfx11DepthStencilStateRs64(
+    const DepthStencilStateCreateInfo& createInfo)
+    :
+    Gfx9::DepthStencilState(createInfo)
+{
+    m_regs.offset0 = mmDB_DEPTH_CONTROL - CONTEXT_SPACE_START;
+    m_regs.value0  = SetupDbDepthControl(createInfo).u32All;
+
+    m_regs.offset1 = mmDB_STENCIL_CONTROL - CONTEXT_SPACE_START;
+    m_regs.value1  = SetupDbStencilControl(createInfo).u32All;
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind the state object to the specified bind point. Returns the next unused DWORD
+// in pCmdSpace.
+uint32* Gfx11DepthStencilStateRs64::WriteCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    return pCmdStream->WriteSetConstContextRegPairs(&m_regs, 2, pCmdSpace);
+}
+
+// =====================================================================================================================
+Gfx11DepthStencilStateF32::Gfx11DepthStencilStateF32(
+    const DepthStencilStateCreateInfo& createInfo)
+    :
+    Gfx9::DepthStencilState(createInfo)
+{
+    // Initialize structure (reg offsets).
+    Regs::Init(m_regs);
+
+    // Setup DB_DEPTH_CONTROL.
+    *(Regs::Get<mmDB_DEPTH_CONTROL, DB_DEPTH_CONTROL>(m_regs)) = SetupDbDepthControl(createInfo);
+
+    // Setup DB_STENCIL_CONTROL.
+    *(Regs::Get<mmDB_STENCIL_CONTROL, DB_STENCIL_CONTROL>(m_regs)) = SetupDbStencilControl(createInfo);
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind the state object to the specified bind point. Returns the next unused DWORD
+// in pCmdSpace.
+uint32* Gfx11DepthStencilStateF32::WriteCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    return pCmdStream->WriteSetContextRegPairs(m_regs, Regs::Size(), pCmdSpace);
+}
+
+// =====================================================================================================================
+Gfx10DepthStencilState::Gfx10DepthStencilState(
+    const DepthStencilStateCreateInfo& createInfo)
+    :
+    Gfx9::DepthStencilState(createInfo)
+{
+    // Setup DB_DEPTH_CONTROL.
+    m_dbDepthControl = SetupDbDepthControl(createInfo);
+
+    // Setup DB_STENCIL_CONTROL.
+    m_dbStencilControl = SetupDbStencilControl(createInfo);
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind the state object to the specified bind point. Returns the next unused DWORD
+// in pCmdSpace.
+uint32* Gfx10DepthStencilState::WriteCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_CONTROL,   m_dbDepthControl.u32All,   pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_STENCIL_CONTROL, m_dbStencilControl.u32All, pCmdSpace);
+
+    return pCmdSpace;
 }
 
 } // Gfx9

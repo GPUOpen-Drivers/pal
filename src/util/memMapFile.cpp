@@ -125,6 +125,11 @@ Result MemMapFile::OpenMemoryMapping(
                 PAL_ASSERT_ALWAYS();
             }
         }
+
+        if (m_pActiveContainerHeader == nullptr)
+        {
+            result = Result::ErrorInvalidPointer;
+        }
     }
 
     return result;

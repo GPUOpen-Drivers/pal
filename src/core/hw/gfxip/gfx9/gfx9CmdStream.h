@@ -85,6 +85,13 @@ public:
     template <Pm4ShaderType shaderType>
     uint32* WriteSetOneShReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
 
+    template <bool Pm4OptImmediate>
+    uint32* WriteSetOneShRegIndex(
+        uint32                          regAddr,
+        uint32                          regData,
+        Pm4ShaderType                   shaderType,
+        PFP_SET_SH_REG_INDEX_index_enum index,
+        uint32*                         pCmdSpace);
     uint32* WriteSetOneShRegIndex(
         uint32                          regAddr,
         uint32                          regData,
@@ -107,6 +114,13 @@ public:
     uint32* WriteLoadSeqContextRegs(uint32 startRegAddr, uint32 regCount, gpusize dataVirtAddr, uint32* pCmdSpace);
     uint32* WriteLoadSeqContextRegs(uint32 startRegAddr, uint32 regCount, gpusize dataVirtAddr, uint32* pCmdSpace);
 
+    template <bool Pm4OptImmediate>
+    uint32* WriteSetSeqShRegs(
+        uint32        startRegAddr,
+        uint32        endRegAddr,
+        Pm4ShaderType shaderType,
+        const void*   pData,
+        uint32*       pCmdSpace);
     uint32* WriteSetSeqShRegs(
         uint32        startRegAddr,
         uint32        endRegAddr,
@@ -152,6 +166,12 @@ public:
     uint32* WriteSetShRegPairs(PackedRegisterPair* pRegPairs,
                                uint32              numRegs,
                                uint32*             pCmdSpace);
+    template <Pm4ShaderType ShaderType, bool Pm4OptEnabled>
+    uint32* WriteSetConstShRegPairs(const PackedRegisterPair* pRegPairs,
+                                    uint32                    numRegs,
+                                    uint32*                   pCmdSpace);
+
+    // These methods can modify the contents on pRegPairs!
     template <bool Pm4OptImmediate>
     uint32* WriteSetContextRegPairs(PackedRegisterPair* pRegPairs,
                                     uint32              numRegs,
@@ -159,6 +179,28 @@ public:
     uint32* WriteSetContextRegPairs(PackedRegisterPair* pRegPairs,
                                     uint32              numRegs,
                                     uint32*             pCmdSpace);
+
+    // These methods will not modify the contents of pRegPairs and the caller MUST ensure alignment (even count)!
+    template <bool Pm4OptImmediate>
+    uint32* WriteSetConstContextRegPairs(const PackedRegisterPair* pRegPairs,
+                                         uint32                    numRegs,
+                                         uint32*                   pCmdSpace);
+    uint32* WriteSetConstContextRegPairs(const PackedRegisterPair* pRegPairs,
+                                         uint32                    numRegs,
+                                         uint32*                   pCmdSpace);
+
+    template <bool Pm4OptImmediate>
+    uint32* WriteSetContextRegPairs(const RegisterValuePair* pRegPairs,
+                                    uint32                   numRegPairs,
+                                    uint32*                  pCmdSpace);
+    uint32* WriteSetContextRegPairs(const RegisterValuePair* pRegPairs,
+                                    uint32                   numRegPairs,
+                                    uint32*                  pCmdSpace);
+
+    template <Pm4ShaderType ShaderType, bool Pm4OptImmediate>
+    uint32* WriteSetShRegPairs(const RegisterValuePair* pRegPairs,
+                               uint32                   numRegPairs,
+                               uint32*                  pCmdSpace);
 
     template <bool Pm4OptEnabled>
     uint32* WriteSetBase(
@@ -178,7 +220,9 @@ public:
 
     // In rare cases some packets will modify register state behind the scenes (e.g., DrawIndirect). This function must
     // be called in those cases to ensure that immediate mode PM4 optimization invalidates its copy of the register.
-    void NotifyIndirectShRegWrite(uint32 regAddr);
+    template <bool Pm4OptEnabled>
+    void NotifyIndirectShRegWrite(uint32 regAddr, uint32 numRegsToInvalidate = 1);
+    void NotifyIndirectShRegWrite(uint32 regAddr, uint32 numRegsToInvalidate = 1);
 
     void NotifyNestedCmdBufferExecute();
 
@@ -186,9 +230,16 @@ public:
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 
-    void TempSetPm4OptimizerMode(bool isEnabled);
-
     uint32* WritePerfCounterWindow(bool enableWindow, uint32* pCmdSpace);
+
+    bool MustKeepSetShReg(uint32 userDataAddr, uint32 userDataValue);
+
+    uint32* WritePrimeGpuCaches(const PrimeGpuCacheRange& primeGpuCacheRange,
+                                EngineType                engineType,
+                                uint32*                   pCmdSpace)
+    {
+        return pCmdSpace + m_cmdUtil.BuildPrimeGpuCaches(primeGpuCacheRange, engineType, pCmdSpace);
+    }
 
 protected:
     virtual size_t BuildCondIndirectBuffer(

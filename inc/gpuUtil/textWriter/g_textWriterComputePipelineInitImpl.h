@@ -48,7 +48,7 @@ static const PipelineBinary*const GetTextWriterComputePipelineTable(
     case Pal::IpTriple({ 10, 1, 0 }):
     case Pal::IpTriple({ 10, 1, 1 }):
     case Pal::IpTriple({ 10, 1, 2 }):
-        pTable = textWriterComputeBinaryTableNavi10;
+        pTable = textWriterComputeBinaryTable10_1_0;
         break;
 
     case Pal::IpTriple({ 10, 3, 0 }):
@@ -57,23 +57,23 @@ static const PipelineBinary*const GetTextWriterComputePipelineTable(
     case Pal::IpTriple({ 10, 3, 4 }):
     case Pal::IpTriple({ 10, 3, 5 }):
     case Pal::IpTriple({ 10, 3, 6 }):
-        pTable = textWriterComputeBinaryTableNavi21;
+        pTable = textWriterComputeBinaryTable10_3_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 0 }):
     case Pal::IpTriple({ 11, 0, 1 }):
     case Pal::IpTriple({ 11, 0, 2 }):
-        pTable = textWriterComputeBinaryTableNavi31;
+    case Pal::IpTriple({ 11, 5, 0 }):
+        pTable = textWriterComputeBinaryTable11_0_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 3 }):
-        pTable = textWriterComputeBinaryTablePhoenix1;
+        pTable = textWriterComputeBinaryTable11_0_3;
         break;
 
-#if PAL_BUILD_STRIX1
-    case Pal::IpTriple({ 11, 5, 0 }):
-    case Pal::IpTriple({ 11, 5, 65535 }):
-        pTable = textWriterComputeBinaryTableStrix1;
+#if  PAL_BUILD_STRIX_HALO
+    case Pal::IpTriple({ 11, 5, 1 }):
+        pTable = textWriterComputeBinaryTable11_5_1;
         break;
 #endif
 

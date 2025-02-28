@@ -1234,6 +1234,7 @@ Result Dri3WindowSystem::HandlePresentEvent(
         {
             data.presentationMode = Developer::PresentModeType::Composite;
         }
+        data.presentKey = PresentKeyFromOsWindowHandle({ .win = m_hWindow });
         m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, &data);
         break;
     }

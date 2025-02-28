@@ -197,14 +197,10 @@ struct SwapChainCreateInfo
                                                    ///  primary) responsibility to client.
             uint32 enablePresentThread       :  1; ///< DXGI only, present from a different thread, can help hide
                                                    ///  latency in CPU bound apps.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 821
             uint32 adaptiveDummyClear        :  1; ///< DXGI only, Dummy Clear will be adaptive in the sense that
-                                                   /// it will only take effect in Windowed mode. Client is responsible
-                                                   /// for determining the condition of Windowed mode and specify it via
-                                                   /// PresentSwapChainInfo.presentMode
-#else
-            uint32 reserved821               :  1; ///< Reserved for future use.
-#endif
+                                                   ///  it will only take effect in Windowed mode. Client is responsible
+                                                   ///  for determining the condition of Windowed mode and specify it
+                                                   ///  via PresentSwapChainInfo.presentMode
             uint32 reserved                  : 22; ///< Reserved for future use.
         };
         uint32 u32All;                         ///< Flags packed as 32-bit uint.

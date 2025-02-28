@@ -133,9 +133,7 @@ Result GfxDevice::InitHwlSettings(
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
-#if PAL_BUILD_GFX115
         case GfxIpLevel::GfxIp11_5:
-#endif
             m_pDdSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
             break;
         case GfxIpLevel::None:
@@ -516,16 +514,6 @@ uint16 GfxDevice::GetCuEnableMask(
     ) const
 {
     return GetCuEnableMaskInternal(disabledCuMask, enabledCuMaskSetting) & 0xFFFF;
-}
-
-// =====================================================================================================================
-// Helper to check if this Device can support launching a CE preamble command stream with every Universal Queue
-// submission.
-bool GfxDevice::SupportsCePreamblePerSubmit() const
-{
-    // We can only submit a CE preamble stream with each submission if the Device supports at least five command
-    // streams per submission.
-    return (Parent()->QueueProperties().maxNumCmdStreamsPerSubmit >= 5);
 }
 
 // =====================================================================================================================

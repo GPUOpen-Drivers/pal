@@ -45,7 +45,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
     case Pal::IpTriple({ 10, 1, 0 }):
     case Pal::IpTriple({ 10, 1, 1 }):
     case Pal::IpTriple({ 10, 1, 2 }):
-        pTable = rpmComputeBinaryTableNavi10;
+        pTable = rpmComputeBinaryTable10_1_0;
         break;
 
     case Pal::IpTriple({ 10, 3, 0 }):
@@ -53,30 +53,33 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
     case Pal::IpTriple({ 10, 3, 2 }):
     case Pal::IpTriple({ 10, 3, 4 }):
     case Pal::IpTriple({ 10, 3, 5 }):
-        pTable = rpmComputeBinaryTableNavi21;
+        pTable = rpmComputeBinaryTable10_3_0;
         break;
 
     case Pal::IpTriple({ 10, 3, 6 }):
-        pTable = rpmComputeBinaryTableRaphael;
+        pTable = rpmComputeBinaryTable10_3_6;
         break;
 
     case Pal::IpTriple({ 11, 0, 0 }):
     case Pal::IpTriple({ 11, 0, 1 }):
-        pTable = rpmComputeBinaryTableNavi31;
+        pTable = rpmComputeBinaryTable11_0_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 2 }):
-        pTable = rpmComputeBinaryTableNavi33;
+        pTable = rpmComputeBinaryTable11_0_2;
         break;
 
     case Pal::IpTriple({ 11, 0, 3 }):
-        pTable = rpmComputeBinaryTablePhoenix1;
+        pTable = rpmComputeBinaryTable11_0_3;
         break;
 
-#if PAL_BUILD_STRIX1
     case Pal::IpTriple({ 11, 5, 0 }):
-    case Pal::IpTriple({ 11, 5, 65535 }):
-        pTable = rpmComputeBinaryTableStrix1;
+        pTable = rpmComputeBinaryTable11_5_0;
+        break;
+
+#if  PAL_BUILD_STRIX_HALO
+    case Pal::IpTriple({ 11, 5, 1 }):
+        pTable = rpmComputeBinaryTable11_5_1;
         break;
 #endif
 
@@ -102,7 +105,7 @@ Result CreateRpmComputePipelines(
         return Result::ErrorUnknown;
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ClearBuffer)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ClearBuffer);
 
@@ -113,7 +116,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ClearImage96Bpp)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ClearImage96Bpp);
 
@@ -124,7 +127,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ClearImage)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ClearImage);
 
@@ -135,10 +138,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ClearImageMsaaPlanar)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ClearImageMsaaPlanar);
 
@@ -149,7 +149,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ClearImageMsaaSampleMajor)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ClearImageMsaaSampleMajor);
 
@@ -160,7 +160,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyBufferByte)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyBufferByte);
 
@@ -171,7 +171,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyBufferDqword)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyBufferDqword);
 
@@ -182,7 +182,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyBufferDword)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyBufferDword);
 
@@ -193,7 +193,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImage2d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2d);
 
@@ -204,7 +204,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImage2dMorton2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dMorton2x);
 
@@ -215,7 +215,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImage2dMorton4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dMorton4x);
 
@@ -226,7 +226,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImage2dMorton8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dMorton8x);
 
@@ -237,7 +237,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImage2dms2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dms2x);
 
@@ -248,7 +248,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImage2dms4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dms4x);
 
@@ -259,7 +259,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImage2dms8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dms8x);
 
@@ -270,7 +270,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImage2dShaderMipLevel)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dShaderMipLevel);
 
@@ -281,7 +281,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImageGammaCorrect2d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImageGammaCorrect2d);
 
@@ -292,7 +292,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImgToMem1d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem1d);
 
@@ -303,7 +303,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImgToMem2d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem2d);
 
@@ -314,7 +314,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImgToMem2dms2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem2dms2x);
 
@@ -325,7 +325,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImgToMem2dms4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem2dms4x);
 
@@ -336,7 +336,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImgToMem2dms8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem2dms8x);
 
@@ -347,7 +347,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyImgToMem3d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem3d);
 
@@ -358,7 +358,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyMemToImg1d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg1d);
 
@@ -369,7 +369,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyMemToImg2d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg2d);
 
@@ -380,7 +380,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyMemToImg2dms2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg2dms2x);
 
@@ -391,7 +391,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyMemToImg2dms4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg2dms4x);
 
@@ -402,7 +402,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyMemToImg2dms8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg2dms8x);
 
@@ -413,7 +413,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyMemToImg3d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg3d);
 
@@ -424,7 +424,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyTypedBuffer1d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyTypedBuffer1d);
 
@@ -435,7 +435,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyTypedBuffer2d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyTypedBuffer2d);
 
@@ -446,7 +446,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::CopyTypedBuffer3d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::CopyTypedBuffer3d);
 
@@ -457,14 +457,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ExpandMaskRam)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ExpandMaskRam);
 
@@ -475,14 +468,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ExpandMaskRamMs2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ExpandMaskRamMs2x);
 
@@ -493,14 +479,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ExpandMaskRamMs4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ExpandMaskRamMs4x);
 
@@ -511,14 +490,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ExpandMaskRamMs8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ExpandMaskRamMs8x);
 
@@ -529,14 +501,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::FastDepthClear)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::FastDepthClear);
 
@@ -547,14 +512,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::FastDepthExpClear)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::FastDepthExpClear);
 
@@ -565,14 +523,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::FastDepthStExpClear)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::FastDepthStExpClear);
 
@@ -583,14 +534,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::FillMem4xDword)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::FillMem4xDword);
 
@@ -603,7 +547,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::FillMemDword)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::FillMemDword);
 
@@ -616,7 +560,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::GenerateMipmaps)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::GenerateMipmaps);
 
@@ -627,7 +571,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::GenerateMipmapsLowp)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::GenerateMipmapsLowp);
 
@@ -638,14 +582,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::HtileCopyAndFixUp)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::HtileCopyAndFixUp);
 
@@ -656,14 +593,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::HtileSR4xUpdate)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::HtileSR4xUpdate);
 
@@ -674,14 +604,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::HtileSRUpdate)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::HtileSRUpdate);
 
@@ -692,10 +615,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskCopyImage)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskCopyImage);
 
@@ -706,10 +626,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskCopyImageOptimized)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskCopyImageOptimized);
 
@@ -720,10 +637,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskCopyImgToMem)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskCopyImgToMem);
 
@@ -734,10 +648,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskExpand2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskExpand2x);
 
@@ -748,10 +659,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskExpand4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskExpand4x);
 
@@ -762,10 +670,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskExpand8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskExpand8x);
 
@@ -776,10 +681,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve1xEqaa)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve1xEqaa);
 
@@ -790,10 +692,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2x);
 
@@ -804,10 +703,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaa)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaa);
 
@@ -818,10 +714,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaaMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaaMax);
 
@@ -832,10 +725,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaaMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaaMin);
 
@@ -846,10 +736,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve2xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xMax);
 
@@ -860,10 +747,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve2xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xMin);
 
@@ -874,10 +758,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4x);
 
@@ -888,10 +769,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaa)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaa);
 
@@ -902,10 +780,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaaMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaaMax);
 
@@ -916,10 +791,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaaMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaaMin);
 
@@ -930,10 +802,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve4xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xMax);
 
@@ -944,10 +813,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve4xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xMin);
 
@@ -958,10 +824,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8x);
 
@@ -972,10 +835,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaa)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaa);
 
@@ -986,10 +846,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaaMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaaMax);
 
@@ -1000,10 +857,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaaMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaaMin);
 
@@ -1014,10 +868,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve8xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xMax);
 
@@ -1028,10 +879,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskResolve8xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xMin);
 
@@ -1042,10 +890,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaFmaskScaledCopy)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskScaledCopy);
 
@@ -1056,7 +901,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve2x);
 
@@ -1067,7 +912,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve2xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve2xMax);
 
@@ -1078,7 +923,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve2xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve2xMin);
 
@@ -1089,7 +934,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve4x);
 
@@ -1100,7 +945,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve4xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve4xMax);
 
@@ -1111,7 +956,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve4xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve4xMin);
 
@@ -1122,7 +967,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve8x);
 
@@ -1133,7 +978,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve8xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve8xMax);
 
@@ -1144,7 +989,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolve8xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve8xMin);
 
@@ -1155,7 +1000,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolveStencil2xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil2xMax);
 
@@ -1166,7 +1011,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolveStencil2xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil2xMin);
 
@@ -1177,7 +1022,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolveStencil4xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil4xMax);
 
@@ -1188,7 +1033,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolveStencil4xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil4xMin);
 
@@ -1199,7 +1044,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolveStencil8xMax)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil8xMax);
 
@@ -1210,7 +1055,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaResolveStencil8xMin)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil8xMin);
 
@@ -1221,7 +1066,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::MsaaScaledCopyImage2d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::MsaaScaledCopyImage2d);
 
@@ -1232,7 +1077,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ResolveOcclusionQuery)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ResolveOcclusionQuery);
 
@@ -1243,7 +1088,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ResolvePipelineStatsQuery)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ResolvePipelineStatsQuery);
 
@@ -1254,7 +1099,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ResolveStreamoutStatsQuery)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ResolveStreamoutStatsQuery);
 
@@ -1265,7 +1110,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::RgbToYuvPacked)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::RgbToYuvPacked);
 
@@ -1276,7 +1121,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::RgbToYuvPlanar)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::RgbToYuvPlanar);
 
@@ -1287,7 +1132,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ScaledCopyImage2d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage2d);
 
@@ -1298,7 +1143,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ScaledCopyImage2dMorton2x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage2dMorton2x);
 
@@ -1309,7 +1154,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ScaledCopyImage2dMorton4x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage2dMorton4x);
 
@@ -1320,7 +1165,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ScaledCopyImage2dMorton8x)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage2dMorton8x);
 
@@ -1331,7 +1176,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ScaledCopyImage3d)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage3d);
 
@@ -1342,7 +1187,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::ScaledCopyTypedBufferToImg2D)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyTypedBufferToImg2D);
 
@@ -1353,7 +1198,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::YuvIntToRgb)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::YuvIntToRgb);
 
@@ -1364,7 +1209,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::YuvToRgb)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::YuvToRgb);
 
@@ -1375,13 +1220,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx9EchoGlobalTable)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx9EchoGlobalTable);
 
@@ -1394,14 +1233,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10BuildDccLookupTable)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10BuildDccLookupTable);
 
@@ -1412,14 +1244,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel);
 
@@ -1430,10 +1255,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
 
@@ -1444,14 +1266,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10GenerateCmdDispatch)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GenerateCmdDispatch);
 
@@ -1462,14 +1277,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh);
 
@@ -1480,14 +1288,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10GenerateCmdDraw)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GenerateCmdDraw);
 
@@ -1498,13 +1299,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10GfxDccToDisplayDcc)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GfxDccToDisplayDcc);
 
@@ -1515,13 +1310,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapDecode)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapDecode);
 
@@ -1532,13 +1321,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapEncode)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapEncode);
 
@@ -1549,13 +1332,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10PrtPlusResolveSamplingStatusMap)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10PrtPlusResolveSamplingStatusMap);
 
@@ -1566,9 +1343,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx10VrsHtile)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10VrsHtile);
 
@@ -1579,12 +1354,7 @@ Result CreateRpmComputePipelines(
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
+    if ((result == Result::Success) && (pTable[uint32(RpmComputePipeline::Gfx11GenerateCmdDispatchTaskMesh)].pBuffer != nullptr))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx11GenerateCmdDispatchTaskMesh);
 

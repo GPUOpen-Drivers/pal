@@ -70,11 +70,9 @@ static SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::GfxIp11_0:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_11_0;
         break;
-#if PAL_BUILD_GFX115
     case Pal::GfxIpLevel::GfxIp11_5:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_11_5;
         break;
-#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -102,11 +100,9 @@ SqttVersion GfxipToSqttVersion(
     case Pal::GfxIpLevel::GfxIp11_0:
         version = SQTT_VERSION_3_2;
         break;
-#if PAL_BUILD_GFX115
     case Pal::GfxIpLevel::GfxIp11_5:
         version = SQTT_VERSION_3_2;
         break;
-#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -1796,6 +1792,10 @@ Result GpaSession::BeginSample(
                 // The perf experiment has been configured with perf counters/trace at this point.
                 pCmdBuf->CmdBeginPerfExperiment(pPerfExperiment);
             }
+            else
+            {
+                PAL_ASSERT_ALWAYS();
+            }
         }
         // TimingSample initialization. This sample does not uses PerfExperiment.
         else if (pSampleItem->sampleConfig.type == GpaSampleType::Timing)
@@ -1921,14 +1921,14 @@ Pal::Result GpaSession::UpdateSampleTraceParams(
             {
                 const bool skipInstTokens = pSampleItem->sampleConfig.sqtt.flags.supressInstructionTokens;
                 ThreadTraceTokenConfig tokenConfig = skipInstTokens ? SqttTokenConfigNoInst : SqttTokenConfigAllTokens;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
                 const uint32 sampleTokenMask = pSampleItem->sampleConfig.sqtt.tokenMask;
+
                 // Use original tokenConfig.tokenMask val if client has not provided one.
                 if (sampleTokenMask > 0)
                 {
                     tokenConfig.tokenMask &= sampleTokenMask;
                 }
-#endif
+
                 pCmdBuf->CmdUpdatePerfExperimentSqttTokenMask(pSampleItem->pPerfExperiment, tokenConfig);
                 result = Result::Success;
             }
@@ -1942,14 +1942,15 @@ Pal::Result GpaSession::UpdateSampleTraceParams(
             // Otherwise we update the token mask inline in the command buffer
             ThreadTraceTokenConfig tokenConfig = (updateMode == UpdateSampleTraceMode::StartInstructionTrace) ?
                 SqttTokenConfigAllTokens : SqttTokenConfigNoInst;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
+
             const uint32 sampleTokenMask = pSampleItem->sampleConfig.sqtt.tokenMask;
+
             // Use original tokenConfig.tokenMask val if client has not provided one.
             if (sampleTokenMask > 0)
             {
                 tokenConfig.tokenMask &= sampleTokenMask;
             }
-#endif
+
             pCmdBuf->CmdUpdateSqttTokenMask(tokenConfig);
         }
     }
@@ -4034,13 +4035,13 @@ Result GpaSession::AcquirePerfExperiment(
                         {
                             tokenConfig = SqttTokenConfigNoInst;
                         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
+
                         // Use original tokenConfig.tokenMask val if client has not provided one.
                         if (sampleConfig.sqtt.tokenMask > 0)
                         {
                             tokenConfig.tokenMask &= sampleConfig.sqtt.tokenMask;
                         }
-#endif
+
                         sqttInfo.optionValues.threadTraceTokenConfig = tokenConfig;
 
                         sqttInfo.instance = i;

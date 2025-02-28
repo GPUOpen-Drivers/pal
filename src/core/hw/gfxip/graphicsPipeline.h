@@ -45,11 +45,9 @@ public:
         const Util::PalAbi::CodeObjectMetadata*   pMetadata,
         Util::MsgPackReader*                      pMetadataReader);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     virtual const void* GetCodeObjectWithShaderType(
         ShaderType shaderType,
         size_t*    pSize) const override;
-#endif
 
     virtual Result QueryAllocationInfo(
         size_t*                    pNumEntries,
@@ -155,7 +153,8 @@ private:
             uint32 primIdUsed            :  1; // One shader in this pipeline uses PrimID.
             uint32 reserved1             :  1;
             uint32 isPartialPipeline     :  1; // True if it is a partial pipeline in Graphics shader library
-            uint32 reserved              : 10;
+            uint32 reserved2             :  1;
+            uint32 reserved              :  9;
         };
         uint32 u32All;
     } m_flags;

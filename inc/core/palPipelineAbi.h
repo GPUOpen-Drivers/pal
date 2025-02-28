@@ -98,9 +98,9 @@ enum class AmdGpuMachineType : uint8
     Gfx1101 = 0x46,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1101
     Gfx1102 = 0x47,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1102
     Gfx1103 = 0x44,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1103
-#if PAL_BUILD_STRIX
-    Gfx1150    = 0x43,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1150
-    Gfx115FFFF = 0xF7,
+    Gfx1150 = 0x43,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1150
+#if PAL_BUILD_STRIX_HALO
+    Gfx1151 = 0x4A,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1151
 #endif
 };
 
@@ -172,10 +172,10 @@ enum GfxIpStepping : uint16
     GfxIpSteppingNavi33        = 2,
     GfxIpSteppingPhoenix       = 3,
 
-#if PAL_BUILD_STRIX
     // GFXIP 11.5.x steppings:
     GfxIpSteppingStrix         = 0,
-    GfxIpSteppingStrix_A0      = 0xFFFF,
+#if PAL_BUILD_STRIX_HALO
+    GfxIpSteppingStrixHalo     = 1,
 #endif
 
 };

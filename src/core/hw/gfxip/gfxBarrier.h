@@ -83,9 +83,7 @@ constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageFetchIndices  |
                                               PipelineStageDs            |
                                               PipelineStageGs            |
                                               PipelineStagePs            |
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
                                               PipelineStageSampleRate    |
-#endif
                                               PipelineStageDsTarget      |
                                               PipelineStageColorTarget;
 

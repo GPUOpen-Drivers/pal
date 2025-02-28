@@ -81,7 +81,8 @@ Result HybridGraphicsPipeline::HwlInit(
 
         // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
         DispatchDims threadsPerTg = {};
-        m_task.LateInit(metadata,
+        m_task.LateInit(*m_pDevice,
+                        metadata,
                         wavefrontSize,
                         &threadsPerTg,
                         createInfo.taskInterleaveSize,

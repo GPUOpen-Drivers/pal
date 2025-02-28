@@ -185,6 +185,7 @@ private:
     CmdStream  m_deCmdStream;
     CmdStream  m_perSubmitCmdStream;
     CmdStream  m_shadowInitCmdStream;
+    CmdStream  m_cePreambleCmdStream;
     CmdStream  m_dePostambleCmdStream;
 
     // Late-initialized ACE command buffer stream.

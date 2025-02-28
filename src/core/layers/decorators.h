@@ -419,12 +419,11 @@ public:
     {
         return m_pNextLayer->GetTraceSession();
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+
     virtual void UpdateFrameTraceController(Pal::IQueue *pQueue) override
     {
         m_pNextLayer->UpdateFrameTraceController(m_layerEnabled ? NextQueue(pQueue) : pQueue);
     }
-#endif
 #endif
 
     virtual bool IsTracingEnabled() const override
@@ -1818,14 +1817,12 @@ public:
                                                   cscTable);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     virtual void CmdCloneImageData(
         const IImage& srcImage,
         const IImage& dstImage) override
     {
         m_pNextLayer->CmdCloneImageData(*NextImage(&srcImage), *NextImage(&dstImage));
     }
-#endif
 
     virtual void CmdUpdateMemory(
         const IGpuMemory& dstGpuMemory,
@@ -2989,14 +2986,14 @@ public:
         this->~PipelineDecorator();
         pNextLayer->Destroy();
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+
     virtual const void* GetCodeObjectWithShaderType(
         ShaderType shaderType,
         size_t*    pSize) const override
     {
         return m_pNextLayer->GetCodeObjectWithShaderType(shaderType, pSize);
     }
-#endif
+
     // Initialize the PipelineDecorator. Populates the m_pipelines vector.
     Result Init();
 
@@ -3107,19 +3104,11 @@ public:
         { return m_pNextLayer->GetCodeObject(pSize, pBuffer); }
 
     virtual Result GetShaderFunctionCode(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
         Util::StringView<char> shaderExportName,
-#else
-        const char*            pShaderExportName,
-#endif
         size_t*                pSize,
         void*                  pBuffer) const override
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
         return m_pNextLayer->GetShaderFunctionCode(shaderExportName, pSize, pBuffer);
-#else
-        return m_pNextLayer->GetShaderFunctionCode(pShaderExportName, pSize, pBuffer);
-#endif
     }
 
     virtual Result GetShaderFunctionStats(

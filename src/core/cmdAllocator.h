@@ -85,7 +85,7 @@ public:
     uint32 ChunkSize(CmdAllocType allocType) const { return m_gpuAllocInfo[allocType].allocCreateInfo.chunkSize; }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    void LogCommit(EngineType engineType, uint32 numDwords);
+    void LogCommit(EngineType engineType, bool isConstantEngine, uint32 numDwords);
 #endif
 
     bool AutomaticMemoryReuse() const { return (m_flags.autoMemoryReuse != 0); }
@@ -165,9 +165,8 @@ private:
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // To help us make informed decisions about command stream use, the allocator can build histograms of commit sizes
-    // and log them to a csv file on destruction. If we exclude the timer queue (no packets) and include the Constant
-    // Engine we need exactly 8 histograms.
-    static const uint32 HistogramCount = 6;
+    // and log them to a csv file on destruction. Need number of (EngineTypeCount) histograms, +1 for constant engine.
+    static const uint32 HistogramCount = EngineTypeCount + 1;
     static const uint32 HistogramStep  = 8;              // The bins are split by multiples of this power of two.
 
     // Each histogram is stored as an array of counters, one for each bin. The first bin counts commits with a size of

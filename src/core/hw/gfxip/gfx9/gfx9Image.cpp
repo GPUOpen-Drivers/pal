@@ -656,11 +656,7 @@ Result Image::Finalize(
             else
             {
                 // We never need this metadata but we prefer to have this on by default.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 813
                 needsDccStateMetaData = (m_createInfo.flags.disableDccStateTracking == 0);
-#else
-                needsDccStateMetaData = true;
-#endif
             }
 
             // As CP doesn't support to LOAD_***REG/SET_PREDICATION/WRITE_DATA on TMZ images,
@@ -915,11 +911,7 @@ Result Image::Finalize(
         m_gpuMemSyncSize = *pGpuMemSize;
 
         // Force its size 16 bytes aligned so it's able to go through the fastest CopyBufferDqword in
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 913
-        // CopyMemoryCs (e.g. called by CmdCopyMemory or clone copy in CmdCopyImage).
-#else
-        // CopyMemoryCs (e.g. called by CmdCopyMemory or CmdCloneImageData).
-#endif
+        // CopyMemoryCs (e.g. called by CmdCopyMemory or CmdCloneImageData or clone copy in CmdCopyImage).
         *pGpuMemSize = Pow2Align(*pGpuMemSize, 16);
 
         if (useCmask && settings.waCmaskImageSyncs)
@@ -1110,7 +1102,7 @@ bool Image::DoesImageSupportCopyCompression() const
 {
     const Platform&               platform   = *m_device.GetPlatform();
     const GfxIpLevel              gfxLevel   = m_device.ChipProperties().gfxLevel;
-    const MergedFlatFmtInfo*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
+    const MergedFlatFmtInfo*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(gfxLevel);
     ChNumFormat                   copyFormat = m_createInfo.swizzledFormat.format;
 
     // CmdCopyImageToMemory always forces sRGB to UNORM.
@@ -3250,7 +3242,7 @@ void Image::GetSharedMetadataInfo(
         pMetadataInfo->fmaskOffset                = m_pFmask->MemoryOffset();
         pMetadataInfo->flags.shaderFetchableFmask = IsComprFmaskShaderReadable(baseSubResId);
         pMetadataInfo->fmaskXor                   = m_pFmask->GetPipeBankXor();
-        pMetadataInfo->fmaskSwizzleMode           = m_pFmask->GetSwizzleMode();
+        pMetadataInfo->fmaskSwizzleMode.v2        = m_pFmask->GetSwizzleMode();
     }
     if (m_pHtile != nullptr)
     {

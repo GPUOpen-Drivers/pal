@@ -113,6 +113,14 @@ Platform::Platform(
     m_deviceCount(0),
     m_clientApiMajorVer(createInfo.apiMajorVer),
     m_clientApiMinorVer(createInfo.apiMinorVer),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 916
+    m_clientInstrApiVer(createInfo.instrApiVer),
+#elif (PAL_BUILD_BRANCH >= 2410)
+    // Before PAL_CLIENT_INTERFACE_MAJOR_VERSION 916 this was hard coded in PAL Trace
+    m_clientInstrApiVer(5),
+#else
+    m_clientInstrApiVer(3),
+#endif
     m_pDevDriverServer(nullptr),
     m_pSettingsRpcService(nullptr),
     m_pDriverUtilsService(nullptr),
@@ -850,7 +858,6 @@ Result Platform::RegisterTraceControllers()
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
 // =====================================================================================================================
 void Platform::UpdateFrameTraceController(
     IQueue* pQueue)
@@ -862,18 +869,7 @@ void Platform::UpdateFrameTraceController(
         m_pFrameTraceController->UpdateFrame(pQueue);
     }
 }
-#else
-void Platform::UpdateFrameTraceController(
-    CmdBuffer* pCmdBuffer)
-{
-#if (PAL_BUILD_BRANCH >= 2420)
-    if (m_pTraceSession->GetActiveController() == m_pFrameTraceController)
-#endif
-    {
-        m_pFrameTraceController->UpdateFrame(pCmdBuffer);
-    }
-}
-#endif
+
 // =====================================================================================================================
 void Platform::DestroyTraceControllers()
 {
@@ -1279,7 +1275,7 @@ bool Platform::ShowDevDriverOverlay() const
             {
                 showOverlay = m_pDevDriverServer->ShouldShowOverlay();
             }
-#if PAL_BUILD_RDF
+#if 0 // PAL_BUILD_RDF
             if (m_pTraceSession != nullptr)
             {
                 const GpuUtil::TraceSessionState sessionState = m_pTraceSession->GetTraceSessionState();

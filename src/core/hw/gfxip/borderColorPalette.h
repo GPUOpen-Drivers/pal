@@ -61,6 +61,8 @@ protected:
 
     virtual void UpdateGpuMemoryBinding(gpusize gpuVirtAddr) = 0;
 
+    const Device* GetDevice() const { return &m_device; }
+
 private:
     const Device&  m_device;
     const uint32   m_numEntries;

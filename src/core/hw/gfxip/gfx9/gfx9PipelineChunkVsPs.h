@@ -43,7 +43,7 @@ struct GraphicsPipelineLoadInfo;
 
 struct VsPsRegs
 {
-    struct Sh
+    struct VsSh
     {
         regSPI_SHADER_PGM_LO_VS     spiShaderPgmLoVs;
         regSPI_SHADER_PGM_HI_VS     spiShaderPgmHiVs;
@@ -51,15 +51,19 @@ struct VsPsRegs
         regSPI_SHADER_PGM_RSRC2_VS  spiShaderPgmRsrc2Vs;
         regSPI_SHADER_PGM_CHKSUM_VS spiShaderPgmChksumVs;
 
+        regSPI_SHADER_USER_DATA_VS_0 userDataInternalTableVs;
+    } vsSh;
+
+    struct PsSh
+    {
         regSPI_SHADER_PGM_LO_PS     spiShaderPgmLoPs;
         regSPI_SHADER_PGM_HI_PS     spiShaderPgmHiPs;
         regSPI_SHADER_PGM_RSRC1_PS  spiShaderPgmRsrc1Ps;
         regSPI_SHADER_PGM_RSRC2_PS  spiShaderPgmRsrc2Ps;
         regSPI_SHADER_PGM_CHKSUM_PS spiShaderPgmChksumPs;
 
-        regSPI_SHADER_USER_DATA_VS_0 userDataInternalTableVs;
         regSPI_SHADER_USER_DATA_PS_0 userDataInternalTablePs;
-    } sh;
+    } psSh;
 
     struct Context
     {
@@ -87,8 +91,8 @@ struct VsPsRegs
         regSPI_SHADER_PGM_RSRC4_VS spiShaderPgmRsrc4Vs;
     } dynamic;
 
-    static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
-    static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
+    static constexpr uint32 NumPsShReg    =
+        (sizeof(PsSh) / sizeof(uint32)) + 1; // +1 for m_pPsPerfDataInfo->regOffset
 };
 
 // Contains the semantic info for interface match
@@ -121,20 +125,24 @@ public:
     ~PipelineChunkVsPs() { }
 
     void EarlyInit(
+        const GpuChipProperties&                chipProps,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         GraphicsPipelineLoadInfo*               pInfo);
 
     void LateInit(
+        const Device&                           device,
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         const GraphicsPipelineLoadInfo&         loadInfo,
         const GraphicsPipelineCreateInfo&       createInfo,
         CodeObjectUploader*                     pUploader);
 
+    template <bool Pm4OptEnabled>
     uint32* WriteShCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace,
         bool       isNgg) const;
+    template <bool Pm4OptEnabled>
     uint32* WriteDynamicRegs(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
@@ -142,12 +150,16 @@ public:
         const DynamicStageInfo& vsStageInfo,
         const DynamicStageInfo& psStageInfo) const;
 
+    template <bool Pm4OptEnabled>
     uint32* WriteContextCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-    void AccumulateShRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
-    void AccumulateContextRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
+    static constexpr uint32 AccumulateContextRegsMaxRegs = 6 + 32; // 6 + 32 Interp.
+    template <typename T>
+    void AccumulateShRegs(T* pRegPairs, uint32* pNumRegs) const;
+    template <typename T>
+    void AccumulateContextRegs(T* pRegPairs, uint32* pNumRegs) const;
 
     bool UsesHwStreamout() const { return (m_regs.context.vgtStrmoutConfig.u32All != 0);  }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
@@ -165,14 +177,14 @@ public:
 
     gpusize VsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoVs.bits.MEM_BASE,
-                                  m_regs.sh.spiShaderPgmHiVs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.vsSh.spiShaderPgmLoVs.bits.MEM_BASE,
+                                  m_regs.vsSh.spiShaderPgmHiVs.bits.MEM_BASE);
     }
 
     gpusize PsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoPs.bits.MEM_BASE,
-                                  m_regs.sh.spiShaderPgmHiPs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.psSh.spiShaderPgmLoPs.bits.MEM_BASE,
+                                  m_regs.psSh.spiShaderPgmHiPs.bits.MEM_BASE);
     }
 
     gpusize ColorExportGpuVa(
@@ -188,12 +200,17 @@ public:
 
     void AccumulateRegistersHash(Util::MetroHash64& hasher)  const { hasher.Update(m_regs.context); }
 private:
+    template <bool Pm4OptEnabled>
     uint32* WriteShCommandsSetPathVs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    template <bool Pm4OptEnabled>
     uint32* WriteShCommandsSetPathPs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    void AccumulateShRegsPs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
-
-    const Device& m_device;
+    struct
+    {
+        uint8 supportSpp   : 1;
+        uint8 supportsHwVs : 1;
+        uint8 reserved     : 6;
+    } m_flags;
     VsPsRegs      m_regs;
     SemanticInfo  m_semanticInfo[MaxPsInputSemantics];
     uint32        m_semanticCount;

@@ -39,9 +39,7 @@ set(AMD_SOURCE_DIR ${GLOBAL_ROOT_SRC_DIR})
 
 if(PAL_BUILD_GFX9)
     set(ADDR_GFX10_BUILD ON)
-#if ADDR_GFX11_BUILD
     set(ADDR_GFX11_BUILD ON)
-#endif
 
     # These ASICs don't have build macros, they're always present if this HWL is enabled.
     set(ADDR_NAVI12_BUILD    ON)
@@ -59,6 +57,8 @@ if(PAL_BUILD_GFX9)
     set(ADDR_PHOENIX_BUILD   ON)
     set(ADDR_PHOENIX1_BUILD  ON)
     set(ADDR_PHOENIX2_BUILD  ON)
+    set(ADDR_STRIX_BUILD     ON)
+    set(ADDR_STRIX1_BUILD    ON)
 
     set(PAL_SWD_BUILD_GFX11  ON)
     set(PAL_SWD_BUILD_NAVI3X ON)
@@ -68,12 +68,13 @@ if(PAL_BUILD_GFX9)
     set(PAL_SWD_BUILD_PHX    ON)
     set(PAL_SWD_BUILD_PHX1   ON)
     set(PAL_SWD_BUILD_PHX2   ON)
+    set(PAL_SWD_BUILD_STRIX  ON)
+    set(PAL_SWD_BUILD_STRIX1 ON)
 
-#if PAL_BUILD_STRIX1
-    set(PAL_SWD_BUILD_STRIX1       ${PAL_BUILD_STRIX1})
-    pal_set_or(ADDR_STRIX_BUILD    ${PAL_BUILD_STRIX1})
-    pal_set_or(ADDR_STRIX1_BUILD   ${PAL_BUILD_STRIX1})
-    pal_set_or(PAL_SWD_BUILD_STRIX ${PAL_BUILD_STRIX1})
+#if PAL_BUILD_STRIX_HALO
+    set(PAL_SWD_BUILD_STRIX_HALO        ${PAL_BUILD_STRIX_HALO})
+    pal_set_or(ADDR_STRIX_HALO_BUILD    ${PAL_BUILD_STRIX_HALO})
+    pal_set_or(VPE_BUILD_1_1            ${PAL_BUILD_STRIX_HALO})
 #endif
 
 endif() # PAL_BUILD_GFX9

@@ -27,6 +27,7 @@
 
 #include "palCmdBuffer.h"
 #include "palVector.h"
+#include "palSpan.h"
 #include "core/layers/decorators.h"
 
 #include "crashAnalysis.h"
@@ -76,6 +77,16 @@ public:
         uint32      markerValue,
         const char* pMarkerInfo,
         uint32      markerInfoSize);
+
+    Util::Span<EventCache*> GetNestedEventCaches()
+    {
+        return Util::Span<EventCache*>(m_nestedEventCaches.Data(), m_nestedEventCaches.NumElements());
+    }
+
+    Util::Span<MemoryChunk*> GetNestedMemoryChunks()
+    {
+        return Util::Span<MemoryChunk*>(m_nestedMemoryChunks.Data(), m_nestedMemoryChunks.NumElements());
+    }
 
     // Public ICmdBuffer interface methods:
     virtual Result Begin(
@@ -218,6 +229,8 @@ private:
     MemoryChunk*   m_pMemoryChunk;
     EventCache*    m_pEventCache;
     Util::Vector<MarkerStack, MarkerStackCount, IPlatform> m_markerStack;
+    Util::Vector<EventCache*, 8, IPlatform> m_nestedEventCaches;
+    Util::Vector<MemoryChunk*, 8, IPlatform> m_nestedMemoryChunks;
 
     uint32 m_stgSqttEvent;      // Temp sqttEvent info storage
     struct

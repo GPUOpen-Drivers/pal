@@ -53,14 +53,10 @@ FrameTraceController::FrameTraceController(
     m_captureFrameCount(1),
     m_framePresentLock(),
     m_pTraceSession(pPlatform->GetTraceSession()),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     m_pQueue(nullptr),
     m_pCmdBufTraceBegin(nullptr),
     m_pCmdBufTraceEnd(nullptr),
     m_pTraceEndFence(nullptr)
-#else
-    m_pCurrentCmdBuffer(nullptr)
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
     ,
     m_pCmdBufTracePrepare(nullptr)
@@ -208,26 +204,21 @@ void FrameTraceController::OnFrameUpdated()
 
             if (result == Result::Success)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
                 // Update the Trace Session State before submitting the GPU work
                 // because the PAL submission code itself will call back into
                 // FrameTraceController::FinishTrace() and set the Trace Session State to Completed.
                 // The expected flow is therefore that we set the state to Waiting now, then
                 // the PAL submission code path will call into FrameTraceController::FinishTrace()
                 // and the state will be set to Completed
-#endif
                 m_pTraceSession->SetTraceSessionState(TraceSessionState::Waiting);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
                 result = SubmitEndTraceGpuWork();
-#endif
             }
 
             PAL_ASSERT(result == Result::Success);
         }
         break;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     case TraceSessionState::Waiting:
     {
         Result result = m_pTraceEndFence->GetStatus();
@@ -247,7 +238,6 @@ void FrameTraceController::OnFrameUpdated()
 
         break;
     }
-#endif
     default:
         break;
     }
@@ -280,16 +270,13 @@ Result FrameTraceController::BeginTrace()
 
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
         result = SubmitBeginTraceGpuWork();
-#endif
         m_pTraceSession->SetTraceSessionState(TraceSessionState::Running);
     }
 
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
 // =====================================================================================================================
 // Submit the GPU command buffer to begin a trace
 Result FrameTraceController::SubmitBeginTraceGpuWork() const
@@ -389,7 +376,6 @@ Result FrameTraceController::CreateFence(
 
     return result;
 }
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
 // =====================================================================================================================
@@ -435,7 +421,6 @@ Result FrameTraceController::OnBeginGpuWork(
     ICmdBuffer** ppCmdBuf)
 {
     Result result             = Result::Success;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     CmdBuffer* pCommandBuffer = nullptr;
     Device*    pDevice        = m_pPlatform->GetDevice(gpuIndex);
 
@@ -445,16 +430,7 @@ Result FrameTraceController::OnBeginGpuWork(
     {
         *ppCmdBuf = m_pCmdBufTraceBegin;
     }
-#else
-    if (m_pCurrentCmdBuffer != nullptr)
-    {
-        *ppCmdBuf = m_pCurrentCmdBuffer;
-    }
-    else
-    {
-        result = Result::ErrorUnknown;
-    }
-#endif
+
     return result;
 }
 
@@ -464,7 +440,6 @@ Result FrameTraceController::OnEndGpuWork(
     ICmdBuffer** ppCmdBuf)
 {
     Result     result         = Result::Success;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     CmdBuffer* pCommandBuffer = nullptr;
     Device*    pDevice        = m_pPlatform->GetDevice(gpuIndex);
 
@@ -479,22 +454,10 @@ Result FrameTraceController::OnEndGpuWork(
     {
         *ppCmdBuf = m_pCmdBufTraceEnd;
     }
-#else
-    if (m_pCurrentCmdBuffer != nullptr)
-    {
-        m_pCurrentCmdBuffer->SetEndTraceFlag(1);
-        *ppCmdBuf = m_pCurrentCmdBuffer;
-    }
-    else
-    {
-        result = Result::ErrorUnknown;
-    }
-#endif
 
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
 // =====================================================================================================================
 // Allocate a command buffer and prepare the command buffer for use
 Result FrameTraceController::CreateCommandBuffer(
@@ -540,31 +503,19 @@ Result FrameTraceController::CreateCommandBuffer(
 
     return result;
 }
-#endif
 
 // =====================================================================================================================
 void FrameTraceController::UpdateFrame(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     IQueue* pQueue)
-#else
-    CmdBuffer* pCmdBuffer)
-#endif
 {
     Util::MutexAuto lock(&m_framePresentLock);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     m_pQueue = pQueue;
-#else
-    m_pCurrentCmdBuffer = pCmdBuffer;
-#endif
+
     Util::AtomicIncrement64(&m_frameCount);
     OnFrameUpdated();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     m_pQueue = nullptr;
-#else
-    m_pCurrentCmdBuffer = nullptr;
-#endif
 }
 
 // =====================================================================================================================
@@ -581,7 +532,6 @@ void FrameTraceController::FinishTrace()
     }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     if (m_pCmdBufTraceBegin != nullptr)
     {
         m_pCmdBufTraceBegin->Destroy();
@@ -599,7 +549,6 @@ void FrameTraceController::FinishTrace()
         m_pTraceEndFence->Destroy();
         PAL_SAFE_FREE(m_pTraceEndFence, m_pPlatform);
     }
-#endif
 }
 
 } // namespace GpuUtil

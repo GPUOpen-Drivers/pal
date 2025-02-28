@@ -3063,7 +3063,6 @@ namespace Gfx110
     constexpr unsigned int mmMP1_SMN_FPS_CNT                                  = 0x162C4;
 } // namespace Gfx110
 
-#if   CHIP_HDR_STRIX1
 namespace Gfx115
 {
     constexpr unsigned int mmDB_CGTT_CLK_CTRL_1                               = 0xF0A5;
@@ -3082,7 +3081,6 @@ namespace Gfx115
     constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CED;
     constexpr unsigned int mmRPB_PERF_COUNTER_CNTL                            = 0x0CEE;
 } // namespace Gfx115
-#endif
 
 namespace Nv21
 {
@@ -6396,6 +6394,48 @@ namespace Rembrandt
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_4                     = 0x31EA;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_5                     = 0x31EB;
 } // namespace Rembrandt
+
+#if CHIP_HDR_STRIX_HALO
+namespace StxH
+{
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi0                         = 0x12400C81;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi1                         = 0x12400C83;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi2                         = 0x12400C85;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi3                         = 0x12400C87;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi4                         = 0x12400C89;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi5                         = 0x12400C8B;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi6                         = 0x12400C8D;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi7                         = 0x12400C8F;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo0                         = 0x12400C80;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo1                         = 0x12400C82;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo2                         = 0x12400C84;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo3                         = 0x12400C86;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo4                         = 0x12400C88;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo5                         = 0x12400C8A;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo6                         = 0x12400C8C;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo7                         = 0x12400C8E;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi0                         = 0x12400CC1;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi1                         = 0x12400CC3;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi2                         = 0x12400CC5;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi3                         = 0x12400CC7;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi4                         = 0x12400CC9;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi5                         = 0x12400CCB;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi6                         = 0x12400CCD;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi7                         = 0x12400CCF;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo0                         = 0x12400CC0;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo1                         = 0x12400CC2;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo2                         = 0x12400CC4;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo3                         = 0x12400CC6;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo4                         = 0x12400CC8;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo5                         = 0x12400CCA;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo6                         = 0x12400CCC;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo7                         = 0x12400CCE;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI                          = 0xD04A;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO                          = 0xD049;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT                      = 0xD844;
+    constexpr unsigned int mmMP1_SMN_FPS_CNT                                  = 0x16343;
+} // namespace StxH
+#endif
 
 } // inline namespace Chip
 } // namespace Gfx9

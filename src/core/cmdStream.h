@@ -173,25 +173,50 @@ public:
     virtual const GpuMemoryPatchList* GetPatchList() const { return nullptr; }
 
     // Public command interface:
-    // Classes that wish to write commands to a command stream should call ReserveCommands, write their commands to the
-    // provided buffer, and finish by passing a pointer to the next DWORD after their commands to CommitCommands. They
-    // can reserve embedded command space by calling ReserveEmbeddedData. However, embedded command space must never be
-    // reserved in between a call to ReserveCommands and CommitCommands!
+    // Classes that wish to write commands to this command stream must choose between these two APIs:
+    // 1. The two-phase Reserve/CommitCommands functions, which are best for command buffers built out of many small
+    //    packets. This path exists for cases where it's expensive or complicated to compute the exact allocation size
+    //    before building the packets. The main downside is that the caller must be aware of the ReserveLimit.
+    //    You can use ReserveCommandsSized to specify a custom reserve limit.
+    // 2. The AllocateCommands function, which is best for command buffers built out of a few large packets with known
+    //    sizes. This path exists for cases where it's trivial to know the exact command space required. The caller gets
+    //    an extra benefit as well, they can ignore the ReserveLimit! Instead they must not exceed the size of a command
+    //    chunk minus any space reserved by the command allocator or command steam.
+
+    // Reserve/Commit API functions:
+    // If you don't know exactly how much command memory you need but you know you won't exceed the ReserveLimit then
+    // you should call ReserveCommands, write your commands to the provided buffer, and finish by passing a pointer to
+    // the next DWORD after your commands to CommitCommands.
     uint32* ReserveCommands();
+    uint32* ReserveCommandsSized(uint32 numDwords);
     void CommitCommands(const uint32* pEndOfBuffer);
 
     // Commits and reserves new command space if the space remaining since the last call to ReserveCommands() is
     // insufficient for the specified amount of command DWORDs to fit.  Otherwise, does nothing.  The amount of DWORDs
-    // **must** be less than or equal to the reserve limit.
+    // **must** be less than or equal to the suballoc size in DWORDs.
     uint32* ReReserveCommands(uint32* pCurrentBufferPos, uint32 numDwords);
 
     // Similar to ReserveCommands, but this call guarantees the command buffer is allocated in a new chunk.
     uint32* ReserveCommandsInNewChunk();
+    uint32* ReserveCommandsSizedInNewChunk(uint32 numDwords);
 
     // In some rare cases we must break the "assume you have enough space" rule. Typically this means the caller is
     // building commands in a loop which may or may not write more commands than will fit in the reserve buffer. This
     // function will return the number of command DWORDs that are guaranteed to fit in the reserve buffer.
+    // If you need more space than this limit, you can either use ReserveCommandsSized or reserve multiple times.
     uint32 ReserveLimit() const { return m_reserveLimit; }
+
+    // The maximum size of any reserved commands (default or exact). If you need more space than this limit, you must
+    // reserve multiple times.
+    // All reserve limits cannot be larger than the chunk size minus the padding space. Reserve limits
+    // up to 1024 DWORDs will always be OK; anything larger is at the mercy of the client's suballocation size.
+    uint32 MaxReserveLimit() const { return m_maxReserveLimit; }
+
+    // AllocateCommands API functions:
+    // If you know exactly how much command memory you need, you should call AllocateCommands and write your commands
+    // into the provided buffer. Note that if you're building lots of small packets calling this function many times
+    // should be slower than using the Reserve/Commit API above.
+    uint32* AllocateCommands(uint32 sizeInDwords);
 
     // Patches the final chunk of this command stream so that it chains to the first chunk of the given target stream.
     // If a null pointer is provided, a NOP is written to clear out any previous chaining commands. This must be called
@@ -308,12 +333,15 @@ private:
     const EngineType m_engineType;
     const uint32     m_cmdSpaceDwordPadding; // End-of-chunk padding needed for a postamble and/or NOP padding.
     const uint32     m_reserveLimit;         // DWORDs that are reserved by each call to ReserveCommands.
+    uint32           m_maxReserveLimit;      // Max DWORDs that can be reserved in any path.
 
     uint32           m_chunkDwordsAvailable; // Unused DWORDs available in the tail of m_chunkList.
 
     // If the dedicated reserve buffer is in use its address will be stored here at initialization. If it is not in use
-    // then this pointer will be set to a bit of allocated chunk space each time ReserveCommands is called.
+    // then this pointer will be set to a bit of allocated chunk space each time ReserveCommands is called. The end
+    // pointer is one past the valid commands.
     uint32*          m_pReserveBuffer;
+    uint32*          m_pReserveBufferEnd;
 
     // Hash map of all nested command buffer chunks which were executed by this command stream via calls to Call().
     NestedChunkMap   m_nestedChunks;

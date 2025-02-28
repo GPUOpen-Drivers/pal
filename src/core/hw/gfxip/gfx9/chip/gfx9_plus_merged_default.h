@@ -3687,7 +3687,6 @@ namespace Gfx110
     constexpr unsigned int mmVGT_DMA_DATA_FIFO_DEPTH_DEFAULT                  = 0x0200;
 } // namespace Gfx110
 
-#if   CHIP_HDR_STRIX1
 namespace Gfx115
 {
     constexpr unsigned int mmCB_KEY_OVERRIDE_0_DEFAULT                        = 0xFFFF0000;
@@ -3714,7 +3713,6 @@ namespace Gfx115
     constexpr unsigned int mmPA_STEREO_CNTL_DEFAULT                           = 0x4D0DCC;
     constexpr unsigned int mmSQ_CONFIG_DEFAULT                                = 0x380000;
 } // namespace Gfx115
-#endif
 
 namespace Mall
 {
@@ -9822,7 +9820,6 @@ namespace Rembrandt
     constexpr unsigned int mmWD_ENHANCE_DEFAULT                               = 0x0000;
 } // namespace Rembrandt
 
-#if CHIP_HDR_STRIX1
 namespace Stx1
 {
     constexpr unsigned int mmGB_ADDR_CONFIG_DEFAULT                           = 0x0242;
@@ -9836,6 +9833,57 @@ namespace Stx1
     constexpr unsigned int mmVGT_DMA_DATA_FIFO_DEPTH_DEFAULT                  = 0x0100;
     constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT                       = 0x01FF;
 } // namespace Stx1
+
+#if CHIP_HDR_STRIX_HALO
+namespace StxH
+{
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi0_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi2_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi3_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi4_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi5_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi6_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi7_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo0_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo2_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo3_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo4_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo5_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo6_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtlLo7_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi0_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi2_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi3_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi4_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi5_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi6_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrHi7_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo0_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo1_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo2_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo3_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo4_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo5_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo6_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmDF_PIE_AON_PerfMonCtrLo7_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmGB_ADDR_CONFIG_DEFAULT                           = 0x0343;
+    constexpr unsigned int mmGB_ADDR_CONFIG_READ_DEFAULT                      = 0x0343;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO_DEFAULT                  = 0x0000;
+    constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT_DEFAULT              = 0x0000;
+    constexpr unsigned int mmMP1_SMN_FPS_CNT_DEFAULT                          = 0x0000;
+    constexpr unsigned int mmPA_SC_ENHANCE_3_DEFAULT                          = 0x0180;
+    constexpr unsigned int mmPA_SC_VRS_SURFACE_CNTL_DEFAULT                   = 0x42000000;
+    constexpr unsigned int mmRLC_SPM_ACCUM_MODE_DEFAULT                       = 0x6004;
+    constexpr unsigned int mmSPI_FEATURE_CTRL_DEFAULT                         = 0x13E0;
+    constexpr unsigned int mmSPI_PS_MAX_WAVE_ID_DEFAULT                       = 0x20000FF;
+    constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES_DEFAULT               = 0x10000150;
+    constexpr unsigned int mmVGT_DMA_DATA_FIFO_DEPTH_DEFAULT                  = 0x0200;
+    constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT                       = 0x03FF;
+} // namespace StxH
 #endif
 
 } // inline namespace Chip

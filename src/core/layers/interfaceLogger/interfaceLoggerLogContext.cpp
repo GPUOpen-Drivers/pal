@@ -165,9 +165,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdScaledCopyImage,                               InterfaceObject::CmdBuffer,            "CmdScaledCopyImage"                      },
     { InterfaceFunc::CmdBufferCmdGenerateMipmaps,                               InterfaceObject::CmdBuffer,            "CmdGenerateMipmaps"                      },
     { InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy,                      InterfaceObject::CmdBuffer,            "CmdColorSpaceConversionCopy"             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     { InterfaceFunc::CmdBufferCmdCloneImageData,                                InterfaceObject::CmdBuffer,            "CmdCloneImageData"                       },
-#endif
     { InterfaceFunc::CmdBufferCmdUpdateMemory,                                  InterfaceObject::CmdBuffer,            "CmdUpdateMemory"                         },
     { InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker,              InterfaceObject::CmdBuffer,            "CmdUpdateBusAddressableMemoryMarker"     },
     { InterfaceFunc::CmdBufferCmdFillMemory,                                    InterfaceObject::CmdBuffer,            "CmdFillMemory"                           },
@@ -934,7 +932,6 @@ void LogContext::PipelineStageFlags(
     {
         "PipelineStageTopOfPipe",         //= 0x00000001,
         "PipelineStageFetchIndirectArgs", //= 0x00000002,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
         "PipelineStagePostPrefetch",      //= 0x00000004,
         "PipelineStageFetchIndices",      //= 0x00000008,
         "PipelineStageStreamOut",         //= 0x00000010,
@@ -950,21 +947,6 @@ void LogContext::PipelineStageFlags(
         "PipelineStageCs",                //= 0x00004000,
         "PipelineStageBlt",               //= 0x00008000,
         "PipelineStageBottomOfPipe",      //= 0x00010000,
-#else
-        "PipelineStageFetchIndices",      //= 0x00000004,
-        "PipelineStageStreamOut",         //= 0x00000008,
-        "PipelineStageVs",                //= 0x00000010,
-        "PipelineStageHs",                //= 0x00000020,
-        "PipelineStageDs",                //= 0x00000040,
-        "PipelineStageGs",                //= 0x00000080,
-        "PipelineStagePs",                //= 0x00000100,
-        "PipelineStageEarlyDsTarget",     //= 0x00000200,
-        "PipelineStageLateDsTarget",      //= 0x00000400,
-        "PipelineStageColorTarget",       //= 0x00000800,
-        "PipelineStageCs",                //= 0x00001000,
-        "PipelineStageBlt",               //= 0x00002000,
-        "PipelineStageBottomOfPipe",      //= 0x00004000,
-#endif
     };
 
     static_assert(BitfieldGenMask(ArrayLen(StringTable)) == PipelineStageAllStages,

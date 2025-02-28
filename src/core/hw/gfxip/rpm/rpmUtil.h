@@ -123,14 +123,13 @@ extern void ConvertClearColorToNativeFormat(
     uint32*        pColor);
 
 extern void ConvertAndPackClearColor(
-    const ClearColor& color,
-    SwizzledFormat    imgFormat,
-    SwizzledFormat    clearFormat,
-    SwizzledFormat    rawFormat,
-    uint32            plane,
-    bool              convertToNativeFmt,
-    bool              clearWithRawFmt,
-    uint32*           pPackedColor);
+    const ClearColor&     color,
+    SwizzledFormat        imgFormat,
+    SwizzledFormat        clearFormat,
+    const SwizzledFormat* pRawFormat,
+    uint32                plane,
+    bool                  clearWithRawFmt,
+    uint32*               pPackedColor);
 
 extern uint32 GetNormalizedData(uint32 inputData, uint32 maxComponentValue);
 

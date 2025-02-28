@@ -233,9 +233,7 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_MDN:
     case FAMILY_NV3:
     case FAMILY_PHX:
-#if PAL_BUILD_GFX115
     case FAMILY_STX:
-#endif
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 
@@ -318,6 +316,8 @@ Device::Device(
     memset(&m_referencedGpuMemBytes[0], 0, sizeof(m_referencedGpuMemBytes));
     memset(&m_hwsInfo, 0, sizeof(m_hwsInfo));
     memset(&m_publicSettings, 0, sizeof(m_publicSettings));
+    static_assert(StringView<char>(SettingsDirEnvVar, sizeof(SettingsDirEnvVar)) ==
+        StringView<char>(ConfigDirEnvVar, sizeof(ConfigDirEnvVar)), "EnvVars for settings dir are not equal!");
 }
 
 // =====================================================================================================================
@@ -624,9 +624,7 @@ Result Device::HwlEarlyInit()
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
-#if PAL_BUILD_GFX115
         case GfxIpLevel::GfxIp11_5:
-#endif
             result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
             break;
         default:
@@ -649,9 +647,7 @@ Result Device::HwlEarlyInit()
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
-#if PAL_BUILD_GFX115
         case GfxIpLevel::GfxIp11_5:
-#endif
             result = AddrMgr2::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
             break;
         default:
@@ -1166,7 +1162,8 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         m_memoryProperties.flags.shadowDescVaSupport = (m_chipProperties.srdSizes.fmaskView > 0);
     }
     else if ((((usableVaEnd - usableVaStart) >= (5uLL * _1GB)) && (m_chipProperties.srdSizes.fmaskView > 0)) ||
-             (((usableVaEnd - usableVaStart) >= (4uLL * _1GB)) && (m_chipProperties.srdSizes.fmaskView == 0)))
+             (((usableVaEnd - usableVaStart) >= (4uLL * _1GB)) && (m_chipProperties.srdSizes.fmaskView == 0))
+             )
     {
         // Case #2:
         // This is not quite ideal, but still workable: we have more than 5 GB of address space, so we can use two
@@ -1943,9 +1940,6 @@ Result Device::GetProperties(
             pEngineInfo->flags.supportsImageInitPerSubresource = engineInfo.flags.supportsImageInitPerSubresource;
             pEngineInfo->flags.supportVirtualMemoryRemap       = engineInfo.flags.supportVirtualMemoryRemap;
             pEngineInfo->flags.runsInPhysicalMode              = engineInfo.flags.physicalAddressingMode;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
-            pEngineInfo->flags.p2pCopyToInvisibleHeapIllegal   = engineInfo.flags.p2pCopyToInvisibleHeapIllegal;
-#endif
             pEngineInfo->flags.supportsTrackBusyChunks         = engineInfo.flags.supportsTrackBusyChunks;
             pEngineInfo->flags.supportsUnmappedPrtPageAccess   = engineInfo.flags.supportsUnmappedPrtPageAccess;
             pEngineInfo->flags.supportsClearCopyMsaaDsDst      = engineInfo.flags.supportsClearCopyMsaaDsDst;
@@ -2261,9 +2255,7 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.flags.supportFloat64SharedAtomicMinMax
             = m_chipProperties.gfxip.supportFloat64SharedAtomicMinMax;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
         pInfo->gfxipProperties.flags.support1dDispatchInterleave = m_chipProperties.gfxip.support1dDispatchInterleave;
-#endif
 
         pInfo->gfxipProperties.srdSizes.typedBufferView   = m_chipProperties.srdSizes.typedBufferView;
         pInfo->gfxipProperties.srdSizes.untypedBufferView = m_chipProperties.srdSizes.untypedBufferView;
@@ -3873,7 +3865,8 @@ static Result ValidateCompatibleImageViewFormats(
     else if (image.IsDepthPlane(plane))
     {
         if ((viewBpp == 32) &&
-            ((imageFmt == ChNumFormat::X32_Float) || (imageFmt == ChNumFormat::D32_Float_S8_Uint)))
+            ((imageFmt == ChNumFormat::X32_Float) || (imageFmt == ChNumFormat::D32_Float_S8_Uint))
+            )
         {
             // The view can have an R32 channel format when viewing the depth plane of an R32 or an R32G8
             // depth/stencil image.

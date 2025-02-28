@@ -1642,17 +1642,6 @@ Result Device::CreateShaderLibrary(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppLibrary);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-        if (result == Result::Success)
-        {
-            pLogContext->KeyAndBeginList("functions", false);
-            for (uint32 i = 0; i < createInfo.funcCount; ++i)
-            {
-                pLogContext->Struct(createInfo.pFuncList[i]);
-            }
-            pLogContext->EndList();
-        }
-#endif
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);

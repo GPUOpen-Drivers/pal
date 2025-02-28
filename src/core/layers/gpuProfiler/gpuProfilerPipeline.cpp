@@ -140,7 +140,6 @@ void Pipeline::Destroy()
 {
 
     // A new path ray-tracing "pipeline" is an archive with possibly multiple compute pipelines (or none).
-    // A new path workgraphs "pipeline" is an archive with no compute pipelines.
     // If it is an archive, process each compute pipeline.
     Util::Span<const IPipeline* const> pipelines = GetPipelines();
     for (const IPipeline* pPipeline : pipelines)
@@ -266,7 +265,6 @@ Result Pipeline::InitCompute(
     void* pElfBuffer           = nullptr;
 
     // A new path ray-tracing "pipeline" is an archive with possibly multiple compute pipelines (or none).
-    // A new path workgraphs "pipeline" is an archive with no compute pipelines.
     // If it is an archive, get the first compute pipeline if any, then get the ELF, and parse metadata from that.
     if (result == Result::Success)
     {

@@ -58,16 +58,18 @@ namespace Pal
 GfxCmdBuffer::GfxCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
-    const GfxBarrierMgr*       pBarrierMgr)
+    GfxCmdStream*              pCmdStream,
+    const GfxBarrierMgr&       barrierMgr,
+    bool                       isGfxSupported)
     :
     CmdBuffer(*device.Parent(), createInfo),
-    m_engineSupport(0),
+    m_device(device),
+    m_isGfxSupported(isGfxSupported),
     m_generatedChunkList(device.GetPlatform()),
     m_retainedGeneratedChunkList(device.GetPlatform()),
     m_pCurrentExperiment(nullptr),
     m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
     m_maxUploadFenceToken(0),
-    m_device(device),
     m_pInternalEvent(nullptr),
     m_computeStateFlags(0),
     m_pDfSpmPerfmonInfo(nullptr),
@@ -80,7 +82,8 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_computeRestoreState{},
     m_predGpuAddr(0),
     m_inheritedPredGpuAddr(0),
-    m_pBarrierMgr(pBarrierMgr),
+    m_pCmdStream(pCmdStream),
+    m_barrierMgr(barrierMgr),
     m_numActiveQueries{},
     m_acqRelFenceValGpuVa(0),
     m_acqRelFenceVals{},
@@ -230,7 +233,7 @@ Result GfxCmdBuffer::End()
     Result result = CmdBuffer::End();
 
     // NOTE: The root chunk comes from the last command stream in this command buffer because for universal command
-    // buffers, the order of command streams is CE, DE. We always want the "DE" to be the root since the CE may not
+    // buffers, the order of command streams is ACE, DE. We always want the "DE" to be the root since the ACE may not
     // have any commands, depending on what operations get recorded to the command buffer.
     CmdStreamChunk* pRootChunk = GetCmdStream(NumCmdStreams() - 1)->GetFirstChunk();
 
@@ -273,20 +276,14 @@ void GfxCmdBuffer::ResetState()
 
     // It's possible that another of our command buffers still has blts in flight, except for CP blts which must be
     // flushed in each command buffer postamble.
-    if (IsComputeSupported())
-    {
-        m_cmdBufState.flags.csBltActive                         = 1;
-        m_cmdBufState.flags.csWriteCachesDirty                  = 1;
-        m_cmdBufState.flags.csBltDirectWriteMisalignedMdDirty   = 1;
-        m_cmdBufState.flags.csBltIndirectWriteMisalignedMdDirty = 1;
-    }
+    m_cmdBufState.flags.csBltActive                         = 1;
+    m_cmdBufState.flags.csWriteCachesDirty                  = 1;
+    m_cmdBufState.flags.csBltDirectWriteMisalignedMdDirty   = 1;
+    m_cmdBufState.flags.csBltIndirectWriteMisalignedMdDirty = 1;
 
-    if (IsCpDmaSupported())
     {
-        {
-            // PAL sends CP reads and writes through the GL2 by default, we'll need GL2 flushes.
-            m_cmdBufState.flags.cpWriteCachesDirty = 1;
-        }
+        // PAL sends CP reads and writes through the GL2 by default, we'll need GL2 flushes.
+        m_cmdBufState.flags.cpWriteCachesDirty = 1;
     }
 
     // Command buffers start without a valid predicate GPU address.
@@ -462,11 +459,7 @@ void GfxCmdBuffer::ReturnGeneratedCommandChunks(
         // Return all chunks containing GPU-generated commands to the allocator.
         if ((m_generatedChunkList.IsEmpty() == false) && (m_flags.autoMemoryReuse == true))
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
             m_pCmdAllocator->ReuseChunks(LargeEmbeddedDataAlloc, false, m_generatedChunkList.Begin());
-#else
-            m_pCmdAllocator->ReuseChunks(EmbeddedDataAlloc, false, m_generatedChunkList.Begin());
-#endif
         }
     }
     else
@@ -805,12 +798,6 @@ void GfxCmdBuffer::CmdPostProcessFrame(
     {
         *pAddedGpuWork = true;
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 844
-#if PAL_BUILD_RDF
-    m_device.GetPlatform()->UpdateFrameTraceController(this);
-#endif
-#endif
 }
 
 // =====================================================================================================================
@@ -1145,7 +1132,7 @@ void GfxCmdBuffer::CmdSaveGraphicsState()
     if (m_pCurrentExperiment != nullptr)
     {
         // Inform the performance experiment that we're starting some internal operations.
-        m_pCurrentExperiment->BeginInternalOps(GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
+        m_pCurrentExperiment->BeginInternalOps(m_pCmdStream);
     }
 }
 
@@ -1159,7 +1146,7 @@ void GfxCmdBuffer::CmdRestoreGraphicsStateInternal(
     if (m_pCurrentExperiment != nullptr)
     {
         // Inform the performance experiment that we've finished some internal operations.
-        m_pCurrentExperiment->EndInternalOps(GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
+        m_pCurrentExperiment->EndInternalOps(m_pCmdStream);
     }
 }
 
@@ -1174,7 +1161,7 @@ void GfxCmdBuffer::CmdSaveComputeState(
     if (m_pCurrentExperiment != nullptr)
     {
         // Inform the performance experiment that we're starting some internal operations.
-        m_pCurrentExperiment->BeginInternalOps(GetCmdStreamByEngine(GetPerfExperimentEngine()));
+        m_pCurrentExperiment->BeginInternalOps(m_pCmdStream);
     }
 
     if (TestAnyFlagSet(stateFlags, ComputeStatePipelineAndUserData))
@@ -1249,7 +1236,7 @@ void GfxCmdBuffer::CmdRestoreComputeStateInternal(
     if (m_pCurrentExperiment != nullptr)
     {
         // Inform the performance experiment that we've finished some internal operations.
-        m_pCurrentExperiment->EndInternalOps(GetCmdStreamByEngine(GetPerfExperimentEngine()));
+        m_pCurrentExperiment->EndInternalOps(m_pCmdStream);
     }
 
      // Reactivate all queries that we stopped in CmdSaveComputeState.
@@ -1274,14 +1261,6 @@ void GfxCmdBuffer::CmdRestoreComputeStateInternal(
         m_device.Parent()->DeveloperCb(Developer::CallbackType::RpmBlt, &cbData);
 #endif
     }
-}
-
-// =====================================================================================================================
-CmdBufferEngineSupport GfxCmdBuffer::GetPerfExperimentEngine() const
-{
-    return (TestAnyFlagSet(m_engineSupport, CmdBufferEngineSupport::Graphics)
-            ? CmdBufferEngineSupport::Graphics
-            : CmdBufferEngineSupport::Compute);
 }
 
 // =====================================================================================================================
@@ -1430,8 +1409,6 @@ void GfxCmdBuffer::CmdDuplicateUserData(
 void GfxCmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
-    PAL_ASSERT(m_pBarrierMgr != nullptr);
-
     CmdBuffer::CmdBarrier(barrierInfo);
 
     // Barriers do not honor predication.
@@ -1439,7 +1416,7 @@ void GfxCmdBuffer::CmdBarrier(
     m_cmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-    m_pBarrierMgr->DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
+    m_barrierMgr.DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1453,7 +1430,7 @@ void GfxCmdBuffer::CmdBarrier(
 
         if (result == Result::Success)
         {
-            m_pBarrierMgr->Barrier(this, splitBarrierInfo, &barrierOps);
+            m_barrierMgr.Barrier(this, splitBarrierInfo, &barrierOps);
         }
         else if (result == Result::ErrorOutOfMemory)
         {
@@ -1472,10 +1449,10 @@ void GfxCmdBuffer::CmdBarrier(
     }
     else
     {
-        m_pBarrierMgr->Barrier(this, barrierInfo, &barrierOps);
+        m_barrierMgr.Barrier(this, barrierInfo, &barrierOps);
     }
 
-    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+    m_barrierMgr.DescribeBarrierEnd(this, &barrierOps);
 
     m_cmdBufState.flags.packetPredicate = packetPredicate;
 }
@@ -1488,8 +1465,6 @@ ReleaseToken GfxCmdBuffer::CmdRelease(
 #endif
     const AcquireReleaseInfo& releaseInfo)
 {
-    PAL_ASSERT(m_pBarrierMgr != nullptr);
-
     CmdBuffer::CmdRelease(releaseInfo);
 
     // Barriers do not honor predication.
@@ -1497,7 +1472,7 @@ ReleaseToken GfxCmdBuffer::CmdRelease(
     m_cmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-    m_pBarrierMgr->DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
+    m_barrierMgr.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
 
     Developer::BarrierOperations barrierOps = {};
     ReleaseToken                 syncToken  = {};
@@ -1510,7 +1485,7 @@ ReleaseToken GfxCmdBuffer::CmdRelease(
 
         if (result == Result::Success)
         {
-            syncToken = m_pBarrierMgr->Release(this, splitReleaseInfo, &barrierOps);
+            syncToken = m_barrierMgr.Release(this, splitReleaseInfo, &barrierOps);
         }
         else if (result == Result::ErrorOutOfMemory)
         {
@@ -1529,10 +1504,10 @@ ReleaseToken GfxCmdBuffer::CmdRelease(
     }
     else
     {
-        syncToken = m_pBarrierMgr->Release(this, releaseInfo, &barrierOps);
+        syncToken = m_barrierMgr.Release(this, releaseInfo, &barrierOps);
     }
 
-    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+    m_barrierMgr.DescribeBarrierEnd(this, &barrierOps);
 
     m_cmdBufState.flags.packetPredicate = packetPredicate;
 
@@ -1553,8 +1528,6 @@ void GfxCmdBuffer::CmdAcquire(
     const ReleaseToken*       pSyncTokens)
 #endif
 {
-    PAL_ASSERT(m_pBarrierMgr != nullptr);
-
     CmdBuffer::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
 
     // Barriers do not honor predication.
@@ -1562,7 +1535,7 @@ void GfxCmdBuffer::CmdAcquire(
     m_cmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-    m_pBarrierMgr->DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
+    m_barrierMgr.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1575,10 +1548,10 @@ void GfxCmdBuffer::CmdAcquire(
         if (result == Result::Success)
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
-            m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount,
+            m_barrierMgr.Acquire(this, splitAcquireInfo, syncTokenCount,
                                    reinterpret_cast<const ReleaseToken*>(pSyncTokens), &barrierOps);
 #else
-            m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
+            m_barrierMgr.Acquire(this, splitAcquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
 #endif
         }
         else if (result == Result::ErrorOutOfMemory)
@@ -1599,14 +1572,14 @@ void GfxCmdBuffer::CmdAcquire(
     else
     {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
-        m_pBarrierMgr->Acquire(this, acquireInfo, syncTokenCount,
+        m_barrierMgr.Acquire(this, acquireInfo, syncTokenCount,
                                 reinterpret_cast<const ReleaseToken*>(pSyncTokens), &barrierOps);
 #else
-        m_pBarrierMgr->Acquire(this, acquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
+        m_barrierMgr.Acquire(this, acquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
 #endif
     }
 
-    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+    m_barrierMgr.DescribeBarrierEnd(this, &barrierOps);
 
     m_cmdBufState.flags.packetPredicate = packetPredicate;
 }
@@ -1616,8 +1589,6 @@ void GfxCmdBuffer::CmdReleaseEvent(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
 {
-    PAL_ASSERT(m_pBarrierMgr != nullptr);
-
     CmdBuffer::CmdReleaseEvent(releaseInfo, pGpuEvent);
 
     // Barriers do not honor predication.
@@ -1625,7 +1596,7 @@ void GfxCmdBuffer::CmdReleaseEvent(
     m_cmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-    m_pBarrierMgr->DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
+    m_barrierMgr.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1637,7 +1608,7 @@ void GfxCmdBuffer::CmdReleaseEvent(
 
         if (result == Result::Success)
         {
-            m_pBarrierMgr->ReleaseEvent(this, splitReleaseInfo, pGpuEvent, &barrierOps);
+            m_barrierMgr.ReleaseEvent(this, splitReleaseInfo, pGpuEvent, &barrierOps);
         }
         else if (result == Result::ErrorOutOfMemory)
         {
@@ -1656,10 +1627,10 @@ void GfxCmdBuffer::CmdReleaseEvent(
     }
     else
     {
-        m_pBarrierMgr->ReleaseEvent(this, releaseInfo, pGpuEvent, &barrierOps);
+        m_barrierMgr.ReleaseEvent(this, releaseInfo, pGpuEvent, &barrierOps);
     }
 
-    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+    m_barrierMgr.DescribeBarrierEnd(this, &barrierOps);
 
     m_cmdBufState.flags.packetPredicate = packetPredicate;
 }
@@ -1670,8 +1641,6 @@ void GfxCmdBuffer::CmdAcquireEvent(
     uint32                    gpuEventCount,
     const IGpuEvent* const*   ppGpuEvents)
 {
-    PAL_ASSERT(m_pBarrierMgr != nullptr);
-
     CmdBuffer::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
 
     // Barriers do not honor predication.
@@ -1679,7 +1648,7 @@ void GfxCmdBuffer::CmdAcquireEvent(
     m_cmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-    m_pBarrierMgr->DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
+    m_barrierMgr.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1691,7 +1660,7 @@ void GfxCmdBuffer::CmdAcquireEvent(
 
         if (result == Result::Success)
         {
-            m_pBarrierMgr->AcquireEvent(this, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+            m_barrierMgr.AcquireEvent(this, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
         }
         else if (result == Result::ErrorOutOfMemory)
         {
@@ -1710,10 +1679,10 @@ void GfxCmdBuffer::CmdAcquireEvent(
     }
     else
     {
-        m_pBarrierMgr->AcquireEvent(this, acquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+        m_barrierMgr.AcquireEvent(this, acquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
     }
 
-    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+    m_barrierMgr.DescribeBarrierEnd(this, &barrierOps);
 
     m_cmdBufState.flags.packetPredicate = packetPredicate;
 }
@@ -1722,8 +1691,6 @@ void GfxCmdBuffer::CmdAcquireEvent(
 void GfxCmdBuffer::CmdReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo)
 {
-    PAL_ASSERT(m_pBarrierMgr != nullptr);
-
     CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
 
     // Barriers do not honor predication.
@@ -1731,7 +1698,7 @@ void GfxCmdBuffer::CmdReleaseThenAcquire(
     m_cmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
-    m_pBarrierMgr->DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
+    m_barrierMgr.DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1743,7 +1710,7 @@ void GfxCmdBuffer::CmdReleaseThenAcquire(
 
         if (result == Result::Success)
         {
-            m_pBarrierMgr->ReleaseThenAcquire(this, splitBarrierInfo, &barrierOps);
+            m_barrierMgr.ReleaseThenAcquire(this, splitBarrierInfo, &barrierOps);
         }
         else if (result == Result::ErrorOutOfMemory)
         {
@@ -1762,10 +1729,10 @@ void GfxCmdBuffer::CmdReleaseThenAcquire(
     }
     else
     {
-        m_pBarrierMgr->ReleaseThenAcquire(this, barrierInfo, &barrierOps);
+        m_barrierMgr.ReleaseThenAcquire(this, barrierInfo, &barrierOps);
     }
 
-    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+    m_barrierMgr.DescribeBarrierEnd(this, &barrierOps);
 
     m_cmdBufState.flags.packetPredicate = packetPredicate;
 }
@@ -1804,17 +1771,16 @@ void GfxCmdBuffer::CmdBeginPerfExperiment(
 {
     const PerfExperiment*const pExperiment = static_cast<PerfExperiment*>(pPerfExperiment);
     PAL_ASSERT(pExperiment != nullptr);
-    CmdStream* pCmdStream = GetCmdStreamByEngine(GetPerfExperimentEngine());
 
     // Preemption needs to be disabled during any perf experiment for accuracy.
-    pCmdStream->DisablePreemption();
+    m_pCmdStream->DisablePreemption();
 
     // Indicates that this command buffer is used for enabling a perf experiment. This is used to write any VCOPs that
     // may be needed during submit time.
     const PerfExperimentFlags tracesEnabled = pExperiment->TracesEnabled();
     m_cmdBufPerfExptFlags.u32All |= tracesEnabled.u32All;
 
-    pExperiment->IssueBegin(this, pCmdStream);
+    pExperiment->IssueBegin(this, m_pCmdStream);
     if (tracesEnabled.perfCtrsEnabled || tracesEnabled.spmTraceEnabled)
     {
         m_cmdBufState.flags.perfCounterStarted = 1;
@@ -1848,10 +1814,10 @@ void GfxCmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
 {
     const PerfExperiment*const pExperiment = static_cast<PerfExperiment*>(pPerfExperiment);
     PAL_ASSERT(pExperiment != nullptr);
-    CmdStream* pCmdStream = GetCmdStreamByEngine(GetPerfExperimentEngine());
+
     // Preemption needs to be disabled during any perf experiment for accuracy.
-    pCmdStream->DisablePreemption();
-    pExperiment->UpdateSqttTokenMask(pCmdStream, sqttTokenConfig);
+    m_pCmdStream->DisablePreemption();
+    pExperiment->UpdateSqttTokenMask(m_pCmdStream, sqttTokenConfig);
 }
 
 // =====================================================================================================================
@@ -1860,16 +1826,16 @@ void GfxCmdBuffer::CmdEndPerfExperiment(
 {
     const PerfExperiment*const pExperiment = static_cast<PerfExperiment*>(pPerfExperiment);
     PAL_ASSERT(pPerfExperiment != nullptr);
-    CmdStream* pCmdStream = GetCmdStreamByEngine(GetPerfExperimentEngine());
+
     // Normally, we should only be ending the currently bound perf experiment opened in this command buffer.  However,
     // when gathering full-frame SQ thread traces, an experiment could be opened in one command buffer and ended in
     // another.
     PAL_ASSERT((pPerfExperiment == m_pCurrentExperiment) || (m_pCurrentExperiment == nullptr));
 
     // Preemption needs to be disabled during any perf experiment for accuracy.
-    pCmdStream->DisablePreemption();
+    m_pCmdStream->DisablePreemption();
 
-    pExperiment->IssueEnd(this, pCmdStream);
+    pExperiment->IssueEnd(this, m_pCmdStream);
 
     const PerfExperimentFlags tracesEnabled = pExperiment->TracesEnabled();
     if (tracesEnabled.perfCtrsEnabled || tracesEnabled.spmTraceEnabled)
@@ -2058,14 +2024,14 @@ bool GfxCmdBuffer::OptimizeAcqRelReleaseInfo(
 
     const bool isClearToTarget = GfxBarrierMgr::IsClearToTargetTransition(*pSrcAccessMask, *pDstAccessMask);
 
-    m_pBarrierMgr->OptimizeStageMask(this, barrierType, pSrcStageMask, pDstStageMask, isClearToTarget);
+    m_barrierMgr.OptimizeStageMask(this, barrierType, pSrcStageMask, pDstStageMask, isClearToTarget);
 
-    return m_pBarrierMgr->OptimizeAccessMask(this,
-                                             barrierType,
-                                             static_cast<const Image*>(pImage),
-                                             pSrcAccessMask,
-                                             pDstAccessMask,
-                                             true);
+    return m_barrierMgr.OptimizeAccessMask(this,
+                                           barrierType,
+                                           static_cast<const Image*>(pImage),
+                                           pSrcAccessMask,
+                                           pDstAccessMask,
+                                           true);
 }
 
 // =====================================================================================================================
@@ -2297,11 +2263,7 @@ CmdStreamChunk* GfxCmdBuffer::GetNextGeneratedChunk()
         // reference for us automatically. Embedded data chunks cannot be root chunks.
         if (pChunk == nullptr)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
             m_status = m_pCmdAllocator->GetNewChunk(LargeEmbeddedDataAlloc, false, &pChunk);
-#else
-            m_status = m_pCmdAllocator->GetNewChunk(EmbeddedDataAlloc, false, &pChunk);
-#endif
 
             // Something bad happen and the GfxCmdBuffer will always be in error status ever after
             PAL_ALERT(m_status != Result::Success);

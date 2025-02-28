@@ -103,7 +103,14 @@ static Result WriteCmdBufferDumpHeaderToFile(
 
         if (cmdBufferDesc.engineType == EngineTypeUniversal)
         {
-            suffix = " DE";
+            if (cmdBufferDesc.subEngineType == SubEngineType::Primary)
+            {
+                suffix = " DE";
+            }
+            else
+            {
+                suffix = " CE";
+            }
         }
     }
 

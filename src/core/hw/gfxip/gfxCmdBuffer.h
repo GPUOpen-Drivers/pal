@@ -31,6 +31,7 @@
 #include "core/perfExperiment.h"
 #include "core/platform.h"
 #include "gfxBarrier.h"
+#include "gfxCmdStream.h"
 #include "palDeque.h"
 #include "palHashMap.h"
 #include "palQueryPool.h"
@@ -50,7 +51,6 @@ namespace Pal
 class BarrierMgr;
 class BorderColorPalette;
 class CmdAllocator;
-class CmdStream;
 class GfxCmdBuffer;
 class GfxDevice;
 class GfxImage;
@@ -60,14 +60,6 @@ class IndirectCmdGenerator;
 class IPerfExperiment;
 class PerfExperiment;
 class Pipeline;
-
-// Which engines are supported by this command buffer's CmdStreams.
-enum CmdBufferEngineSupport : uint32
-{
-    Graphics = 0x1,
-    Compute  = 0x2,
-    CpDma    = 0x4,
-};
 
 // GPU memory alignment required for a piece of memory used in a predication operation.
 constexpr uint32 PredicationAlign = 16;
@@ -439,17 +431,16 @@ public:
 
     GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 
-    // Returns a pointer to the command stream associated with the specified engine type
-    virtual CmdStream* GetCmdStreamByEngine(CmdBufferEngineSupport engineType) = 0;
+    // This is a fast version of GetCmdStreamInSubQueue(MainSubQueueIdx).
+    // Currently only universal cmd buffer may have two cmd streams: the primary one and ganged ACE sub-queue.
+    CmdStream* GetMainCmdStream() const { return m_pCmdStream; }
 
     // CmdDispatch on the ACE CmdStream for Gfx10+ UniversalCmdBuffer only when multi-queue is supported by the engine.
     virtual void CmdDispatchAce(DispatchDims size) { PAL_NEVER_CALLED(); }
 
     virtual void CopyMemoryCp(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) = 0;
 
-    bool IsComputeSupported() const  { return Util::TestAnyFlagSet(m_engineSupport, CmdBufferEngineSupport::Compute); }
-    bool IsCpDmaSupported() const    { return Util::TestAnyFlagSet(m_engineSupport, CmdBufferEngineSupport::CpDma); }
-    bool IsGraphicsSupported() const { return Util::TestAnyFlagSet(m_engineSupport, CmdBufferEngineSupport::Graphics); }
+    bool IsGraphicsSupported() const { return m_isGfxSupported; }
 
     bool IsComputeStateSaved() const { return (m_computeStateFlags != 0); }
 
@@ -686,7 +677,9 @@ protected:
     GfxCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
-        const GfxBarrierMgr*       pBarrierMgr);
+        GfxCmdStream*              pCmdStream,
+        const GfxBarrierMgr&       barrierMgr,
+        bool                       isGfxSupported);
     virtual ~GfxCmdBuffer();
 
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
@@ -701,8 +694,6 @@ protected:
         DispatchInfoFlags           infoFlags);
     void DescribeDispatchOffset(DispatchDims offset, DispatchDims launchSize, DispatchDims logicalSize);
     void DescribeDispatchIndirect();
-
-    CmdBufferEngineSupport GetPerfExperimentEngine() const;
 
     void SetComputeState(const ComputeState& newComputeState, uint32 stateFlags);
 
@@ -812,8 +803,8 @@ protected:
     CmdStreamChunk* GetNextGeneratedChunk();
     CmdStreamChunk* GetNextLargeGeneratedChunk();
 
-    uint32                  m_engineSupport;       // Indicates which engines are supported by the command buffer.
-                                                   // Populated by the GFXIP-specific layer.
+    const GfxDevice&        m_device;
+    const bool              m_isGfxSupported;
 
     // This list of command chunks contains all of the command chunks containing commands which were generated on the
     // GPU using a compute shader. This list of chunks is associated with the command buffer, but won't contain valid
@@ -836,6 +827,7 @@ protected:
 
     FceRefCountsVector      m_fceRefCountVec;
 
+    GfxCmdStream*const      m_pCmdStream;
     GfxCmdBufferState       m_cmdBufState;         // Common gfx command buffer states.
 
     ComputeState            m_computeState;        // Currently bound compute command buffer state.
@@ -857,13 +849,11 @@ protected:
     gpusize                 m_globalInternalTableAddr; // If non-zero, the low 32-bits of the
                                                        // global internal table were written here.
 
-    const GfxBarrierMgr*    m_pBarrierMgr; // Manager of all barrier calls.
+    const GfxBarrierMgr&    m_barrierMgr; // Manager of all barrier calls.
 
 private:
     void ReturnGeneratedCommandChunks(bool returnGpuMemory);
     void ResetFastClearReferenceCounts();
-
-    const GfxDevice& m_device;
 
     const bool m_splitBarriers;    // If need split barriers with multiple planes into barriers with single plane.
 

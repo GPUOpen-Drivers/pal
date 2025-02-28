@@ -147,7 +147,9 @@ CmdBuffer::CmdBuffer(
     m_markerCounter(0),
     m_pMemoryChunk(nullptr),
     m_pEventCache(nullptr),
-    m_markerStack(m_pPlatform)
+    m_markerStack(m_pPlatform),
+    m_nestedEventCaches(m_pPlatform),
+    m_nestedMemoryChunks(m_pPlatform)
 {
     // Create the 'marker stack' for each of the 16 possible marker sources.
     // Note: this does not allocate. The default capacity of 'm_markerStack'
@@ -261,6 +263,8 @@ void CmdBuffer::Destroy()
         m_pEventCache = nullptr;
     }
 
+    ResetState();
+
     ICmdBuffer* pNextLayer = m_pNextLayer;
     this->~CmdBuffer();
     pNextLayer->Destroy();
@@ -274,6 +278,18 @@ void CmdBuffer::ResetState()
         m_markerStack[i].Clear();
     }
     m_markerCounter = 0;
+
+    for (EventCache* pEvenCache : m_nestedEventCaches)
+    {
+        pEvenCache->ReleaseReference();
+    }
+    for (MemoryChunk* pMemoryChunk : m_nestedMemoryChunks)
+    {
+        pMemoryChunk->ReleaseReference();
+    }
+
+    m_nestedEventCaches.Clear();
+    m_nestedMemoryChunks.Clear();
 }
 
 // =====================================================================================================================
@@ -527,8 +543,40 @@ void CmdBuffer::CmdExecuteNestedCmdBuffers(
     const char          markerName[]   = "ExecuteNestedCmdBuffers";
     constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
 
-    InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
+    const uint32 markerValue = InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     CmdBufferFwdDecorator::CmdExecuteNestedCmdBuffers(cmdBufferCount, ppCmdBuffers);
+
+#pragma pack(push, 1)
+    struct
+    {
+        UmdCrashAnalysisEvents::ExecutionMarkerInfoHeader header;
+        UmdCrashAnalysisEvents::NestedCmdBufferInfo nestedCmdBufInfo;
+    } info{};
+#pragma pack(pop)
+
+    info.header.infoType = UmdCrashAnalysisEvents::ExecutionMarkerInfoType::NestedCmdBuffer;
+
+    for (uint32 i = 0; i < cmdBufferCount; i++)
+    {
+        CmdBuffer* pNestedCmdBuffer = static_cast<CmdBuffer*>(ppCmdBuffers[i]);
+        info.nestedCmdBufInfo.cmdBufferId = pNestedCmdBuffer->m_cmdBufferId;
+        InsertInfoMarker(markerValue, reinterpret_cast<const char*>(&info), sizeof(info));
+
+        m_nestedEventCaches.PushBack(pNestedCmdBuffer->GetEventCache());
+        m_nestedMemoryChunks.PushBack(pNestedCmdBuffer->GetMemoryChunk());
+
+        for (EventCache* pNestedNestedEventCache : pNestedCmdBuffer->m_nestedEventCaches)
+        {
+            pNestedNestedEventCache->TakeReference();
+            m_nestedEventCaches.PushBack(pNestedNestedEventCache);
+        }
+        for (MemoryChunk* pNestedNestedMemoryChunk : pNestedCmdBuffer->m_nestedMemoryChunks)
+        {
+            pNestedNestedMemoryChunk->TakeReference();
+            m_nestedMemoryChunks.PushBack(pNestedNestedMemoryChunk);
+        }
+    }
+
     InsertEndMarker(MarkerSource::Pal);
 }
 

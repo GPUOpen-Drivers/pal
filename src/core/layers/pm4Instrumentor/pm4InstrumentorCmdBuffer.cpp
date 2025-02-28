@@ -851,7 +851,6 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
     PostCall(CmdBufCallId::CmdColorSpaceConversionCopy);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -861,7 +860,6 @@ void CmdBuffer::CmdCloneImageData(
     CmdBufferFwdDecorator::CmdCloneImageData(srcImage, dstImage);
     PostCall(CmdBufCallId::CmdCloneImageData);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateMemory(

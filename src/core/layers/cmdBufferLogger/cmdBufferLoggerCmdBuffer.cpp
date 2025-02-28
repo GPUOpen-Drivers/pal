@@ -2200,9 +2200,7 @@ static void PipelineStageFlagToString(
     {
         "Top",          // PipelineStageTopOfPipe
         "IndirectArgs", // PipelineStageFetchIndirectArgs
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
         "PostPrefetch", // PipelineStagePostPrefetch
-#endif
         "Indices",      // PipelineStageFetchIndices
         "StreamOut",    // PipelineStageStreamOut
         "Vs",           // PipelineStageVs
@@ -2210,9 +2208,7 @@ static void PipelineStageFlagToString(
         "Ds",           // PipelineStageDs
         "Gs",           // PipelineStageGs
         "Ps",           // PipelineStagePs
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
         "SampleRate",   // PipelineStageSampleRate
-#endif
         "EarlyDs",      // PipelineStageEarlyDsTarget
         "LateDs",       // PipelineStageLateDsTarget
         "Rt",           // PipelineStageColorTarget
@@ -4552,7 +4548,6 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
                                                 cscTable);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -4569,7 +4564,6 @@ void CmdBuffer::CmdCloneImageData(
 
     GetNextLayer()->CmdCloneImageData(*NextImage(&srcImage), *NextImage(&dstImage));
 }
-#endif
 
 // =====================================================================================================================
 static void DumpMemoryCopyRegion(

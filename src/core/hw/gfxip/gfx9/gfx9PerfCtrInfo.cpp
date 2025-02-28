@@ -298,9 +298,12 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Phoenix2:
         pOut = &Phx2MaxPerfEventIds;
         break;
-#if PAL_BUILD_STRIX1
     case Pal::AsicRevision::Strix1:
         pOut = &Stx1MaxPerfEventIds;
+        break;
+#if PAL_BUILD_STRIX_HALO
+    case Pal::AsicRevision::StrixHalo:
+        pOut = &StxHMaxPerfEventIds;
         break;
 #endif
     default:
@@ -346,9 +349,7 @@ static void Gfx11UpdateRpbBlockInfo(
             { Phx2::mmRPB_PERFCOUNTER3_CFG, 0, Phx2::mmRPB_PERFCOUNTER_LO, Phx2::mmRPB_PERFCOUNTER_HI },
         }};
     }
-    else
-#if PAL_BUILD_GFX115
-    if (IsGfx115(device))
+    else if (IsGfx115(device))
     {
         pInfo->regAddr = { Gfx115::mmRPB_PERFCOUNTER_RSLT_CNTL, {
             { Gfx115::mmRPB_PERFCOUNTER0_CFG, 0, Gfx115::mmRPB_PERFCOUNTER_LO, Gfx115::mmRPB_PERFCOUNTER_HI },
@@ -358,7 +359,6 @@ static void Gfx11UpdateRpbBlockInfo(
         }};
     }
     else
-#endif
     {
         PAL_NOT_IMPLEMENTED();
     }

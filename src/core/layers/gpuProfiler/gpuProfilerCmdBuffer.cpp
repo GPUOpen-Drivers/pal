@@ -57,7 +57,6 @@ CmdBuffer::CmdBuffer(
     m_queueType(createInfo.queueType),
     m_engineType(createInfo.engineType),
     m_pTokenStream(nullptr),
-    m_tokenStreamSize(m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerTokenAllocatorSize),
     m_tokenWriteOffset(0),
     m_tokenReadOffset(0),
     m_tokenStreamResult(Result::Success),
@@ -69,6 +68,11 @@ CmdBuffer::CmdBuffer(
     m_releaseTokenList(static_cast<Platform*>(m_pDevice->GetPlatform()))
 {
     PAL_ASSERT(NextLayer() == pNextCmdBuffer);
+
+    const PalPlatformSettings& platformSettings = pDevice->GetPlatform()->PlatformSettings();
+
+    m_tokenStreamSize        = platformSettings.gpuProfilerTokenAllocatorSize;
+    m_barrierCommentsEnabled = platformSettings.gpuProfilerConfig.enableBarrierComments;
 
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]   = &CmdBuffer::CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)]  = &CmdBuffer::CmdSetUserDataGfx;
@@ -1057,27 +1061,30 @@ void CmdBuffer::ReplayCmdBarrier(
     logItem.cmdBufCall.flags.barrier    = 1;
     logItem.cmdBufCall.barrier.pComment = nullptr;
 
-    char commentString[MaxCommentLength] = {};
-    Snprintf(&commentString[0], MaxCommentLength,
-             "globalSrcCacheMask: 0x%08x\n"
-             "globalDstCacheMask: 0x%08x",
-             barrierInfo.globalSrcCacheMask,
-             barrierInfo.globalDstCacheMask);
-    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-
-    for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
+    if (m_barrierCommentsEnabled)
     {
-        const BarrierTransition& transition = barrierInfo.pTransitions[i];
-
+        char commentString[MaxCommentLength] = {};
         Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcCacheMask: 0x%08x\n"
-                 "DstCacheMask: 0x%08x\n"
-                 "OldLayout: 0x%08x\n"
-                 "NewLayout: 0x%08x",
-                 transition.srcCacheMask, transition.dstCacheMask,
-                 *reinterpret_cast<const uint32*>(&transition.imageInfo.oldLayout),
-                 *reinterpret_cast<const uint32*>(&transition.imageInfo.newLayout));
+                 "globalSrcCacheMask: 0x%08x\n"
+                 "globalDstCacheMask: 0x%08x",
+                 barrierInfo.globalSrcCacheMask,
+                 barrierInfo.globalDstCacheMask);
         pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+
+        for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
+        {
+            const BarrierTransition& transition = barrierInfo.pTransitions[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcCacheMask: 0x%08x\n"
+                     "DstCacheMask: 0x%08x\n"
+                     "OldLayout: 0x%08x\n"
+                     "NewLayout: 0x%08x",
+                     transition.srcCacheMask, transition.dstCacheMask,
+                     *reinterpret_cast<const uint32*>(&transition.imageInfo.oldLayout),
+                     *reinterpret_cast<const uint32*>(&transition.imageInfo.newLayout));
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdBarrier);
@@ -1142,45 +1149,48 @@ void CmdBuffer::ReplayCmdRelease(
     logItem.cmdBufCall.flags.barrier    = 1;
     logItem.cmdBufCall.barrier.pComment = nullptr;
 
-    char commentString[MaxCommentLength] = {};
-    Snprintf(&commentString[0], MaxCommentLength,
-                "SrcGlobalAccessMask: 0x%08x\n"
-                "DstGlobalAccessMask: 0x%08x",
-                releaseInfo.srcGlobalAccessMask,
-                releaseInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-
-    for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+    if (m_barrierCommentsEnabled)
     {
-        const MemBarrier& memoryBarrier = releaseInfo.pMemoryBarriers[i];
+        char commentString[MaxCommentLength] = {};
+        Snprintf(&commentString[0], MaxCommentLength,
+                    "SrcGlobalAccessMask: 0x%08x\n"
+                    "DstGlobalAccessMask: 0x%08x",
+                    releaseInfo.srcGlobalAccessMask,
+                    releaseInfo.dstGlobalAccessMask);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+
+        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+        {
+            const MemBarrier& memoryBarrier = releaseInfo.pMemoryBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcAccessMask: 0x%08x\n"
+                     "DstAccessMask: 0x%08x",
+                     memoryBarrier.srcAccessMask,
+                     memoryBarrier.dstAccessMask);
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
+        for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+        {
+            const ImgBarrier& imageBarrier = releaseInfo.pImageBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcCacheMask: 0x%08x\n"
+                     "DstCacheMask: 0x%08x\n"
+                     "OldLayout: 0x%08x\n"
+                     "NewLayout: 0x%08x",
+                     imageBarrier.srcAccessMask,
+                     imageBarrier.dstAccessMask,
+                     *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
+                     *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
 
         Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcAccessMask: 0x%08x\n"
-                 "DstAccessMask: 0x%08x",
-                 memoryBarrier.srcAccessMask,
-                 memoryBarrier.dstAccessMask);
+                 "ReleaseIdx: %u",
+                 releaseIdx);
         pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
-    for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
-    {
-        const ImgBarrier& imageBarrier = releaseInfo.pImageBarriers[i];
-
-        Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcCacheMask: 0x%08x\n"
-                 "DstCacheMask: 0x%08x\n"
-                 "OldLayout: 0x%08x\n"
-                 "NewLayout: 0x%08x",
-                 imageBarrier.srcAccessMask,
-                 imageBarrier.dstAccessMask,
-                 *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
-                 *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-    }
-
-    Snprintf(&commentString[0], MaxCommentLength,
-             "ReleaseIdx: %u",
-             releaseIdx);
-    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdRelease);
 
@@ -1257,48 +1267,51 @@ void CmdBuffer::ReplayCmdAcquire(
     logItem.cmdBufCall.flags.barrier    = 1;
     logItem.cmdBufCall.barrier.pComment = nullptr;
 
-    char commentString[MaxCommentLength] = {};
-    Snprintf(&commentString[0], MaxCommentLength,
-                "SrcGlobalAccessMask: 0x%08x\n"
-                "DstGlobalAccessMask: 0x%08x",
-                acquireInfo.srcGlobalAccessMask,
-                acquireInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-
-    for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+    if (m_barrierCommentsEnabled)
     {
-        const MemBarrier& memoryBarrier = acquireInfo.pMemoryBarriers[i];
-
+        char commentString[MaxCommentLength] = {};
         Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcAccessMask: 0x%08x\n"
-                 "DstAccessMask: 0x%08x",
-                 memoryBarrier.srcAccessMask,
-                 memoryBarrier.dstAccessMask);
+                    "SrcGlobalAccessMask: 0x%08x\n"
+                    "DstGlobalAccessMask: 0x%08x",
+                    acquireInfo.srcGlobalAccessMask,
+                    acquireInfo.dstGlobalAccessMask);
         pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-    }
-    for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
-    {
-        const ImgBarrier& imageBarrier = acquireInfo.pImageBarriers[i];
 
-        Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcCacheMask: 0x%08x\n"
-                 "DstCacheMask: 0x%08x\n"
-                 "OldLayout: 0x%08x\n"
-                 "NewLayout: 0x%08x",
-                 imageBarrier.srcAccessMask,
-                 imageBarrier.dstAccessMask,
-                 *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
-                 *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-    }
+        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+        {
+            const MemBarrier& memoryBarrier = acquireInfo.pMemoryBarriers[i];
 
-    // Dump release IDs to correlate to previous releases.
-    for (uint32 i = 0; i < syncTokenCount; i++)
-    {
-        Snprintf(&commentString[0], MaxCommentLength,
-            "BarrierReleaseId: 0x%08x",
-            &pReleaseIndices[i]);
-        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcAccessMask: 0x%08x\n"
+                     "DstAccessMask: 0x%08x",
+                     memoryBarrier.srcAccessMask,
+                     memoryBarrier.dstAccessMask);
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
+        for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+        {
+            const ImgBarrier& imageBarrier = acquireInfo.pImageBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcCacheMask: 0x%08x\n"
+                     "DstCacheMask: 0x%08x\n"
+                     "OldLayout: 0x%08x\n"
+                     "NewLayout: 0x%08x",
+                     imageBarrier.srcAccessMask,
+                     imageBarrier.dstAccessMask,
+                     *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
+                     *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
+
+        // Dump release IDs to correlate to previous releases.
+        for (uint32 i = 0; i < syncTokenCount; i++)
+        {
+            Snprintf(&commentString[0], MaxCommentLength,
+                "BarrierReleaseId: 0x%08x",
+                &pReleaseIndices[i]);
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdAcquire);
@@ -1368,39 +1381,42 @@ void CmdBuffer::ReplayCmdReleaseEvent(
     logItem.cmdBufCall.flags.barrier    = 1;
     logItem.cmdBufCall.barrier.pComment = nullptr;
 
-    char commentString[MaxCommentLength] = {};
-    Snprintf(&commentString[0], MaxCommentLength,
-                "SrcGlobalAccessMask: 0x%08x\n"
-                "DstGlobalAccessMask: 0x%08x",
-                releaseInfo.srcGlobalAccessMask,
-                releaseInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-
-    for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+    if (m_barrierCommentsEnabled)
     {
-        const MemBarrier& memoryBarrier = releaseInfo.pMemoryBarriers[i];
-
+        char commentString[MaxCommentLength] = {};
         Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcAccessMask: 0x%08x\n"
-                 "DstAccessMask: 0x%08x",
-                 memoryBarrier.srcAccessMask,
-                 memoryBarrier.dstAccessMask);
+                    "SrcGlobalAccessMask: 0x%08x\n"
+                    "DstGlobalAccessMask: 0x%08x",
+                    releaseInfo.srcGlobalAccessMask,
+                    releaseInfo.dstGlobalAccessMask);
         pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-    }
-    for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
-    {
-        const ImgBarrier& imageBarrier = releaseInfo.pImageBarriers[i];
 
-        Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcCacheMask: 0x%08x\n"
-                 "DstCacheMask: 0x%08x\n"
-                 "OldLayout: 0x%08x\n"
-                 "NewLayout: 0x%08x",
-                 imageBarrier.srcAccessMask,
-                 imageBarrier.dstAccessMask,
-                 *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
-                 *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+        {
+            const MemBarrier& memoryBarrier = releaseInfo.pMemoryBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcAccessMask: 0x%08x\n"
+                     "DstAccessMask: 0x%08x",
+                     memoryBarrier.srcAccessMask,
+                     memoryBarrier.dstAccessMask);
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
+        for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+        {
+            const ImgBarrier& imageBarrier = releaseInfo.pImageBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcCacheMask: 0x%08x\n"
+                     "DstCacheMask: 0x%08x\n"
+                     "OldLayout: 0x%08x\n"
+                     "NewLayout: 0x%08x",
+                     imageBarrier.srcAccessMask,
+                     imageBarrier.dstAccessMask,
+                     *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
+                     *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdReleaseEvent);
@@ -1436,39 +1452,42 @@ void CmdBuffer::ReplayCmdAcquireEvent(
     logItem.cmdBufCall.flags.barrier    = 1;
     logItem.cmdBufCall.barrier.pComment = nullptr;
 
-    char commentString[MaxCommentLength] = {};
-    Snprintf(&commentString[0], MaxCommentLength,
-                "SrcGlobalAccessMask: 0x%08x\n"
-                "DstGlobalAccessMask: 0x%08x",
-                acquireInfo.srcGlobalAccessMask,
-                acquireInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-
-    for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+    if (m_barrierCommentsEnabled)
     {
-        const MemBarrier& memoryBarrier = acquireInfo.pMemoryBarriers[i];
-
+        char commentString[MaxCommentLength] = {};
         Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcAccessMask: 0x%08x\n"
-                 "DstAccessMask: 0x%08x",
-                 memoryBarrier.srcAccessMask,
-                 memoryBarrier.dstAccessMask);
+                    "SrcGlobalAccessMask: 0x%08x\n"
+                    "DstGlobalAccessMask: 0x%08x",
+                    acquireInfo.srcGlobalAccessMask,
+                    acquireInfo.dstGlobalAccessMask);
         pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-    }
-    for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
-    {
-        const ImgBarrier& imageBarrier = acquireInfo.pImageBarriers[i];
 
-        Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcCacheMask: 0x%08x\n"
-                 "DstCacheMask: 0x%08x\n"
-                 "OldLayout: 0x%08x\n"
-                 "NewLayout: 0x%08x",
-                 imageBarrier.srcAccessMask,
-                 imageBarrier.dstAccessMask,
-                 *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
-                 *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+        {
+            const MemBarrier& memoryBarrier = acquireInfo.pMemoryBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcAccessMask: 0x%08x\n"
+                     "DstAccessMask: 0x%08x",
+                     memoryBarrier.srcAccessMask,
+                     memoryBarrier.dstAccessMask);
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
+        for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+        {
+            const ImgBarrier& imageBarrier = acquireInfo.pImageBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcCacheMask: 0x%08x\n"
+                     "DstCacheMask: 0x%08x\n"
+                     "OldLayout: 0x%08x\n"
+                     "NewLayout: 0x%08x",
+                     imageBarrier.srcAccessMask,
+                     imageBarrier.dstAccessMask,
+                     *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
+                     *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdAcquireEvent);
@@ -1515,39 +1534,42 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
     logItem.cmdBufCall.flags.barrier    = 1;
     logItem.cmdBufCall.barrier.pComment = nullptr;
 
-    char commentString[MaxCommentLength] = {};
-    Snprintf(&commentString[0], MaxCommentLength,
-                "SrcGlobalAccessMask: 0x%08x\n"
-                "DstGlobalAccessMask: 0x%08x",
-                barrierInfo.srcGlobalAccessMask,
-                barrierInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-
-    for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+    if (m_barrierCommentsEnabled)
     {
-        const MemBarrier& memoryBarrier = barrierInfo.pMemoryBarriers[i];
-
+        char commentString[MaxCommentLength] = {};
         Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcAccessMask: 0x%08x\n"
-                 "DstAccessMask: 0x%08x",
-                 memoryBarrier.srcAccessMask,
-                 memoryBarrier.dstAccessMask);
+                    "SrcGlobalAccessMask: 0x%08x\n"
+                    "DstGlobalAccessMask: 0x%08x",
+                    barrierInfo.srcGlobalAccessMask,
+                    barrierInfo.dstGlobalAccessMask);
         pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
-    }
-    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
-    {
-        const ImgBarrier& imageBarrier = barrierInfo.pImageBarriers[i];
 
-        Snprintf(&commentString[0], MaxCommentLength,
-                 "SrcCacheMask: 0x%08x\n"
-                 "DstCacheMask: 0x%08x\n"
-                 "OldLayout: 0x%08x\n"
-                 "NewLayout: 0x%08x",
-                 imageBarrier.srcAccessMask,
-                 imageBarrier.dstAccessMask,
-                 *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
-                 *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+        {
+            const MemBarrier& memoryBarrier = barrierInfo.pMemoryBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcAccessMask: 0x%08x\n"
+                     "DstAccessMask: 0x%08x",
+                     memoryBarrier.srcAccessMask,
+                     memoryBarrier.dstAccessMask);
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
+        for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+        {
+            const ImgBarrier& imageBarrier = barrierInfo.pImageBarriers[i];
+
+            Snprintf(&commentString[0], MaxCommentLength,
+                     "SrcCacheMask: 0x%08x\n"
+                     "DstCacheMask: 0x%08x\n"
+                     "OldLayout: 0x%08x\n"
+                     "NewLayout: 0x%08x",
+                     imageBarrier.srcAccessMask,
+                     imageBarrier.dstAccessMask,
+                     *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
+                     *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
+            pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
+        }
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdReleaseThenAcquire);
@@ -2428,7 +2450,6 @@ void CmdBuffer::ReplayCmdColorSpaceConversionCopy(
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -2453,7 +2474,6 @@ void CmdBuffer::ReplayCmdCloneImageData(
     pTgtCmdBuffer->CmdCloneImageData(*pSrcImage, *pDstImage);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdCopyMemoryToImage(
@@ -4061,9 +4081,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdScaledCopyImage,
         &CmdBuffer::ReplayCmdGenerateMipmaps,
         &CmdBuffer::ReplayCmdColorSpaceConversionCopy,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
         &CmdBuffer::ReplayCmdCloneImageData,
-#endif
         &CmdBuffer::ReplayCmdCopyMemoryToImage,
         &CmdBuffer::ReplayCmdCopyImageToMemory,
         &CmdBuffer::ReplayCmdClearColorBuffer,

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -456,7 +456,7 @@ enum RMT_VIDEO_DECODER_TYPE
     RMT_VIDEO_DECODER_TYPE_HEVC10BIT = 9,
     RMT_VIDEO_DECODER_TYPE_VP910BIT  = 10,
     RMT_VIDEO_DECODER_TYPE_AV1       = 11,
-    RMT_VIDEO_DECODER_TYPE_AV112BIT  = 12
+    RMT_VIDEO_DECODER_TYPE_AV112BIT  = 12,
 };
 
 // Enumeration of Video Encoder types

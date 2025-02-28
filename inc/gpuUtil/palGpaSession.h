@@ -294,12 +294,10 @@ struct GpaSampleConfig
         Pal::gpusize gpuMemoryLimit; ///< Maximum amount of GPU memory in bytes this sample can allocate for the SQTT
                                      ///  buffer.  If 0, allocate maximum size to prevent dropping tokens toward the
                                      ///  end of the sample.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
         Pal::uint32 tokenMask;       ///< Mask indicating which SQTT tokens are requested for capture. If a tokenMask is
                                      ///  not provided, PAL will default to collecting all tokens or tokens except
                                      ///  instruction tokens if the supressInstructionTokens flag is set. Instruction
                                      ///  tokens will always be filtered out if supressInstructionTokens = true.
-#endif
     } sqtt;  ///< SQ thread trace configuration (only valid for _trace_ samples).
 
     struct

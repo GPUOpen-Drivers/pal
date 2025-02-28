@@ -40,32 +40,16 @@
 ///
 /// @attention Updates to the major version indicate an interface change that is not backward compatible and may require
 ///            action from each client during their next integration.  When determining if a change is backward
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 831
 ///            compatible, it is assumed that the client will default-initialize all structs.
-#else
-///            compatible, it is not assumed that the client will initialize all input structs to 0.
-#endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 914
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
-/// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
-/// in @ref Pal::PlatformProperties.
-///
-/// The minor version is incremented on any change to the PAL interface that is backward compatible which is limited to
-/// adding new function, adding a new type (enum, struct, class, etc.), and adding a new value to an enum such that none
-/// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
-///
-/// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 0
-#endif
+#define PAL_INTERFACE_MAJOR_VERSION 917
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 803
+#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 856
 
 /// Minimum supported major interface version for devdriver library. This is the minimum interface version of the
 /// devdriver library that PAL is backwards compatible to.
@@ -85,11 +69,7 @@
  * @hideinitializer
  ***********************************************************************************************************************
  */
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 831
 #define PAL_INTERFACE_VERSION (PAL_INTERFACE_MAJOR_VERSION << 16)
-#else
-#define PAL_INTERFACE_VERSION ((PAL_INTERFACE_MAJOR_VERSION << 16) | PAL_INTERFACE_MINOR_VERSION)
-#endif
 
 namespace Pal
 {
@@ -126,8 +106,11 @@ enum class NullGpuId : uint32
     Navi33,        ///< 11.0.2
     Phoenix1,      ///< 11.0.3
     Phoenix2,      ///< 11.0.3
-#if PAL_BUILD_STRIX1
     Strix1,        ///< 11.5.0
+#if PAL_BUILD_STRIX_HALO
+    StrixHalo,     ///< 11.5.1
+#endif
+#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif
 #if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif
@@ -150,9 +133,7 @@ enum class GfxIpLevel : uint32
     GfxIp10_1,     ///< GFXIP 10.1 (Navi1x)
     GfxIp10_3,     ///< GFXIP 10.3 (Navi2x, Rembrandt, Raphael, Mendocino)
     GfxIp11_0,     ///< GFXIP 11.0 (Navi3x, Phoenix)
-#if PAL_BUILD_GFX115
     GfxIp11_5,     ///< GFXIP 11.5 (Strix)
-#endif
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     GfxIp6    = 0x1,
     GfxIp7    = 0x2,
@@ -162,9 +143,7 @@ enum class GfxIpLevel : uint32
     GfxIp10_1 = 0x7,
     GfxIp10_3 = 0x9,
     GfxIp11_0 = 0xC,
-#if PAL_BUILD_GFX115
     GfxIp11_5 = 0xF,
-#endif
 #endif
 };
 
@@ -214,12 +193,13 @@ enum class AsicRevision : uint32
     Navi32           = 0x2D, ///< 11.0.1
     Navi33           = 0x2E, ///< 11.0.2
     Rembrandt        = 0x2F, ///< 10.3.5
-#if PAL_BUILD_STRIX1
     Strix1           = 0x33, ///< 11.5.0
-#endif
     Raphael          = 0x34, ///< 10.3.6
     Phoenix1         = 0x35, ///< 11.0.3
     Phoenix2         = 0x38, ///< 11.0.3
+#if PAL_BUILD_STRIX_HALO
+    StrixHalo        = 0x3C, ///< 11.5.1
+#endif
 };
 
 /// Maps a null GPU ID to its associated text name.
@@ -311,6 +291,10 @@ struct PlatformCreateInfo
                            ///  contract with RGP.
     uint16    apiMinorVer; ///< Minor API version number to be used by RGP. Should be set by client based on their
                            ///  contract with RGP.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 916
+    uint32    instrApiVer; ///  Instrumentation specification version for API-specific SQTT instrumentation fields.
+                           ///  Should be set by client based on the SQTT instrumentation spec version being targeted.
+#endif
     gpusize   maxSvmSize;  ///< Maximum amount of virtual address space that will be reserved for SVM
 };
 

@@ -35,9 +35,9 @@
 
 #pragma once
 
-#include "core/os/amdgpu/wayland/protocol/wayland-dmabuf-client-protocol.h"
-#include "core/os/amdgpu/wayland/protocol/wayland-drm-client-protocol.h"
-#include "core/os/amdgpu/wayland/protocol/wayland-drm-syncobj-client-protocol.h"
+#include "amdgpu/include/wayland/wayland-dmabuf-client-protocol.h"
+#include "amdgpu/include/wayland/wayland-drm-client-protocol.h"
+#include "amdgpu/include/wayland/wayland-drm-syncobj-client-protocol.h"
 
 #ifdef None
 #undef None

@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/device.h"
 #include "core/os/amdgpu/amdgpuDevice.h"
 #include "core/os/amdgpu/amdgpuGpuMemory.h"
 #include "core/os/amdgpu/amdgpuImage.h"
@@ -207,9 +208,7 @@ Result Image::CreatePresentableImage(
         imgCreateInfo.pViewFormats          = createInfo.pViewFormats;
         imgCreateInfo.flags.flippable       = 1;
         imgCreateInfo.flags.presentable     = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 811
         imgCreateInfo.flags.enable256KBSwizzleModes = createInfo.flags.enable256KBSwizzleModes;
-#endif
 
         // Linux doesn't support stereo images.
         PAL_ASSERT(createInfo.flags.stereo == 0);
@@ -734,12 +733,19 @@ Result Image::CreateExternalSharedImage(
 
                 if (pUmdSharedMetadata->flags.htile_as_fmask_xor)
                 {
-                    internalCreateInfo.gfx9.sharedPipeBankXorFmask =
-                        LowPart(internalCreateInfo.sharedMetadata.htileOffset);
-                    internalCreateInfo.sharedMetadata.htileOffset = 0;
+                    if (IsGfx10(chipProps.gfxLevel))
+                    {
+                        internalCreateInfo.gfx9.sharedPipeBankXorFmask =
+                            LowPart(internalCreateInfo.sharedMetadata.htileOffset);
+                        internalCreateInfo.sharedMetadata.htileOffset = 0;
+                    }
+                    else
+                    {
+                        PAL_ASSERT_ALWAYS();
+                    }
                 }
 
-                internalCreateInfo.sharedMetadata.fmaskSwizzleMode =
+                internalCreateInfo.sharedMetadata.fmaskSwizzleMode.v2 =
                     static_cast<AddrSwizzleMode>(pUmdSharedMetadata->gfx9.fmask_swizzle_mode);
 
                 createInfo.flags.optimalShareable = 1;

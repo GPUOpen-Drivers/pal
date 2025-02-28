@@ -101,13 +101,23 @@ public:
 
     template <Pm4ShaderType ShaderType>
     uint32* WriteOptimizedSetShRegPairs(
-        PackedRegisterPair* pRegPairs,
-        uint32              numRegs,
-        uint32*             pCmdSpace);
+        const PackedRegisterPair* pRegPairs,
+        uint32                    numRegs,
+        uint32*                   pCmdSpace);
     uint32* WriteOptimizedSetContextRegPairs(
-        PackedRegisterPair* pRegPairs,
-        uint32              numRegs,
-        uint32*             pCmdSpace);
+        const PackedRegisterPair* pRegPairs,
+        uint32                    numRegs,
+        uint32*                   pCmdSpace);
+
+    template <Pm4ShaderType ShaderType>
+    uint32* WriteOptimizedSetShRegPairs(
+        const RegisterValuePair* pRegPairs,
+        uint32                   numRegs,
+        uint32*                  pCmdSpace);
+    uint32* WriteOptimizedSetContextRegPairs(
+        const RegisterValuePair* pRegPairs,
+        uint32                   numRegs,
+        uint32*                  pCmdSpace);
 
     // These functions take a fully built LOAD_DATA header(s) and will update the state of the optimizer state
     // based on the packet's contents.
@@ -121,13 +131,6 @@ public:
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 
-    // Allows caller to disable/re-enable PM4 optimizer dynamically.
-    void TempSetPm4OptimizerMode(bool isEnabled)
-    {
-        PAL_ASSERT(m_isTempDisabled != !isEnabled); // Not an error but unexpected.
-        m_isTempDisabled = !isEnabled;
-    }
-
 private:
     template <typename SetDataPacket, size_t RegisterCount>
     uint32* OptimizePm4SetReg(
@@ -136,11 +139,17 @@ private:
         uint32*                       pDstCmd,
         RegGroupState<RegisterCount>* pRegState);
 
-    template <Pm4ShaderType ShaderType, bool IsShReg>
+    template <RegisterRangeType RegType>
     uint32* OptimizePm4SetRegPairsPacked(
-        PackedRegisterPair* pRegPairs,
-        uint32              numRegs,
-        uint32*             pCmdSpace);
+        const PackedRegisterPair* pRegPairs,
+        uint32                    numRegs,
+        uint32*                   pCmdSpace);
+
+    template <RegisterRangeType RegType>
+    uint32* OptimizePm4SetRegPairs(
+        const RegisterValuePair* pRegPairs,
+        uint32                   numRegs,
+        uint32*                  pCmdSpace);
 
     template <typename LoadDataPacket, size_t RegisterCount>
     void HandlePm4LoadReg(
@@ -164,10 +173,6 @@ private:
 
     const bool m_splitPackets;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-    bool  m_dstContainsSrc; // Knowing when the dst and src buffers are the same lets us do additional debug checks.
-#endif
-
     // Shadow register state for context and SH registers.
     CntxRegState  m_cntxRegs;
     ShRegState    m_shRegs;
@@ -175,8 +180,6 @@ private:
     // Base addresses set for SET_BASE
     SetBaseState  m_setBaseStateGfx[MaxSetBaseIndex + 1];
     SetBaseState  m_setBaseStateCompute;
-
-    bool  m_isTempDisabled;
 };
 
 } // Gfx9

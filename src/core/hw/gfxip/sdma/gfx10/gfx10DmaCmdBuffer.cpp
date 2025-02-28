@@ -138,21 +138,8 @@ void DmaCmdBuffer::WriteTimestampCmd(
 }
 
 // =====================================================================================================================
-// Writes the current GPU timestamp value into the specified memory.
-void DmaCmdBuffer::CmdWriteTimestamp(
-    uint32            stageMask,    // Bitmask of PipelineStageFlag
-    const IGpuMemory& dstGpuMemory,
-    gpusize           dstOffset)
-{
-    const GpuMemory& gpuMemory = static_cast<const GpuMemory&>(dstGpuMemory);
-    const gpusize    dstAddr   = gpuMemory.Desc().gpuVirtAddr + dstOffset;
-
-    WriteTimestampCmd(dstAddr);
-}
-
-// =====================================================================================================================
 // Adds a preamble to the start of a new command buffer.
-Result DmaCmdBuffer::AddPreamble()
+void DmaCmdBuffer::AddPreamble()
 {
     // If this trips, it means that this isn't really the preamble -- i.e., somebody has inserted something into the
     // command stream before the preamble.  :-(
@@ -166,7 +153,6 @@ Result DmaCmdBuffer::AddPreamble()
 
     m_cmdStream.CommitCommands(pCmdSpace);
 
-    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -189,7 +175,7 @@ uint32* DmaCmdBuffer::BuildNops(
 // =====================================================================================================================
 // Adds a postamble to the end of a new command buffer. This will add a mem_incr packet to increment the completion
 // count of the command buffer when the GPU has finished executing it.
-Result DmaCmdBuffer::AddPostamble()
+void DmaCmdBuffer::AddPostamble()
 {
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
@@ -222,8 +208,6 @@ Result DmaCmdBuffer::AddPostamble()
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);
-
-    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -1301,8 +1285,7 @@ void DmaCmdBuffer::SetupMetaData(
         const auto&        createInfo   = pPalImage->GetImageCreateInfo();
         const Image*       pGfxImage    = static_cast<const Image*>(pPalImage->GetGfxImage());
         const GfxIpLevel   gfxLevel     = pPalDevice->ChipProperties().gfxLevel;
-        const auto*const   pFmtInfo     =
-            Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel, &pPalDevice->GetPlatform()->PlatformSettings());
+        const auto*const   pFmtInfo     = Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel);
         const Gfx9MaskRam* pMaskRam     = nullptr;
         const SubresId     baseSubResId = { image.pSubresInfo->subresId.plane, 0, 0 };
         const bool         colorMeta    = pGfxImage->HasDccData();

@@ -67,8 +67,6 @@ public:
         uint32*            pCmdSpace,
         regCB_COLOR0_INFO* pCbColorInfo) const = 0;
 
-    bool IsVaLocked() const { return m_flags.viewVaLocked; }
-
     virtual bool IsColorBigPage() const { return false; };
     virtual bool IsFmaskBigPage() const { return false; }
     virtual bool BypassMall()     const { return false; }
@@ -151,20 +149,16 @@ protected:
         {
             uint32 isBufferView           :  1; // Indicates that this is a buffer view instead of an image view. Note
                                                 // that none of the metadata flags will be set if isBufferView is set.
-            uint32 viewVaLocked           :  1; // Whether the view's VA range is locked and won't change. This will
-                                                // always be set for buffer views.
             uint32 hasCmaskFmask          :  1; // set if the associated image contains fMask and cMask meta data
             uint32 hasDcc                 :  1; // set if the associated image contains DCC meta data
             uint32 isDccDecompress        :  1; // Indicates if dcc metadata need to be set to decompress state.
             uint32 useSubresBaseAddr      :  1; // Indicates that this view's base address is subresource based.
             uint32 colorBigPage           :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.COLOR_BIG_PAGE.
-                                                // Only valid for buffer views or image views with viewVaLocked set.
             uint32 fmaskBigPage           :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.FMASK_BIG_PAGE.
-                                                // Only valid if viewVaLocked is set.
             uint32 hasMultipleFragments   :  1; // Is this view MSAA/EQAA?
             uint32 bypassMall             :  1; // Set to bypass the MALL for this surface.  Only meaningful on GPUs
                                                 // which suppport the MALL (memory access last level cache).
-            uint32 reserved               : 22;
+            uint32 reserved               : 23;
         };
 
         uint32 u32All;

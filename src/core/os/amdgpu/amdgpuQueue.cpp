@@ -523,7 +523,8 @@ Result Queue::OsRemapVirtualMemoryPages(
                          0,
                          pRangeList[idx].size,
                          gpuMemDesc.gpuVirtAddr + pRangeList[idx].virtualStartOffset,
-                         pVirtGpuMem->Mtype());
+                         pVirtGpuMem->Mtype(),
+                         pVirtGpuMem->MallPolicy());
         }
         else
         {
@@ -553,7 +554,8 @@ Result Queue::OsRemapVirtualMemoryPages(
                                                                offset,
                                                                size,
                                                                virtualAddress,
-                                                               pVirtGpuMem->Mtype());
+                                                               pVirtGpuMem->Mtype(),
+                                                               pVirtGpuMem->MallPolicy());
                 }
             }
         }
@@ -833,13 +835,12 @@ Result Queue::SubmitPm4(
     // SubmitPm4 function should not handle more than 1 subqueue
     PAL_ASSERT(submitInfo.perSubQueueInfoCount == 1);
 
-    // For linux platforms, there will exist at most 3 preamble + 2 postamble:
+    // For linux platforms, there will exist at most 3 preamble + 1 postamble:
     // Preamble  CE IB (always)
     // Preamble  DE IB (always)
     // Preamble  DE IB (if context switch)
-    // Postamble CE IB
     // Postamble DE IB
-    constexpr uint32 MaxPreamblePostambleCmdStreams = 5;
+    constexpr uint32 MaxPreamblePostambleCmdStreams = 4;
     PAL_ASSERT((internalSubmitInfo.numPreambleCmdStreams + internalSubmitInfo.numPostambleCmdStreams) <=
                 MaxPreamblePostambleCmdStreams);
 
@@ -980,10 +981,9 @@ Result Queue::SubmitMultiQueuePm4(
     // Preamble  CE IB (optional)
     // Preamble  DE IB (always)
     // Preamble  DE IB (if context switch)
-    // Postamble CE IB
     // Postamble DE IB
     // Postamble  (gang submit)
-    constexpr uint32 MaxPreamblePostambleCmdStreams = 7;
+    constexpr uint32 MaxPreamblePostambleCmdStreams = 6;
     PAL_ASSERT((internalSubmitInfo[0].numPreambleCmdStreams + internalSubmitInfo[0].numPostambleCmdStreams) <=
                 MaxPreamblePostambleCmdStreams);
 
@@ -1184,14 +1184,18 @@ Result Queue::PrepareChainedCommandBuffers(
 
     const uint32 maxBatchSize = Min(cmdBufferCount, m_device.GetPublicSettings()->cmdBufBatchedSubmitChainLimit);
 
+    const CmdBuffer* const pBaseCmdBuf      = static_cast<CmdBuffer*>(ppCmdBuffers[0]);
+    const bool             baseTmzState     = pBaseCmdBuf->IsTmzEnabled();
+    const bool             basePreemptState = pBaseCmdBuf->IsPreemptable();
+
     // Determine the number of command buffers we can chain together into a single set of command streams. We can only
     // do this if exclusive submit is set. This way, we don't need to worry about the GPU reading this command buffer
     // while we patch it using the CPU.
     uint32 batchSize = 1;
     while ((batchSize < maxBatchSize) && static_cast<CmdBuffer*>(ppCmdBuffers[batchSize - 1])->IsExclusiveSubmit())
     {
-        if (static_cast<CmdBuffer*>(ppCmdBuffers[0])->IsTmzEnabled() !=
-            static_cast<CmdBuffer*>(ppCmdBuffers[batchSize])->IsTmzEnabled())
+        if ((baseTmzState != static_cast<CmdBuffer*>(ppCmdBuffers[batchSize])->IsTmzEnabled()) ||
+            (basePreemptState != static_cast<CmdBuffer*>(ppCmdBuffers[batchSize])->IsPreemptable()))
         {
             // All chained IBs must have the same TMZ mode since this can only be set on a per submission basis.
             break;
@@ -1230,8 +1234,7 @@ Result Queue::PrepareChainedCommandBuffers(
 
     // The command buffer streams are grouped by stream index.
     const uint32 numStreams = (submitType == SubmitType::ImplicitGang) ?
-                        static_cast<CmdBuffer*>(ppCmdBuffers[0])->NumCmdStreamsInSubQueue(implicitGangSubQueueIdx) :
-                        static_cast<CmdBuffer*>(ppCmdBuffers[0])->NumCmdStreams();
+                              1 : static_cast<CmdBuffer*>(ppCmdBuffers[0])->NumCmdStreams();
 
     for (uint32 streamIdx = 0; (result == Result::Success) && (streamIdx < numStreams); ++streamIdx)
     {
@@ -1244,12 +1247,10 @@ Result Queue::PrepareChainedCommandBuffers(
             PAL_ASSERT(pCurCmdBuf != nullptr);
 
             // We assume that all command buffers for this queue type have the same number of streams.
-            PAL_ASSERT(numStreams == (submitType == SubmitType::ImplicitGang) ?
-                        pCurCmdBuf->NumCmdStreamsInSubQueue(implicitGangSubQueueIdx) :
-                        pCurCmdBuf->NumCmdStreams());
+            PAL_ASSERT(numStreams == ((submitType == SubmitType::ImplicitGang) ? 1 : pCurCmdBuf->NumCmdStreams()));
 
             const CmdStream*const pCurCmdStream = (submitType == SubmitType::ImplicitGang) ?
-                                            pCurCmdBuf->GetCmdStreamInSubQueue(implicitGangSubQueueIdx, streamIdx) :
+                                            pCurCmdBuf->GetCmdStreamInSubQueue(implicitGangSubQueueIdx) :
                                             pCurCmdBuf->GetCmdStream(streamIdx);
 
             if ((pCurCmdStream != nullptr) && (pCurCmdStream->IsEmpty() == false))
@@ -1945,13 +1946,11 @@ Result Queue::AddIb(
 {
     Result result = Result::ErrorUnknown;
 
-    bool isConstantEngine = (subEngineType == SubEngineType::ConstantEngine);
-
     if (m_numIbs < MaxIbsPerSubmit)
     {
         result = Result::Success;
 
-        bool isConstantEngine = (subEngineType == SubEngineType::ConstantEngine);
+        const bool isConstantEngine = (subEngineType == SubEngineType::ConstantEngine);
 
         m_ibs[m_numIbs]._pad = 0;
 

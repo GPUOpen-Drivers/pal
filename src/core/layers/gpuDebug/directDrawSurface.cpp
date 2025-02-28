@@ -1159,10 +1159,8 @@ Result GetDdsPixelFormat(
                 break;
             }
         }
-
         static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xBE,
                       "Format table needs updating!");
-
 #if !DXGI_FORMAT_DEFINED
         if (pDdspf->fourCC == MAKEFOURCC('D','X','1','0'))
         {

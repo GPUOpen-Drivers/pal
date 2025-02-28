@@ -84,53 +84,28 @@ pal_bp(PAL_BUILD_BRANCH "2420")
 
 if (PAL_BUILD_GFX)
     pal_bp(PAL_BUILD_GFX9 ${PAL_BUILD_GFX} MODE "AUTHOR_WARNING")
-#if PAL_BUILD_GFX11
     # PAL's GFX11 support is part of its GFX9 HWL so you need to enable both to get GFX11.
     pal_bp(PAL_BUILD_GFX11 ${PAL_BUILD_GFX} DEPENDS_ON PAL_BUILD_GFX9 MODE "AUTHOR_WARNING")
-#endif
 endif() # PAL_BUILD_GFX
 
 # If the client wants Gfx9 support, them give them all the neccessary build parameters they need to fill out.
 if (PAL_BUILD_GFX9)
 
-#if PAL_BUILD_GFX11
-    # Clients should directly set PAL_BUILD_GFX11 in their cmakes to request support for these GPUs.
-    if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 846)
-        pal_bp( PAL_BUILD_NAVI31 ON MODE "AUTHOR_WARNING"
-                ASIC_CONFIG
-                    PAL_BUILD_GFX11
-              )
-
-        pal_bp( PAL_BUILD_NAVI32 ON MODE "AUTHOR_WARNING"
-                ASIC_CONFIG
-                    PAL_BUILD_GFX11
-              )
-
-        pal_bp( PAL_BUILD_NAVI33 ON MODE "AUTHOR_WARNING"
-                ASIC_CONFIG
-                    PAL_BUILD_GFX11
-              )
-
-        pal_bp( PAL_BUILD_PHOENIX1 ON MODE "AUTHOR_WARNING"
-                ASIC_CONFIG
-                    PAL_BUILD_GFX11
-              )
+    # Clients should directly set PAL_BUILD_GFX9 and PAL_BUILD_GFX11 in their cmakes to request support for these GPUs.
+    # These used to be pal_bp calls but were simplified to pal_set_or calls to avoid breaking clients that depend on
+    # the ASIC-specific variables automatically setting PAL_BUILD_GFX11 via ASIC_CONFIG.
+    if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888) AND DEFINED PAL_BUILD_PHOENIX2)
+        pal_set_or(PAL_BUILD_GFX11 ${PAL_BUILD_PHOENIX2})
     endif()
-    if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888)
-        pal_bp( PAL_BUILD_PHOENIX2 ON MODE "AUTHOR_WARNING"
-                ASIC_CONFIG
-                    PAL_BUILD_GFX11
-              )
+    if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 917) AND DEFINED PAL_BUILD_STRIX1)
+        pal_set_or(PAL_BUILD_GFX11 ${PAL_BUILD_STRIX1})
     endif()
-#endif
 
-#if PAL_BUILD_STRIX1
-    pal_bp( PAL_BUILD_STRIX1 OFF MODE "AUTHOR_WARNING"
+#if PAL_BUILD_STRIX_HALO
+    pal_bp( PAL_BUILD_STRIX_HALO OFF MODE "AUTHOR_WARNING"
             ASIC_CONFIG
                 PAL_BUILD_GFX11
-                PAL_BUILD_GFX115
-                PAL_BUILD_STRIX
-                CHIP_HDR_STRIX1
+                CHIP_HDR_STRIX_HALO
           )
 #endif
 

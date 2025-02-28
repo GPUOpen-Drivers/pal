@@ -84,44 +84,19 @@ Result ComputeShaderLibrary::HwlInit(
         result = InitFunctionListFromMetadata(metadata, pMetadataReader);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-    if (result == Result::Success)
-    {
-        // NOTE: To preserve the behavior before interface change, which is clients get what they pass in through
-        // createInfo.pFuncList when calling GetShaderLibFunctionList(), fill function list with given one here.
-        m_functionList.Clear();
-        for (uint32 i = 0; ((i < createInfo.funcCount) && (result == Result::Success)); i++)
-        {
-            size_t nameLength = strlen(createInfo.pFuncList[i].pSymbolName) + 1;
-            char* pSymbolName = static_cast<char*>(PAL_MALLOC(nameLength, m_pDevice->GetPlatform(), AllocInternal));
-            if (pSymbolName != nullptr)
-            {
-                Util::Strncpy(pSymbolName, createInfo.pFuncList[i].pSymbolName, nameLength);
-                ShaderLibraryFunctionInfo info = { pSymbolName, 0 };
-                result = m_functionList.PushBack(info);
-            }
-            else
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-        }
-    }
-#endif
-
     if (result == Result::Success)
     {
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata);
 
         DispatchDims threadsPerTg;
-        m_chunkCs.LateInit(metadata,
+        m_chunkCs.LateInit(*m_pDevice,
+                           metadata,
                            (IsWave32() ? 32 : 64),
                            &threadsPerTg,
                            DispatchInterleaveSize::Default,
                            &uploader);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-        GetFunctionGpuVirtAddrs(uploader, createInfo.pFuncList, createInfo.funcCount);
-#endif
+
         // Must be called after InitFunctionListFromMetadata!
         GetFunctionGpuVirtAddrs(uploader, m_functionList.Data(), m_functionList.NumElements());
 
@@ -174,11 +149,7 @@ void ComputeShaderLibrary::UpdateHwInfo()
 // =====================================================================================================================
 // Obtains the compiled shader ISA code for the shader specified.
 Result ComputeShaderLibrary::GetShaderFunctionCode(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
     Util::StringView<char> shaderExportName,
-#else
-    const char*            pShaderExportName,
-#endif
     size_t*                pSize,
     void*                  pBuffer
     ) const
@@ -186,12 +157,10 @@ Result ComputeShaderLibrary::GetShaderFunctionCode(
     // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
     // instructions by examining the symbol table entry for that shader's entrypoint.
     AbiReader abiReader(m_pDevice->GetPlatform(), m_codeObject);
-    Result result = abiReader.Init();
+    Result    result = abiReader.Init();
+
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 852
-        Util::StringView<char> shaderExportName = pShaderExportName;
-#endif
         result = abiReader.CopySymbol(shaderExportName, pSize, pBuffer);
     }
 

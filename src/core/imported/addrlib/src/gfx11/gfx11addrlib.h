@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ struct Gfx11ChipSettings
 {
     struct
     {
-#if ADDR_STRIX1_BUILD
+#if ADDR_STRIX1_BUILD|| ADDR_STRIX_HALO_BUILD
         UINT_32 isStrix             :  1;
 #else
         UINT_32 futureGpu1          :  1;
@@ -61,7 +61,8 @@ struct Gfx11ChipSettings
 #else
         UINT_32 futureGpu2          :  1;
 #endif
-        UINT_32 reserved1           : 30;
+        UINT_32 futureGpu3          :  1;
+        UINT_32 reserved1           : 29;
 
         // Misc configuration bits
         UINT_32 reserved2           : 32;

@@ -245,12 +245,8 @@ void LogContext::Struct(
     }
     else
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-        KeyAndStruct("graphics", value.graphics);
-#else
         KeyAndStruct("gfxShaderInfo", value.gfxShaderInfo);
         KeyAndStruct("gfxDynState",   value.gfxDynState);
-#endif
     }
 
     EndMap();
@@ -875,9 +871,7 @@ void LogContext::Struct(
     if (value.privateFlip)
     {
         KeyAndObject("pPrivFlipMemory", value.pPrivFlipMemory);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
         KeyAndValue("vidPnSourceId", value.vidPnSourceId);
-#endif
     }
 
     KeyAndValue("frameIndex", value.frameIndex);
@@ -1243,16 +1237,7 @@ void LogContext::Struct(
     const DynamicGraphicsShaderInfos& value)
 {
     BeginMap(false);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-    KeyAndStruct("vs", value.vs);
-    KeyAndStruct("hs", value.hs);
-    KeyAndStruct("ds", value.ds);
-    KeyAndStruct("gs", value.gs);
-    KeyAndStruct("ts", value.ts);
-    KeyAndStruct("ms", value.ms);
-    KeyAndStruct("ps", value.ps);
-    KeyAndStruct("dynamicState", value.dynamicState);
-#else
+
     if (value.enable.vs)
     {
         KeyAndStruct("vs", value.vs);
@@ -1281,17 +1266,6 @@ void LogContext::Struct(
     {
         KeyAndStruct("ms", value.ms);
     }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-    KeyAndBeginList("flags", true);
-
-    EndList();
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 24), "Update interfaceLogger!");
-#endif
 
     EndMap();
 }
@@ -1313,9 +1287,6 @@ void LogContext::Struct(
     KeyAndValue("rasterizerDiscardEnable", value.rasterizerDiscardEnable);
     KeyAndValue("dualSourceBlendEnable",   value.dualSourceBlendEnable);
     KeyAndValue("vertexBufferCount",       value.vertexBufferCount);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
-#endif
 
     KeyAndBeginList("enable", true);
     if (value.enable.depthClampMode)
@@ -1364,19 +1335,11 @@ void LogContext::Struct(
         Value("vertexBufferCount");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
-#endif
     EndList();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-    static_assert(sizeof(DynamicGraphicsState) == 24, "Update interfaceLogger!");
-    static_assert(CheckReservedBits<DynamicGraphicsState>(192, 19), "Update interfaceLogger!");
-    static_assert(CheckReservedBits<decltype(value.enable)>(32, 21), "Update interfaceLogger!");
-#else
     static_assert(sizeof(DynamicGraphicsState) == 12, "Update interfaceLogger!");
     static_assert(CheckReservedBits<DynamicGraphicsState>(96, 5), "Update interfaceLogger!");
     static_assert(CheckReservedBits<decltype(value.enable)>(32, 20), "Update interfaceLogger!");
-#endif
 
     EndMap();
 }
@@ -2274,12 +2237,10 @@ void LogContext::Struct(
         Value("hasModifier");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 813
     if (value.disableDccStateTracking)
     {
         Value("disableDccStateTracking");
     }
-#endif
 
     EndList();
 }
@@ -2757,7 +2718,7 @@ void LogContext::Struct(
     KeyAndValue("clientInternal", value.clientInternal);
     EndMap();
 
-    static_assert(CheckReservedBits<decltype(value)>(32, 29), "Update PipelineCreateFlags interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value)>(32, 30), "Update PipelineCreateFlags interfaceLogger!");
 }
 
 // =====================================================================================================================
@@ -3401,12 +3362,10 @@ void LogContext::Struct(
         Value("coordsInFloat");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
     if (value.srcAsNorm)
     {
         Value("srcAsNorm");
     }
-#endif
 
     if (value.srcAsSrgb)
     {
@@ -3528,11 +3487,7 @@ void LogContext::Struct(
     const ShaderLibraryFunctionInfo& value)
 {
     BeginMap(true);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-    KeyAndValue("symbolName", value.pSymbolName);
-#else
     KeyAndValue("symbolName", value.symbolName);
-#endif
     KeyAndValue("gpuVirtAddr", value.gpuVirtAddr);
     EndMap();
 }

@@ -139,7 +139,7 @@ inline constexpr Uuid MakeUuid(
     const char (&str)[N])
 {
 #if defined(__cpp_exceptions)
-    if constexpr (N != _detail::UuidStringLength)
+    if (N != _detail::UuidStringLength)
     {
         throw ::std::logic_error("UUID strings must be 36 characters long (32 digits, 4 hyphens)");
     }

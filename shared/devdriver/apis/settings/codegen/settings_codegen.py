@@ -167,18 +167,18 @@ def setup_default(setting: dict, group_name: str) -> str:
 
         check_count = 0
 
-        if default_win:
+        if default_win is not None:
             result += "#if defined(_WIN32)\n"
             result += assign_line(setting, "Windows", group_name)
             check_count += 1
 
-        if default_linux:
+        if default_linux is not None:
             result += "#if " if check_count == 0 else "\n#elif "
-            result += "defined(__unix__)\n"
+            result += "defined(__unix__) && !defined(__ANDROID__)\n"
             result += assign_line(setting, "Linux", group_name)
             check_count += 1
 
-        if default_android:
+        if default_android is not None:
             result += "#if " if check_count == 0 else "\n#elif "
             result += "defined(__ANDROID__)\n"
             result += assign_line(setting, "Android", group_name)
@@ -794,6 +794,68 @@ def prepare_settings_list(settings: dict, top_level_enum_list: list):
 
         setting["VariableName"] = gen_variable_name(setting["Name"])
 
+def prepare_constants(settings_root: dict):
+    """Prepare constants from the top-level constants list.
+
+    Return a list of all constants. ValueError exception is raised for unsupported types.
+    """
+
+    def generate_plaform_def(constant: dict, platform: str) -> str:
+        values = constant.get("Values", None)
+        value = values[platform]
+        value_str = value.replace("\\", "\\\\")
+        constant_type = constant["CppType"]
+        name = constant["Name"]
+        assignment_line = f"{constant_type} {name}[] = \"{value_str}\";"
+
+        return assignment_line
+
+    def generate_def_string(constant: dict):
+        constant_type = constant["Type"]
+        if constant_type == "string":
+            constant["CppType"] = "constexpr char"
+            values = constant.get("Values", None)
+            if values:
+                value_win = values.get("Windows", None)
+                value_linux = values.get("Linux", None)
+                value_android = values.get("Android", None)
+
+                check_count = 0
+                result = ""
+                if value_win is not None:
+                    result += "#if defined(_WIN32)\n"
+                    result += generate_plaform_def(constant, "Windows")
+                    check_count += 1
+
+                if value_linux is not None:
+                    result += "#if " if check_count == 0 else "\n#elif "
+                    result += "defined(__unix__) && !defined(__ANDROID__)\n"
+                    result += generate_plaform_def(constant, "Linux")
+                    check_count += 1
+
+                if value_android is not None:
+                    result += "#if " if check_count == 0 else "\n#elif "
+                    result += "defined(__ANDROID__)\n"
+                    result += generate_plaform_def(constant, "Android")
+                    check_count += 1
+
+                if check_count > 0:
+                    if check_count < 3:
+                        result += "\n#else\n"
+                        result += generate_plaform_def(constant, "Value")
+                    result += "\n#endif"
+                else:
+                    result = generate_plaform_def(constant, "Value")
+
+                constant["Definition"] = result
+            else:
+                raise ValueError(f'{constant["Name"]} needs a value')
+        else:
+            raise ValueError(f'{constant["Name"]} has unsupported type. Only string constants are supported currently')
+
+    for constant in settings_root.get("Constants", []):
+        generate_def_string(constant)
+
 def main():
     timer_start = time.monotonic()
 
@@ -871,6 +933,13 @@ def main():
         help="If this flag is present, the settings are driver experiments.",
     )
 
+    parser.add_argument(
+        "--no-registry",
+        action="store_true",
+        required=False,
+        help="If this flag is present, the read settings will not use the registry path.",
+    )
+
     args = parser.parse_args()
 
     assert not args.generated_filename.endswith(
@@ -888,6 +957,8 @@ def main():
         settings_root = json.load(file)
 
     settings_root["IsEncoded"] = args.encoded
+
+    settings_root["SkipRegistry"] = args.no_registry
 
     settings_root["ClassName"] = (
         args.classname
@@ -912,6 +983,8 @@ def main():
 
     prepare_enums(settings_root)
 
+    prepare_constants(settings_root)
+
     prepare_settings_list(settings_root["Settings"], settings_root["Enums"])
 
     prepare_settings_meta(
@@ -930,7 +1003,7 @@ def main():
     if settings_root["ComponentName"] in ["Pal", "PalPlatform", "Gfx9Pal"]:
         settings_root["IsPalSettings"] = True
 
-    settings_root["IsDxSettings"] = True if settings_root["ComponentName"] == "Dxc" else False
+    settings_root["IsDxSettings"] = True if (settings_root["ComponentName"] == "Dxc" or settings_root["ComponentName"] == "Dxn") else False
 
     settings_root["Namespaces"] = args.namespaces
     settings_root["IncludeHeaders"] = args.include_headers

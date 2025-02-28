@@ -143,11 +143,8 @@ public:
 #if PAL_BUILD_RDF
     virtual GpuUtil::TraceSession* GetTraceSession() override { return m_pTraceSession; }
     GpuUtil::FrameTraceController* GetFrameTraceController() { return m_pFrameTraceController; }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+
     virtual void UpdateFrameTraceController(IQueue *pQueue) override;
-#else
-    void UpdateFrameTraceController(CmdBuffer* pCmdBuffer);
-#endif
 #endif
 
     uint32       GetDeviceCount()  const { return m_deviceCount; }
@@ -224,6 +221,7 @@ public:
 
     const uint16 GetClientApiMajorVer() const { return m_clientApiMajorVer; }
     const uint16 GetClientApiMinorVer() const { return m_clientApiMinorVer; }
+    const uint32 GetClientInstrApiVer() const { return m_clientInstrApiVer; }
 
 #if PAL_ENABLE_LOGGING
     virtual void GetDbgLoggerFileSettings(
@@ -270,6 +268,7 @@ protected:
 
     const uint16    m_clientApiMajorVer;
     const uint16    m_clientApiMinorVer;
+    const uint32    m_clientInstrApiVer;
 
     static constexpr uint32 MaxSettingsPathLength = 256;
     char m_settingsPath[MaxSettingsPathLength];

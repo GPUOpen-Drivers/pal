@@ -1798,21 +1798,8 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
 
         if (settings.gfx9CsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
         {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 823)
-            static_assert((uint32(CsDispatchInterleaveSize::CsDispatchInterleaveSizeDisabled) ==
-                           uint32(DispatchInterleaveSize::Disable)) &&
-                          (uint32(CsDispatchInterleaveSize::CsDispatchInterleaveSize128)      ==
-                           uint32(DispatchInterleaveSize::_128)) &&
-                          (uint32(CsDispatchInterleaveSize::CsDispatchInterleaveSize256)      ==
-                           uint32(DispatchInterleaveSize::_256)) &&
-                          (uint32(CsDispatchInterleaveSize::CsDispatchInterleaveSize512)      ==
-                           uint32(DispatchInterleaveSize::_512)),
-                          "Mismatch in some enums of CsDispatchInterleaveSize and DispatchInterleaveSize!");
-#endif
-
             switch (settings.gfx9CsDispatchInterleaveSize)
             {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
             case CsDispatchInterleaveSize::CsDispatchInterleaveSizeDisabled:
                 interleaveSizeLcl = DispatchInterleaveSize::Disable;
                 break;
@@ -1828,17 +1815,6 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
             case CsDispatchInterleaveSize::CsDispatchInterleaveSize512:
                 interleaveSizeLcl = DispatchInterleaveSize::_1D_512_Threads;
                 break;
-#else
-            case CsDispatchInterleaveSize::CsDispatchInterleaveSizeDisabled:
-            case CsDispatchInterleaveSize::CsDispatchInterleaveSize128:
-            case CsDispatchInterleaveSize::CsDispatchInterleaveSize256:
-            case CsDispatchInterleaveSize::CsDispatchInterleaveSize512:
-                interleaveSizeLcl = static_cast<DispatchInterleaveSize>(settings.gfx9CsDispatchInterleaveSize);
-                break;
-            case CsDispatchInterleaveSize::CsDispatchInterleaveSize64:
-                interleaveSizeLcl = DispatchInterleaveSize::Default;
-                break;
-#endif
             default:
                 PAL_ASSERT_ALWAYS();
                 break;
@@ -1855,7 +1831,6 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
         case DispatchInterleaveSize::Disable:
             regValue = 1;
             break;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
         case DispatchInterleaveSize::_1D_64_Threads:
             regValue = 64;
             break;
@@ -1868,17 +1843,6 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
         case DispatchInterleaveSize::_1D_512_Threads:
             regValue = 512;
             break;
-#else
-        case DispatchInterleaveSize::_128:
-            regValue = 128;
-            break;
-        case DispatchInterleaveSize::_256:
-            regValue = 256;
-            break;
-        case DispatchInterleaveSize::_512:
-            regValue = 512;
-            break;
-#endif
         default:
             PAL_ASSERT_ALWAYS();
             break;

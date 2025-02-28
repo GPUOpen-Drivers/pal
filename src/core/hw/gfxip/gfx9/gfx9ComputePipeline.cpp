@@ -214,7 +214,8 @@ Result ComputePipeline::HwlInit(
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
-        m_chunkCs.LateInit(registers,
+        m_chunkCs.LateInit(*m_pDevice,
+                           registers,
                            wavefrontSize,
                            &m_threadsPerTg,
                            createInfo.interleaveSize,
@@ -257,7 +258,8 @@ Result ComputePipeline::HwlInit(
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
-        m_chunkCs.LateInit(metadata,
+        m_chunkCs.LateInit(*m_pDevice,
+                           metadata,
                            wavefrontSize,
                            &m_threadsPerTg,
                            createInfo.interleaveSize,
@@ -270,51 +272,6 @@ Result ComputePipeline::HwlInit(
 }
 
 // =====================================================================================================================
-// Helper function to compute the WAVES_PER_SH field of the COMPUTE_RESOURCE_LIMITS register.
-uint32 ComputePipeline::CalcMaxWavesPerSe(
-    const GpuChipProperties& chipProps,
-    float                    maxWavesPerCu)
-{
-    // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to be unlimited.
-    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
-    uint32 wavesPerSe = 0;
-
-    if (maxWavesPerCu > 0)
-    {
-        wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu) * chipProps.gfx9.numShaderArrays;
-    }
-
-    return wavesPerSe;
-}
-
-// =====================================================================================================================
-uint32 ComputePipeline::CalcMaxWavesPerSh(
-    const GpuChipProperties& chipProps,
-    float                    maxWavesPerCu)
-{
-    // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to be unlimited.
-    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
-    uint32 wavesPerSh = 0;
-
-    if (maxWavesPerCu > 0)
-    {
-        const uint32 maxWavesPerShCompute = Device::GetMaxWavesPerSh(chipProps, true);
-
-        // We assume no one is trying to use more than 100% of all waves.
-        PAL_ASSERT(maxWavesPerCu <= (maxWavesPerShCompute / chipProps.gfx9.maxNumCuPerSh));
-
-        const uint32 maxWavesPerSh = static_cast<uint32>(round(maxWavesPerCu * chipProps.gfx9.numCuPerSh));
-
-        // For compute shaders, it is in units of 1 wave and must not exceed the max.
-        wavesPerSh = Min(maxWavesPerShCompute, maxWavesPerSh);
-    }
-
-    return wavesPerSh;
-}
-
-// =====================================================================================================================
 // If pipeline may make indirect function calls, perform any late linking steps required to valid execution
 // of the possible function calls.
 // (this could include adjusting hardware resources such as GPRs or LDS space for the pipeline).
@@ -324,7 +281,6 @@ Result ComputePipeline::LinkWithLibraries(
     uint32                      libraryCount)
 {
     Result result = Result::Success;
-    const auto&  gpuInfo       = m_pDevice->Parent()->ChipProperties();
 
     // When linking this pipeline with any shader function library,
     // the compute resource registers we write into the ELF binary must

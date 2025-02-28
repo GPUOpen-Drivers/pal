@@ -140,9 +140,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdScaledCopyImage,
     CmdBufferCmdGenerateMipmaps,
     CmdBufferCmdColorSpaceConversionCopy,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     CmdBufferCmdCloneImageData,
-#endif
     CmdBufferCmdUpdateMemory,
     CmdBufferCmdUpdateBusAddressableMemoryMarker,
     CmdBufferCmdFillMemory,

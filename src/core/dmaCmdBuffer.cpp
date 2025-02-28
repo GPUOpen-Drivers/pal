@@ -1199,6 +1199,19 @@ void DmaCmdBuffer::CmdFillMemory(
 }
 
 // =====================================================================================================================
+// Writes the current GPU timestamp value into the specified memory.
+void DmaCmdBuffer::CmdWriteTimestamp(
+    uint32            stageMask,    // Bitmask of PipelineStageFlag
+    const IGpuMemory& dstGpuMemory,
+    gpusize           dstOffset)
+{
+    const GpuMemory& gpuMemory = static_cast<const GpuMemory&>(dstGpuMemory);
+    const gpusize    dstAddr   = gpuMemory.Desc().gpuVirtAddr + dstOffset;
+
+    WriteTimestampCmd(dstAddr);
+}
+
+// =====================================================================================================================
 void DmaCmdBuffer::CmdSetPredication(
     IQueryPool*         pQueryPool,
     uint32              slot,

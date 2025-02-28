@@ -45,10 +45,9 @@ static_assert(ArrayLen(Gfx10MergedChannelFmtInfoTbl) == static_cast<size_t>(ChNu
 // =====================================================================================================================
 // Returns the format info table for the specific GfxIpLevel.
 const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
-    GfxIpLevel                      gfxIpLevel,
-    const Pal::PalPlatformSettings* pSettings)
+    GfxIpLevel gfxIpLevel)
 {
-    const MergedFlatFmtInfo*  pFlatFmtInfo = nullptr;
+    const MergedFlatFmtInfo* pFlatFmtInfo = nullptr;
 
     if (IsGfx11(gfxIpLevel))
     {
@@ -74,7 +73,7 @@ ColorFormat HwColorFormatForExport(
     GfxIpLevel       gfxLevel,
     Pal::ChNumFormat format)
 {
-    const ColorFormat hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, nullptr), format);
+    const ColorFormat hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel), format);
     PAL_ASSERT(hwColorFmt != COLOR_INVALID);
     return hwColorFmt;
 }

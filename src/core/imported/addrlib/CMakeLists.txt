@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -109,6 +109,11 @@ if(ADDR_GFX11_BUILD)
     #if ADDR_STRIX1_BUILD
     if(ADDR_STRIX1_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_STRIX1_BUILD)
+    endif()
+    #endif
+    #if ADDR_STRIX_HALO_BUILD
+    if(ADDR_STRIX_HALO_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_STRIX_HALO_BUILD)
     endif()
     #endif
     #if ADDR_PHOENIX_BUILD

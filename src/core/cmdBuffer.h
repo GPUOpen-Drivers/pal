@@ -72,9 +72,7 @@ struct CmdBufferInternalCreateInfo
 //        * The number of command buffer (chunks) that follow.
 //        * For each command buffer (or chunk) there is another header (CmdBufferDumpHeader), which contains:
 //          * The size of the command buffer, in bytes.
-//          * The sub-engine ID. This is used when a CE and DE combined command buffer is sent to the
-//            universal queue, for example. The meaning of the sub-engine ID is specific to the engine
-//            index and ASIC family.
+//          * The sub-engine ID. (0 - DE, 2 - CE preamble 3 - compute, 4 - SDMA, see GetSubEngineId() for details)
 
 // Structure defining top of binary command buffer dump file.
 struct CmdBufferDumpFileHeader
@@ -99,7 +97,7 @@ struct CmdBufferDumpHeader
 {
     uint32      size;               // Size of this structure in bytes.
     uint32      cmdBufferSize;      // Size of the command buffer in bytes.
-    uint32      subEngineId;        // Sub-engine. (0 = DE, 1 = CE)
+    uint32      subEngineId;        // Sub-engine.
 };
 
 // Structure defining header for an IB2 buffer.
@@ -107,7 +105,7 @@ struct CmdBufferIb2DumpHeader
 {
     uint32      size;               // Size of this structure in bytes.
     uint32      cmdBufferSize;      // Size of the command buffer in bytes.
-    uint32      subEngineId;        // Sub-engine. (0 = DE, 1 = CE)
+    uint32      subEngineId;        // Sub-engine.
     uint64      gpuVa;              // GPU virtual address of the IB2
 };
 
@@ -122,7 +120,7 @@ struct Ib2DumpInfo
 };
 
 // Gets the subEngineId to put in headers when dumping
-const uint32 GetSubEngineId(
+extern uint32 GetSubEngineId(
     const SubEngineType subEngineType,
     const EngineType    engineType,
     const bool          isPreamble);
@@ -407,12 +405,10 @@ public:
         const ColorSpaceConversionTable&  cscTable) override
         { PAL_NEVER_CALLED(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     virtual void CmdCloneImageData(
         const IImage& srcImage,
         const IImage& dstImage) override
         { PAL_NEVER_CALLED(); }
-#endif
 
     virtual void CmdUpdateMemory(
         const IGpuMemory& dstGpuMemory,
@@ -800,7 +796,7 @@ public:
     void InsertIb2DumpInfo(const Ib2DumpInfo& dumpInfo);
 
     // Returns the number of command streams associated with this command buffer.
-    virtual uint32 NumCmdStreams() const = 0;
+    virtual uint32 NumCmdStreams() const { return 1; }
 
     // Returns a pointer to the command stream specified by "cmdStreamIdx".
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const = 0;
@@ -808,15 +804,10 @@ public:
     // Special sub-queue index representing the "main" sub-queue.
     static constexpr int32 MainSubQueueIdx = -1;
 
-    // Returns the number of command streams associated with this command buffer, for the specified ganged
-    // sub-queue index.  An index of MainSubQueueIdx indicates the "main" sub-queue.
-    virtual uint32 NumCmdStreamsInSubQueue(int32 subQueueIndex) const
-        { PAL_ASSERT(subQueueIndex == MainSubQueueIdx); return NumCmdStreams(); }
-
     // Returns a pointer to the command stream specified by the given ganged sub-queue index and command stream
     // index.  A sub-queue index of MainSubQueueIdx indicates the "main" sub-queue.
-    virtual const CmdStream* GetCmdStreamInSubQueue(int32 subQueueIndex, uint32 cmdStreamIndex) const
-        { PAL_ASSERT(subQueueIndex == MainSubQueueIdx); return GetCmdStream(cmdStreamIndex); }
+    virtual const CmdStream* GetCmdStreamInSubQueue(int32 subQueueIndex) const
+        { PAL_ASSERT(subQueueIndex == MainSubQueueIdx); return GetCmdStream(0); }
 
     CmdBufferRecordState RecordState() const { return m_recordState; }
 
@@ -910,11 +901,11 @@ protected:
     virtual ~CmdBuffer();
 
     // Responsible for adding all the commands needed by the preamble
-    virtual Result AddPreamble() = 0;
+    virtual void AddPreamble() = 0;
 
     // Default implementation for command streams that don't require a postamble.  Over-ride implementations are free
     // to add as much data as needed to their respective command streams.
-    virtual Result AddPostamble() { return Result::_Success; }
+    virtual void AddPostamble() {}
 
     // CmdStream::Begin needs to call Begin on all command streams part-way through. Note that m_pMemAllocator will be
     // valid when this is called so it can be used to allocate temporary state objects.

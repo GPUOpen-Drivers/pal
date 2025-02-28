@@ -62,21 +62,9 @@ enum LateAllocVsMode : uint32
     LateAllocVsInvalid = 0xFFFFFFFF,
 };
 
-enum RegisterRangeType : uint32
-{
-    RegRangeUserConfig           = 0x0,
-    RegRangeContext              = 0x1,
-    RegRangeSh                   = 0x2,
-    RegRangeCsSh                 = 0x3,
-    RegRangeNonShadowed          = 0x4,
-    RegRangeCpRs64InitSh         = 0x5,
-    RegRangeCpRs64InitCsSh       = 0x6,
-    RegRangeCpRs64InitUserConfig = 0x7,
-};
-
 // =====================================================================================================================
 // Sets an offset and value in a packed context register pair.
-static void SetOneContextRegValPairPacked(
+static void SetOneContextRegValPair(
     PackedRegisterPair* pRegPairs,
     uint32*             pIndex,
     uint16              regAddr,
@@ -87,7 +75,7 @@ static void SetOneContextRegValPairPacked(
 
 // =====================================================================================================================
 // Sets offsets and values for a sequence of consecutive context registers in packed register pairs.
-static void SetSeqContextRegValPairPacked(
+static void SetSeqContextRegValPair(
     PackedRegisterPair* pRegPairs,
     uint32*             pIndex,
     uint16              startAddr,
@@ -99,7 +87,7 @@ static void SetSeqContextRegValPairPacked(
 
 // =====================================================================================================================
 // Sets an offset and value in a packed SH register pair.
-static void SetOneShRegValPairPacked(
+static void SetOneShRegValPair(
     PackedRegisterPair* pRegPairs,
     uint32*             pIndex,
     uint16              regAddr,
@@ -110,7 +98,7 @@ static void SetOneShRegValPairPacked(
 
 // =====================================================================================================================
 // Sets offsets and values for a sequence of consecutive SH registers in packed register pairs.
-static void SetSeqShRegValPairPacked(
+static void SetSeqShRegValPair(
     PackedRegisterPair* pRegPairs,
     uint32*             pIndex,
     uint16              startAddr,
@@ -118,6 +106,66 @@ static void SetSeqShRegValPairPacked(
     const void*         pValues)
 {
     SetSeqRegValPairPacked<PERSISTENT_SPACE_START>(pRegPairs, pIndex, startAddr, endAddr, pValues);
+}
+
+// =====================================================================================================================
+// Sets an offset and value in a SH register pair.
+static void SetOneShRegValPair(
+    RegisterValuePair* pRegPairs,
+    uint32*            pIndex,
+    uint16             regAddr,
+    uint32             value)
+{
+    pRegPairs[*pIndex].offset = regAddr - PERSISTENT_SPACE_START;
+    pRegPairs[*pIndex].value  = value;
+    (*pIndex)++;
+}
+
+// =====================================================================================================================
+// Sets an offset and value in a SH register pair.
+static void SetSeqShRegValPair(
+    RegisterValuePair* pRegPairs,
+    uint32*            pIndex,
+    uint16             startAddr,
+    uint16             endAddr,
+    const void*        pValues)
+{
+    const uint32 numRegsToSet = endAddr - startAddr + 1;
+
+    for (uint32 x = 0; x < numRegsToSet; x++)
+    {
+        SetOneShRegValPair(pRegPairs, pIndex, startAddr + x, (static_cast<const uint32*>(pValues))[x]);
+    }
+}
+
+// =====================================================================================================================
+// Sets an offset and value in a context register pair.
+static void SetOneContextRegValPair(
+    RegisterValuePair* pRegPairs,
+    uint32*            pIndex,
+    uint16             regAddr,
+    uint32             value)
+{
+    pRegPairs[*pIndex].offset = regAddr - CONTEXT_SPACE_START;
+    pRegPairs[*pIndex].value  = value;
+    (*pIndex)++;
+}
+
+// =====================================================================================================================
+// Sets offsets and values for a sequence of consecutive context registers in register pairs.
+static void SetSeqContextRegValPair(
+    RegisterValuePair* pRegPairs,
+    uint32*            pIndex,
+    uint16             startAddr,
+    uint16             endAddr,
+    const void*        pValues)
+{
+    const uint32 numRegsToSet = endAddr - startAddr + 1;
+
+    for (uint32 x = 0; x < numRegsToSet; x++)
+    {
+        SetOneContextRegValPair(pRegPairs, pIndex, startAddr + x, (static_cast<const uint32*>(pValues))[x]);
+    }
 }
 
 // =====================================================================================================================
@@ -535,7 +583,7 @@ public:
         const ImageCreateInfo&  createInfo,
         const SwizzledFormat& clearFormat) const override;
 
-    const BarrierMgr* BarrierMgr() const { return &m_barrierMgr; }
+    const BarrierMgr& BarrierMgr() const { return m_barrierMgr; }
 
     virtual bool DisableAc01ClearCodes() const override;
 
@@ -548,6 +596,9 @@ public:
 
     const GraphicsPipelineSignature& GetNullGfxSignature() const { return m_nullGfxSignature; }
     const ComputeShaderSignature& GetNullCsSignature() const { return m_nullCsSignature; }
+
+    bool IsGfx11F32() const
+        { return IsGfx11(m_gfxIpLevel) && (Parent()->ChipProperties().pfpUcodeVersion < Gfx11Rs64MinPfpUcodeVersion); }
 
 private:
     void SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;

@@ -80,7 +80,8 @@ Result GraphicsShaderLibrary::HwlInit(
 
         const uint32 wavefrontSize = m_taskSignature.flags.isWave32 ? 32 : 64;
         DispatchDims threadsPerTg = {};
-        m_task.LateInit(metadata,
+        m_task.LateInit(*m_pDevice,
+                        metadata,
                         wavefrontSize,
                         &threadsPerTg,
                         DispatchInterleaveSize::Default,

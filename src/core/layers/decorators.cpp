@@ -445,6 +445,10 @@ Result DeviceDecorator::ResetFences(
     {
         result = Result::ErrorOutOfMemory;
     }
+    else if (ppFences == nullptr)
+    {
+        result = Result::ErrorInvalidPointer;
+    }
     else
     {
         for (uint32 i = 0; i < fenceCount; i++)
@@ -1293,7 +1297,6 @@ Result DeviceDecorator::CallNextCreateGraphicsPipeline(
 {
     Result result = Result::Success;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     if (createInfo.numShaderLibraries > 0)
     {
         AutoBuffer<const IShaderLibrary*, 3, PlatformDecorator> nextLayerObjects(createInfo.numShaderLibraries,
@@ -1317,7 +1320,6 @@ Result DeviceDecorator::CallNextCreateGraphicsPipeline(
         }
     }
     else
-#endif
     {
         result = m_pNextLayer->CreateGraphicsPipeline(createInfo, pNextPlacementAddr, ppNextPipeline);
     }
@@ -2248,7 +2250,7 @@ ReleaseToken CmdBufferFwdDecorator::CmdRelease(
             imageBarriers[i]        = releaseInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
         }
-        nextReleaseInfo.pImageBarriers = &imageBarriers[0];
+        nextReleaseInfo.pImageBarriers = imageBarriers.Data();
 
         syncToken = m_pNextLayer->CmdRelease(nextReleaseInfo);
     }
@@ -2283,7 +2285,7 @@ void CmdBufferFwdDecorator::CmdAcquire(
             imageBarriers[i]        = acquireInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
         }
-        nextAcquireInfo.pImageBarriers = &imageBarriers[0];
+        nextAcquireInfo.pImageBarriers = imageBarriers.Data();
 
         m_pNextLayer->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
     }
@@ -2311,7 +2313,7 @@ void CmdBufferFwdDecorator::CmdReleaseEvent(
             imageBarriers[i]        = releaseInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
         }
-        nextReleaseInfo.pImageBarriers = &imageBarriers[0];
+        nextReleaseInfo.pImageBarriers = imageBarriers.Data();
 
         m_pNextLayer->CmdReleaseEvent(nextReleaseInfo, NextGpuEvent(pGpuEvent));
     }
@@ -2342,14 +2344,14 @@ void CmdBufferFwdDecorator::CmdAcquireEvent(
             imageBarriers[i]        = acquireInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
         }
-        nextAcquireInfo.pImageBarriers = &imageBarriers[0];
+        nextAcquireInfo.pImageBarriers = imageBarriers.Data();
 
         for (uint32 i = 0; i < gpuEventCount; i++)
         {
             nextGpuEvents[i] = NextGpuEvent(ppGpuEvents[i]);
         }
 
-        m_pNextLayer->CmdAcquireEvent(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
+        m_pNextLayer->CmdAcquireEvent(nextAcquireInfo, gpuEventCount, nextGpuEvents.Data());
     }
 }
 
@@ -2374,7 +2376,7 @@ void CmdBufferFwdDecorator::CmdReleaseThenAcquire(
             imageBarriers[i]        = barrierInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(barrierInfo.pImageBarriers[i].pImage);
         }
-        nextBarrierInfo.pImageBarriers = &imageBarriers[0];
+        nextBarrierInfo.pImageBarriers = imageBarriers.Data();
 
         m_pNextLayer->CmdReleaseThenAcquire(nextBarrierInfo);
     }
@@ -2399,7 +2401,7 @@ void CmdBufferFwdDecorator::CmdExecuteNestedCmdBuffers(
             nextCmdBuffers[i] = NextCmdBuffer(ppCmdBuffers[i]);
         }
 
-        m_pNextLayer->CmdExecuteNestedCmdBuffers(cmdBufferCount, &nextCmdBuffers[0]);
+        m_pNextLayer->CmdExecuteNestedCmdBuffers(cmdBufferCount, nextCmdBuffers.Data());
     }
 }
 
@@ -2455,7 +2457,7 @@ PlatformDecorator::PlatformDecorator(
     m_layerEnabled(isLayerEnabled),
     m_logDirCreated(false)
 {
-    memset(&m_pDevices[0], 0, sizeof(m_pDevices));
+    memset(m_pDevices, 0, sizeof(m_pDevices));
     memset(m_logDirPath, 0, sizeof(m_logDirPath));
 
     if (installDeveloperCb)
@@ -2490,7 +2492,7 @@ void PlatformDecorator::TearDownGpus()
         }
     }
 
-    memset(&m_pDevices[0], 0, sizeof(m_pDevices));
+    memset(m_pDevices, 0, sizeof(m_pDevices));
     m_deviceCount = 0;
 }
 
@@ -2562,7 +2564,7 @@ Result PlatformDecorator::GetScreens(
             pNextScreens[screen]->SetClientData(pStorage[screen]);
 
             pScreens[screen] = PAL_PLACEMENT_NEW(pStorage[screen]) ScreenDecorator(pNextScreens[screen],
-                                                                                   &m_pDevices[0],
+                                                                                   m_pDevices,
                                                                                    m_deviceCount);
         }
     }
@@ -2784,10 +2786,8 @@ Result QueueDecorator::Submit(
                         {
                             pNextCmdBufInfoList->pPrivFlipMemory =
                                 NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrivFlipMemory);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
                             pNextCmdBufInfoList->vidPnSourceId =
                                 origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].vidPnSourceId;
-#endif
                         }
 
                         pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].frameIndex;
@@ -2801,14 +2801,15 @@ Result QueueDecorator::Submit(
         }
 
         nextSubmitInfo.pPerSubQueueInfo     = nextPerSubQueueInfo.Data();
-        nextSubmitInfo.pGpuMemoryRefs       = &nextGpuMemoryRefs[0];
-        nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
+        nextSubmitInfo.pGpuMemoryRefs       = nextGpuMemoryRefs.Data();
+        nextSubmitInfo.pDoppRefs            = nextDoppRefs.Data();
 
         const IGpuMemory* pNextBlockIfFlipping[MaxBlockIfFlippingCount] = {};
         PAL_ASSERT(submitInfo.blockIfFlippingCount <= MaxBlockIfFlippingCount);
 
         nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
-        nextSubmitInfo.ppFences             = &nextFences[0];
+        nextSubmitInfo.ppBlockIfFlipping    = pNextBlockIfFlipping;
+        nextSubmitInfo.ppFences             = nextFences.Data();
         nextSubmitInfo.pFreeMuxMemory       = NextGpuMemory(submitInfo.pFreeMuxMemory);
 
         for (uint32 i = 0; i < submitInfo.gpuMemRefCount; i++)
@@ -2900,7 +2901,7 @@ Result QueueDecorator::RemapVirtualMemoryPages(
             ranges[i].pVirtualGpuMem = NextGpuMemory(pRanges[i].pVirtualGpuMem);
         }
 
-        result = m_pNextLayer->RemapVirtualMemoryPages(rangeCount, &ranges[0], doNotWait, NextFence(pFence));
+        result = m_pNextLayer->RemapVirtualMemoryPages(rangeCount, ranges.Data(), doNotWait, NextFence(pFence));
     }
 
     return result;
@@ -2929,7 +2930,7 @@ Result QueueDecorator::CopyVirtualMemoryPageMappings(
             ranges[i].pDstGpuMem = NextGpuMemory(pRanges[i].pDstGpuMem);
         }
 
-        result = m_pNextLayer->CopyVirtualMemoryPageMappings(rangeCount, &ranges[0], doNotWait);
+        result = m_pNextLayer->CopyVirtualMemoryPageMappings(rangeCount, ranges.Data(), doNotWait);
     }
 
     return result;

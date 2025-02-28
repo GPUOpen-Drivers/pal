@@ -31,7 +31,9 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorTargetView.h"
+#include "core/hw/gfxip/gfx9/gfx9DepthStencilState.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilView.h"
+#include "core/hw/gfxip/gfx9/gfx9MsaaState.h"
 #include "g_gfx9Settings.h"
 #include "palAutoBuffer.h"
 #include "palIntervalTree.h"
@@ -129,6 +131,17 @@ struct DrawTimeHwState
     regGE_MULTI_PRIM_IB_RESET_EN geMultiPrimIbResetEn;      // Current value of the GE_MULTI_PRIM_IB_RESET_EN register.
     gpusize                      nggIndexBufferPfStartAddr; // Start address of last IndexBuffer prefetch for NGG.
     gpusize                      nggIndexBufferPfEndAddr;   // End address of last IndexBuffer prefetch for NGG.
+};
+
+// Enum describing command recording approach.
+enum CmdRecordingType
+{
+    // GFX10 must use traditional SET sequential packets - no support for any RegPairs.
+    Gfx10,
+    // GFX11 RS64 supports PACKED and UNPACKED RegPairs but PREFERS PACKED for best CP performance.
+    Gfx11Rs64,
+    // GFX11 F32 only supports UNPACKED RegPairs and does so efficiently.
+    Gfx11F32
 };
 
 // Structure used to store values relating to viewport centering, specifically relevant values of an accumulated
@@ -261,9 +274,7 @@ union CachedSettings
         uint64 disablePreamblePipelineStats              :  1;
         uint64 primGrpSize                               :  9; // For programming GE_CNTL::PRIM_GRP_SIZE
         uint64 geCntlGcrMode                             :  2; // For programming GE_CNTL::GCR_DISABLE
-        uint64 useLegacyDbZInfo                          :  1;
         uint64 waLineStippleReset                        :  1;
-        uint64 disableRbPlusWithBlending                 :  1;
         uint64 waEnableIntrinsicRateEnable               :  1;
         uint64 supportsShPairsPacket                     :  1;
         uint64 supportsShPairsPacketCs                   :  1;
@@ -276,6 +287,8 @@ union CachedSettings
         uint64 waitAfterCbFlush                          :  1;
         uint64 waitAfterDbFlush                          :  1;
         uint64 rbHarvesting                              :  1;
+        uint64 isGfx11F32                                :  1;
+        uint64 gfx11F32UseLegacySetPathForPipelineDirty  :  1;
         uint64 reserved                                  : 61;
     };
     uint64 u64All[2];
@@ -299,10 +312,11 @@ struct VrsCopyMapping
 
 // =====================================================================================================================
 // GFX9 universal command buffer class: implements GFX9 specific functionality for the UniversalCmdBuffer class.
-class UniversalCmdBuffer final : public Pal::UniversalCmdBuffer
+class UniversalCmdBuffer : public Pal::UniversalCmdBuffer
 {
     // Shorthand for function pointers which validate graphics user-data at Draw-time.
-    typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(UserDataTableState*,
+    typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(const ValidateDrawInfo&,
+                                                                   UserDataTableState*,
                                                                    UserDataEntries*,
                                                                    const GraphicsPipelineSignature*,
                                                                    uint32*);
@@ -318,11 +332,11 @@ public:
         const PipelineBindParams& params) override;
 
     virtual void CmdBindIndexData(gpusize gpuAddr, uint32 indexCount, IndexType indexType) override;
-    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override;
+    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override = 0;
     virtual void CmdSaveGraphicsState() override;
     virtual void CmdRestoreGraphicsStateInternal(bool trackBltActiveFlags = true) override;
     virtual void CmdBindColorBlendState(const IColorBlendState* pColorBlendState) override;
-    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) override;
+    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) = 0;
 
     virtual void CmdSetBlendConst(const BlendConstParams& params) override;
     virtual void CmdSetInputAssemblyState(const InputAssemblyStateParams& params) override;
@@ -441,8 +455,6 @@ public:
         const IQueryPool& queryPool,
         uint32            startQuery,
         uint32            queryCount) override;
-
-    virtual CmdStream* GetCmdStreamByEngine(CmdBufferEngineSupport engineType) override;
 
     virtual void CmdUpdateSqttTokenMask(const ThreadTraceTokenConfig& sqttTokenConfig) override;
 
@@ -583,7 +595,7 @@ public:
         bool               multipleViewports,
         ScissorRectPm4Img* pScissorRectImg) const;
 
-    template <bool pm4OptImmediate>
+    template <bool Pm4OptImmediate>
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
 
@@ -613,11 +625,14 @@ public:
     //Gets ringSizes ringSizes from cmdBuffer.
     const ShaderRingItemSizes& GetShaderRingSize() const { return m_ringSizes; }
 
+    bool DescribeDrawDispatch() const { return m_cachedSettings.describeDrawDispatch; }
+    bool IssueSqttMarkerEvent() const { return m_cachedSettings.issueSqttMarkerEvent; }
+
 protected:
     virtual ~UniversalCmdBuffer();
 
-    virtual Result AddPreamble() override;
-    virtual Result AddPostamble() override;
+    virtual void AddPreamble() override;
+    virtual void AddPostamble() override;
 
     virtual void ResetState() override;
 
@@ -625,31 +640,26 @@ protected:
 
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
 
-    template <bool Pm4OptImmediate, bool IsNgg, bool Indirect>
+    template <bool Pm4OptImmediate, bool IsGfx11, bool Indirect>
     uint32* ValidateBinSizes(uint32* pDeCmdSpace);
 
-    template <bool Indexed, bool Indirect>
+    template <bool IsGfx11, bool Indirect>
     void ValidateDraw(const ValidateDrawInfo& drawInfo);
 
-    template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
+    template <bool IsGfx11, bool Indirect, bool Pm4OptImmediate>
     void ValidateDraw(const ValidateDrawInfo& drawInfopDeCmdSpace);
 
-    template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty>
+    template <bool IsGfx11, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty>
     uint32* ValidateDraw(
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
+    template <bool IsGfx11, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
     uint32* ValidateDraw(
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty, bool IsNgg>
-    uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
-
-    template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
+    template <bool IsGfx11, bool Indirect, bool Pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
         regPA_SC_MODE_CNTL_1    paScModeCntl1,
         const ValidateDrawInfo& drawInfo,
@@ -666,10 +676,17 @@ protected:
 
     void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
 
+    template <typename DepthStencilStateType>
+    void BindDepthStencilState(const IDepthStencilState* pDepthStencilState);
+
+    template <typename MsaaStateType>
+    void BindMsaaState(const IMsaaState* pMsaaState);
+
 private:
-    template <bool IssueSqttMarkerEvent,
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
               bool ViewInstancingEnable,
-              bool DescribeDrawDispatch>
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDraw(
         ICmdBuffer* pCmdBuffer,
         uint32      firstVertex,
@@ -678,9 +695,10 @@ private:
         uint32      instanceCount,
         uint32      drawId);
 
-    template <bool IssueSqttMarkerEvent,
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
               bool ViewInstancingEnable,
-              bool DescribeDrawDispatch>
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDrawOpaque(
         ICmdBuffer* pCmdBuffer,
         gpusize streamOutFilledSizeVa,
@@ -689,9 +707,10 @@ private:
         uint32  firstInstance,
         uint32  instanceCount);
 
-    template <bool IssueSqttMarkerEvent,
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
               bool ViewInstancingEnable,
-              bool DescribeDrawDispatch>
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,
@@ -701,14 +720,20 @@ private:
         uint32      instanceCount,
         uint32      drawId);
 
-    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
+              bool ViewInstancingEnable,
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDrawIndirectMulti(
         ICmdBuffer*          pCmdBuffer,
         GpuVirtAddrAndStride gpuVirtAddrAndStride,
         uint32               maximumCount,
         gpusize              countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
+              bool ViewInstancingEnable,
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDrawIndexedIndirectMulti(
         ICmdBuffer*          pCmdBuffer,
         GpuVirtAddrAndStride gpuVirtAddrAndStride,
@@ -731,42 +756,47 @@ private:
         DispatchDims offset,
         DispatchDims launchSize,
         DispatchDims logicalSize);
-    template <bool IssueSqttMarkerEvent,
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
               bool ViewInstancingEnable,
-              bool DescribeDrawDispatch>
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDispatchMeshNative(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size);
-    template <bool IssueSqttMarkerEvent,
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
               bool ViewInstancingEnable,
-              bool DescribeDrawDispatch>
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDispatchMeshAmpFastLaunch(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size);
-    template <bool IssueSqttMarkerEvent,
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
               bool ViewInstancingEnable,
-              bool DescribeDrawDispatch>
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDispatchMeshIndirectMulti(
         ICmdBuffer*          pCmdBuffer,
         GpuVirtAddrAndStride GpuVirtAddrAndStride,
         uint32               maximumCount,
         gpusize              countGpuAddr);
-    template <bool IssueSqttMarkerEvent,
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
               bool ViewInstancingEnable,
-              bool DescribeDrawDispatch>
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDispatchMeshTask(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size);
-    template <bool IssueSqttMarkerEvent,
+    template <bool IssueSqttMarkerEventOrDescribeDrawDispatch,
               bool ViewInstancingEnable,
-              bool DescribeDrawDispatch>
+              bool Pm4OptEnabled,
+              bool IsGfx11>
     static void PAL_STDCALL CmdDispatchMeshIndirectMultiTask(
         ICmdBuffer*          pCmdBuffer,
         GpuVirtAddrAndStride GpuVirtAddrAndStride,
         uint32               maximumCount,
         gpusize              countGpuAddr);
 
-    template <bool IsNgg>
+    template <bool IsGfx11>
     uint32 CalcGeCntl(
         bool                  usesLineStipple,
         regIA_MULTI_VGT_PARAM iaMultiVgtParam) const;
@@ -779,7 +809,17 @@ private:
     template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
     uint32* ValidateCbColorInfoAndBlendState(
         uint32* pDeCmdSpace);
+
     uint32* ValidateDbRenderOverride(
+        uint32* pDeCmdSpace);
+    template <bool Pm4OptImmediate>
+    uint32* ValidateDbRenderOverride(
+        uint32* pDeCmdSpace);
+
+    uint32* ValidateDbZInfo(
+        uint32* pDeCmdSpace);
+    template <bool Pm4OptImmediate, bool IsGfx11>
+    uint32* ValidateDbZInfo(
         uint32* pDeCmdSpace);
 
     uint32* WriteTessDistributionFactors(
@@ -834,9 +874,7 @@ private:
     void SetDispatchFunctions();
     void SetDispatchFunctions(bool hsaAbi);
 
-    template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
     void SetUserDataValidationFunctions();
-    void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled, bool isNgg);
 
     void SetShaderRingSize(const ShaderRingItemSizes& ringSizes);
 
@@ -850,6 +888,7 @@ private:
         DispatchDims        offset,
         const DispatchDims& logicalSize);
 
+    template <bool IsGfx11, bool Pm4OptEnabled>
     uint32* SwitchGraphicsPipeline(
         const GraphicsPipelineSignature* pPrevSignature,
         const GraphicsPipeline*          pCurrPipeline,
@@ -857,8 +896,9 @@ private:
 
     void UpdateViewportScissorDirty(bool usesMultiViewports, DepthClampMode depthClampMode);
 
-    template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled, bool VsEnabled>
+    template <bool Pm4OptEnabled, CmdRecordingType RecordType, bool HasPipelineChanged>
     uint32* ValidateGraphicsUserData(
+        const ValidateDrawInfo&          drawInfo,
         UserDataTableState*              pSpillTable,
         UserDataEntries*                 pUserDataEntries,
         const GraphicsPipelineSignature* pPrevSignature,
@@ -874,14 +914,13 @@ private:
         const ComputePipelineSignature* pCurrSignature,
         uint32*                         pCmdSpace);
 
-    template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
+    template <bool Pm4OptEnabled, CmdRecordingType RecordType>
     uint32* WriteDirtyUserDataEntriesToSgprsGfx(
-        const UserDataEntries*           pUserDataEntries,
-        const GraphicsPipelineSignature* pPrevSignature,
-        uint8                            alreadyWrittenStageMask,
-        uint32*                          pDeCmdSpace);
+        const UserDataEntries* pUserDataEntries,
+        uint8                  alreadyWrittenStageMask,
+        uint32*                pDeCmdSpace);
 
-    template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
+    template <bool Pm4OptEnabled, CmdRecordingType RecordType>
     uint8 FixupUserSgprsOnPipelineSwitch(
         const UserDataEntries*           pUserDataEntries,
         const GraphicsPipelineSignature* pPrevSignature,
@@ -901,7 +940,7 @@ private:
 
     void Gfx10GetColorBinSize(Extent2d* pBinSize) const;
     void Gfx10GetDepthBinSize(Extent2d* pBinSize) const;
-    template <bool IsNgg>
+    template <bool IsGfx11>
     bool SetPaScBinnerCntl01(
                              const Extent2d* pBinSize);
 
@@ -917,16 +956,15 @@ private:
         bool nativeMsEnable,
         bool hasTaskShader);
 
-    template <bool IssueSqtt,
-              bool DescribeDrawDispatch>
+    template <bool IssueSqttOrDescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool viewInstancingEnable,
         bool nativeMsEnable,
         bool hasTaskShader);
 
-    template <bool ViewInstancing,
-              bool IssueSqtt,
-              bool DescribeDrawDispatch>
+    template <bool IssueSqttOrDescribeDrawDispatch,
+              bool ViewInstancing,
+              bool Pm4OptEnabled>
     void SwitchDrawFunctionsInternal(
         bool nativeMsEnable,
         bool hasTaskShader);
@@ -974,6 +1012,9 @@ private:
 
     template <Pm4ShaderType ShaderType>
     uint32* WritePackedUserDataEntriesToSgprs(uint32* pDeCmdSpace);
+
+    template <bool Pm4OptEnabled, CmdRecordingType RecordType>
+    uint32* ValidateGfxUserDataAddUserData(uint32 userDataAddr, uint32 userDataValue, uint32* pDeCmdSpace);
 
     template <Pm4ShaderType ShaderType>
     uint32* SetUserSgprReg(
@@ -1243,6 +1284,93 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);
+};
+
+// =====================================================================================================================
+// GFX11 RS64 specific universal command buffer class derivative.
+class Gfx11UniversalCmdBufferRs64 final : public Gfx9::UniversalCmdBuffer
+{
+public:
+    Gfx11UniversalCmdBufferRs64(const Device& device, const CmdBufferCreateInfo& createInfo)
+        :
+        Gfx9::UniversalCmdBuffer(device, createInfo)
+    {
+    }
+
+    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState)
+    {
+        BindDepthStencilState<Gfx11DepthStencilStateRs64>(pDepthStencilState);
+    }
+
+    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState)
+    {
+        BindMsaaState<Gfx11MsaaStateRs64>(pMsaaState);
+    }
+
+protected:
+    virtual ~Gfx11UniversalCmdBufferRs64() { }
+
+private:
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx11UniversalCmdBufferRs64);
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx11UniversalCmdBufferRs64);
+};
+
+// =====================================================================================================================
+// GFX11 F32 specific universal command buffer class derivative.
+class Gfx11UniversalCmdBufferF32 final : public Gfx9::UniversalCmdBuffer
+{
+public:
+    Gfx11UniversalCmdBufferF32(const Device& device, const CmdBufferCreateInfo& createInfo)
+        :
+        Gfx9::UniversalCmdBuffer(device, createInfo)
+    {
+    }
+
+    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState)
+    {
+        BindDepthStencilState<Gfx11DepthStencilStateF32>(pDepthStencilState);
+    }
+
+    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState)
+    {
+        BindMsaaState<Gfx11MsaaStateF32>(pMsaaState);
+    }
+
+protected:
+    virtual ~Gfx11UniversalCmdBufferF32() { }
+
+private:
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx11UniversalCmdBufferF32);
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx11UniversalCmdBufferF32);
+};
+
+// =====================================================================================================================
+// GFX10 specific universal command buffer class derivative.
+class Gfx10UniversalCmdBuffer final : public Gfx9::UniversalCmdBuffer
+{
+public:
+    Gfx10UniversalCmdBuffer(const Device& device, const CmdBufferCreateInfo& createInfo)
+        :
+        Gfx9::UniversalCmdBuffer(device, createInfo)
+    {
+    }
+
+    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState)
+    {
+        BindDepthStencilState<Gfx10DepthStencilState>(pDepthStencilState);
+    }
+
+    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState)
+    {
+        BindMsaaState<Gfx10MsaaState>(pMsaaState);
+    }
+
+protected:
+    virtual ~Gfx10UniversalCmdBuffer() { }
+
+private:
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10UniversalCmdBuffer);
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx10UniversalCmdBuffer);
 };
 
 } // Gfx9

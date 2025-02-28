@@ -38,9 +38,7 @@
 #define FAMILY_RMB     0x92 // 146 / Rembrandt
 #define FAMILY_PHX     0x94 // 148 / Phoenix
 #define FAMILY_RPL     0x95 // 149 / Raphael
-#if PAL_BUILD_GFX115
 #define FAMILY_STX     0x96 // 150 / Strix
-#endif
 #define FAMILY_MDN     0x97 // 151 / Mendocino
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
@@ -56,10 +54,8 @@
 #define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
 #define FAMILY_IS_PHX(f)     FAMILY_IS(f, PHX)
 
-#if PAL_BUILD_GFX115
 // Gfx11.5
 #define FAMILY_IS_STX(f)     FAMILY_IS(f, STX)
-#endif
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -84,11 +80,10 @@
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80 // 1 <= x < 128
 #define AMDGPU_PHOENIX2_RANGE      0x80, 0xC0 // 128 <= x < 192
 
-#if PAL_BUILD_STRIX1
 // Gfx11.5
 #define AMDGPU_STRIX1_RANGE          0x01, 0x40 // 1  <= x < 64 (tentative)
-#define AMDGPU_STRIX1_A0_RANGE       0x01, 0x0F // 1  <= x < 15
-#define AMDGPU_STRIX1_B0_RANGE       0x10, 0x40 // 16 <= x < 64
+#if PAL_BUILD_STRIX_HALO
+#define AMDGPU_STRIX_HALO_RANGE    0xC0, 0xFF // 192 <= x < 255 (tentative)
 #endif
 
 #define AMDGPU_EXPAND_FIX(x) x
@@ -119,11 +114,10 @@
 #define ASICREV_IS_PHOENIX1(r)         ASICREV_IS(r, PHOENIX1)
 #define ASICREV_IS_PHOENIX2(r)         ASICREV_IS(r, PHOENIX2)
 
-#if PAL_BUILD_STRIX1
 // Gfx11.5
 #define ASICREV_IS_STRIX1(r)           ASICREV_IS(r, STRIX1)
-#define ASICREV_IS_STRIX1_A0(r)        ASICREV_IS(r, STRIX1_A0)
-#define ASICREV_IS_STRIX1_B0(r)        ASICREV_IS(r, STRIX1_B0)
+#if PAL_BUILD_STRIX_HALO
+#define ASICREV_IS_STRIX_HALO(r)       ASICREV_IS(r, STRIX_HALO)
 #endif
 
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
@@ -150,11 +144,10 @@
 #define AMDGPU_IS_PHOENIX1(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX1)
 #define AMDGPU_IS_PHOENIX2(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX2)
 
-#if PAL_BUILD_STRIX1
 // Gfx11.5
 #define AMDGPU_IS_STRIX1(f,r)         AMDGPU_IS(f, r, STX, STRIX1)
-#define AMDGPU_IS_STRIX1_A0(f,r)      AMDGPU_IS(f, r, STX, STRIX1_A0)
-#define AMDGPU_IS_STRIX1_B0(f,r)      AMDGPU_IS(f, r, STX, STRIX1_B0)
+#if PAL_BUILD_STRIX_HALO
+#define AMDGPU_IS_STRIX_HALO(f,r)     AMDGPU_IS(f, r, STX, STRIX_HALO)
 #endif
 
 // Device IDs
@@ -177,9 +170,10 @@
 #define DEVICE_ID_PHX1_15BF             0x15BF // Phoenix1
 #define DEVICE_ID_PHX2_15C8             0x15C8 // Phoenix2
 
-#if PAL_BUILD_STRIX1
 // Gf11.5
 #define DEVICE_ID_STX1_150E             0x150E // Strix1
+#if PAL_BUILD_STRIX_HALO
+#define DEVICE_ID_STXH_1586             0x1586 // Strix Halo
 #endif
 
 // DEVICE_IS(deviceId, deviceName)
@@ -189,40 +183,33 @@
 #define DEVICE_IS_NAVI31(d) (DEVICE_IS(d, NV3_NAVI31_P_744C) | DEVICE_IS(d, NV3_NAVI31_P_73BF))
 #define DEVICE_IS_NAVI32(d) DEVICE_IS(d, NV3_NAVI32_P_73DF)
 
-// Revision IDs
+// Supported Revision IDs
 // Gfx10.1
-#define NV_NAVI10_P_A2               3
-#define NV_NAVI12_P_A0              10
-#define NV_NAVI14_M_A0              20
+#define NV_NAVI10_P                  3
+#define NV_NAVI12_P                 10
+#define NV_NAVI14_M                 20
 
 // Gfx10.3
-#define NV_NAVI21_P_A0              40
-#define NV_NAVI22_P_A0              50
-#define NV_NAVI23_P_A0              60
-#define NV_NAVI24_P_A0              70
-#define REMBRANDT_B0              0x20
-#define RAPHAEL_A0                0x01
-#define MENDOCINO_A0              0x01
+#define NV_NAVI21_P                 40
+#define NV_NAVI22_P                 50
+#define NV_NAVI23_P                 60
+#define NV_NAVI24_P                 70
+#define REMBRANDT_P               0x20
+#define RAPHAEL_P                 0x01
+#define MENDOCINO_P               0x01
 
 // Gfx11.0
-#define NAVI31_P_A0               0x01
-#define NAVI33_P_A0               0x10
-#define NAVI32_P_A0               0x20
-#define PHOENIX1_A0               0x01
-#define PHOENIX2_A0               0x80
+#define NAVI31_P                  0x01
+#define NAVI33_P                  0x10
+#define NAVI32_P                  0x20
+#define PHOENIX1_P                0x01
+#define PHOENIX2_P                0x80
 
-#if PAL_BUILD_STRIX1
 // Gfx11.5
-#define STRIX1_P_A0               0x01
-#define STRIX1_P_B0               0x10
+#define STRIX1_P                  0x10
+#if PAL_BUILD_STRIX_HALO
+#define STRIX_HALO_P              0xC0
 #endif
-
-// SPIN_IS(revisionId, revisionName)
-#define SPIN_IS(r, rn) (r == rn)
-
-// Gfx11.0
-#define SPIN_IS_NAVI31_A0(r) SPIN_IS(r, NAVI31_P_A0)
-#define SPIN_IS_NAVI32_A0(r) SPIN_IS(r, NAVI32_P_A0)
 
 // PRIDs
 // Gfx10.1
@@ -285,9 +272,10 @@
 
 #define PRID_PHX_00                 0x00   // Phoenix
 
-#if PAL_BUILD_STRIX1
 // Gfx11.5
 #define PRID_STX_STRIX1_00          0x00
+#if PAL_BUILD_STRIX_HALO
+#define PRID_STX_STRIX_HALO_00      0x00
 #endif
 
 // VARIANT_IS(prid, variantName)
@@ -296,8 +284,5 @@
 // Gfx11.0
 #define VARIANT_IS_NAVI31_XTX(v) (VARIANT_IS(v, NV3_NAVI31_C8 ) | VARIANT_IS(v, NV3_NAVI31_D4))
 #define VARIANT_IS_NAVI32_XL(v) VARIANT_IS(v, NV3_NAVI32_BF)
-
-#define SKU_IS_NAVI31_XTX_A0(d, r, v) (DEVICE_IS_NAVI31(d) && SPIN_IS_NAVI31_A0(r) && VARIANT_IS_NAVI31_XTX(v))
-#define SKU_IS_NAVI32_XL_A0(d, r, v)  (DEVICE_IS_NAVI32(d) && SPIN_IS_NAVI32_A0(r) && VARIANT_IS_NAVI32_XL(v))
 
 #endif

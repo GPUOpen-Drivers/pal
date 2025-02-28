@@ -309,10 +309,15 @@ void TextWriter<Allocator>::DrawDebugText(
 
         // Construct an embedded descriptor table. The first entry is a buffer view for the font data and the second is
         // an image view for the target image.
-        const Pal::uint32 srdDwords = m_maxSrdSize / sizeof(Pal::uint32);
+        const Pal::uint32 srdDwords = Util::NumBytesToNumDwords(m_maxSrdSize);
 
-        Pal::gpusize      tableGpuAddr = 0;
-        Pal::uint32*const pTable       = pCmdBuffer->CmdAllocateEmbeddedData(2 * srdDwords, 1, &tableGpuAddr);
+        Pal::gpusize           tableGpuAddr = 0;
+        Pal::uint32*const      pTable       = pCmdBuffer->CmdAllocateEmbeddedData(2 * srdDwords, 1, &tableGpuAddr);
+        Pal::DeviceProperties  devProps     = {};
+
+        m_pDevice->GetProperties(&devProps);
+        const auto&        srdSizes            = devProps.gfxipProperties.srdSizes;
+        const Pal::uint32  bufferSrdSizeDwords = Util::NumBytesToNumDwords(srdSizes.untypedBufferView);
 
         memcpy(pTable, m_fontSrd, sizeof(m_fontSrd));
         CreateImageView(&dstImage, pTable + srdDwords);
@@ -330,7 +335,7 @@ void TextWriter<Allocator>::DrawDebugText(
 
         Pal::uint32 dynamicViewSrd[4] = {};
         m_pDevice->CreateUntypedBufferViewSrds(1, &dynamicViewInfo, &dynamicViewSrd[0]);
-        pCmdBuffer->CmdSetUserData(Pal::PipelineBindPoint::Compute, 1, 4, &dynamicViewSrd[0]);
+        pCmdBuffer->CmdSetUserData(Pal::PipelineBindPoint::Compute, 1, bufferSrdSizeDwords, &dynamicViewSrd[0]);
 
         // Bind the pipeline and issue one thread group per letter.
         pCmdBuffer->CmdBindPipeline({ Pal::PipelineBindPoint::Compute, m_pPipeline, Pal::InternalApiPsoHash, });

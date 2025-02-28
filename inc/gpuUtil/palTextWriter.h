@@ -129,7 +129,7 @@ private:
     Allocator*                   m_pAllocator;                      // The system-memory allocator to use.
     Pal::IPipeline*              m_pPipeline;                       // Pipeline object for drawing text.
     Pal::IGpuMemory*             m_pFontData;                       // GPU memory for constant font data binary.
-    Pal::uint32                  m_fontSrd[4];                      // SRD for the font data.
+    Pal::uint32                  m_fontSrd[8];                      // SRD for the font data.
     Pal::DeviceProperties        m_deviceProps;                     // Stored copy of the device properties.
     Pal::GpuMemoryHeapProperties m_memHeapProps[Pal::GpuHeapCount]; // Stored copy of the GpuHeap properties.
     Pal::uint32                  m_maxSrdSize;                      // Maximum size needed (in bytes) to store an SRD.

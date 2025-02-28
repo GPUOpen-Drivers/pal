@@ -316,7 +316,6 @@ Result Pipeline::GetCodeObject(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
 // =====================================================================================================================
 // Gets the code object pointer according to shader type.
 const void* Pipeline::GetCodeObjectWithShaderType(
@@ -334,7 +333,6 @@ const void* Pipeline::GetCodeObjectWithShaderType(
 
     return pBinary;
 }
-#endif
 
 // =====================================================================================================================
 // Extracts the binary shader instructions for a specific API shader stage.
@@ -349,16 +347,10 @@ Result Pipeline::GetShaderCode(
 
     // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
     // instructions by examining the symbol table entry for that shader's entrypoint.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     size_t      size    = 0;
     const void* pBinary = GetCodeObjectWithShaderType(shaderType, &size);
-#else
-    size_t      size    = m_pipelineBinary.SizeInBytes();
-    const void* pBinary = m_pipelineBinary.Data();
-#endif
-
-    AbiReader abiReader(m_pDevice->GetPlatform(), {pBinary, size});
-    Result result = abiReader.Init();
+    AbiReader   abiReader(m_pDevice->GetPlatform(), {pBinary, size});
+    Result      result = abiReader.Init();
 
     if (result == Result::Success)
     {
@@ -458,13 +450,8 @@ Result Pipeline::GetShaderStatsForStage(
     memset(pStats, 0, sizeof(ShaderStats));
 
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     size_t      size            = 0;
     const void* pPipelineBinary = GetCodeObjectWithShaderType(shaderType, &size);
-#else
-    size_t      size            = m_pipelineBinary.SizeInBytes();
-    const void* pPipelineBinary = m_pipelineBinary.Data();
-#endif
 
     PAL_ASSERT(pPipelineBinary != nullptr);
     AbiReader abiReader(m_pDevice->GetPlatform(), Span<const void>{pPipelineBinary, size});
@@ -567,16 +554,10 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
     case DispatchInterleaveSize::Default:
     case DispatchInterleaveSize::Disable:
         break;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
     case DispatchInterleaveSize::_1D_64_Threads:
     case DispatchInterleaveSize::_1D_128_Threads:
     case DispatchInterleaveSize::_1D_256_Threads:
     case DispatchInterleaveSize::_1D_512_Threads:
-#else
-    case DispatchInterleaveSize::_128:
-    case DispatchInterleaveSize::_256:
-    case DispatchInterleaveSize::_512:
-#endif
         is1D = true;
         break;
     default:

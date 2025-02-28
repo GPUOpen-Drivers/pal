@@ -71,9 +71,6 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_minValidUserEntryLookupValueCs(1),
     m_ringSizeComputeScratch(0)
 {
-    // Compute command buffers suppors compute ops and CP DMA.
-    m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
-
     const PalPlatformSettings& platformSettings = device.Parent()->GetPlatform()->PlatformSettings();
     m_describeDispatch                          = (device.Parent()->IssueSqttMarkerEvents() ||
                                                    device.Parent()->IssueCrashAnalysisMarkerEvents() ||
@@ -1319,7 +1316,7 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
 // =====================================================================================================================
 // Adds a preamble to the start of a new command buffer.
 // SEE: ComputePreamblePm4Img and CommonPreamblePm4Img structures in gfx9Preambles.h for what is written in the preamble
-Result ComputeCmdBuffer::WritePreambleCommands(
+void ComputeCmdBuffer::WritePreambleCommands(
     const CmdUtil& cmdUtil,
     CmdStream*     pCmdStream)
 {
@@ -1330,22 +1327,19 @@ Result ComputeCmdBuffer::WritePreambleCommands(
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeCompute, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
-
-    return Result::Success;
 }
 
 // =====================================================================================================================
 // Adds a preamble to the start of a new command buffer.
-Result ComputeCmdBuffer::AddPreamble()
+void ComputeCmdBuffer::AddPreamble()
 {
-    Result result = ComputeCmdBuffer::WritePreambleCommands(m_cmdUtil, &m_cmdStream);
+    ComputeCmdBuffer::WritePreambleCommands(m_cmdUtil, &m_cmdStream);
 
-    return result;
 }
 
 // =====================================================================================================================
 // Adds a postamble to the end of a new command buffer.
-Result ComputeCmdBuffer::WritePostambleCommands(
+void ComputeCmdBuffer::WritePostambleCommands(
     const CmdUtil&     cmdUtil,
     GfxCmdBuffer*const pCmdBuffer,
     CmdStream*         pCmdStream)
@@ -1370,7 +1364,7 @@ Result ComputeCmdBuffer::WritePostambleCommands(
         // We also need a wait-for-idle before the atomic increment because command memory might be read or written
         // by dispatches. If we don't wait for idle then the driver might reset and write over that memory before the
         // shaders are done executing.
-        pCmdSpace  = pCmdBuffer->WriteWaitCsIdle(pCmdSpace);
+        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
                                             pCmdStream->GetFirstChunk()->BusyTrackerGpuAddr(),
                                             1,
@@ -1378,13 +1372,11 @@ Result ComputeCmdBuffer::WritePostambleCommands(
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
-
-    return Result::Success;
 }
 
 // =====================================================================================================================
 // Adds a postamble to the end of a new command buffer.
-Result ComputeCmdBuffer::AddPostamble()
+void ComputeCmdBuffer::AddPostamble()
 {
     if ((m_globalInternalTableAddr != 0) &&
         (m_computeState.pipelineState.pPipeline != nullptr) &&
@@ -1404,14 +1396,8 @@ Result ComputeCmdBuffer::AddPostamble()
         m_cmdStream.CommitCommands(pCmdSpace);
     }
 
-    Result result = ComputeCmdBuffer::WritePostambleCommands(m_cmdUtil,
-                                                             this,
-                                                             &m_cmdStream);
-    if (result == Result::Success)
-    {
-    }
+    ComputeCmdBuffer::WritePostambleCommands(m_cmdUtil, this, &m_cmdStream);
 
-    return result;
 }
 
 // =====================================================================================================================

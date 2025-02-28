@@ -48,7 +48,7 @@ PipelineChunkCs::PipelineChunkCs(
     ShaderStageInfo* pStageInfo,
     PerfDataInfo*    pPerfDataInfo)
     :
-    m_device(device),
+    m_flags{},
     m_regs{},
     m_prefetchAddr(0),
     m_prefetchSize(0),
@@ -60,11 +60,28 @@ PipelineChunkCs::PipelineChunkCs(
         m_pStageInfo->stageId = Abi::HardwareStage::Cs;
     }
     m_regs.userDataInternalTable.u32All = InvalidUserDataInternalTable;
+
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
+    const Gfx9PalSettings&   settings  = device.Settings();
+    m_flags.supportSpp        = chipProps.gfx9.supportSpp;
+    m_flags.isGfx11           = IsGfx11(chipProps.gfxLevel);
+    m_flags.acePrefetchMethod = settings.shaderPrefetchMethodAce;
+    m_flags.gfxPrefetchMethod = settings.shaderPrefetchMethodGfx;
+
+    const uint32 maxWavesPerSe = chipProps.gfx9.numShaderArrays * Device::GetMaxWavesPerSh(chipProps, true);
+    const uint32 numCuPerSe    = chipProps.gfx9.numShaderArrays * chipProps.gfx9.numCuPerSh;
+
+    m_flags.maxWavesPerSe = maxWavesPerSe;
+    m_flags.numCuPerSe    = numCuPerSe;
+
+    // Sanity check we didn't overflow any bitfields.
+    PAL_ASSERT((m_flags.maxWavesPerSe == maxWavesPerSe) && (m_flags.numCuPerSe == numCuPerSe));
 }
 
 // =====================================================================================================================
 // Perform LateInit after InitRegisters.
 void PipelineChunkCs::DoLateInit(
+    const Device&       device,
     DispatchDims*       pThreadsPerTg,
     CodeObjectUploader* pUploader)
 {
@@ -84,7 +101,7 @@ void PipelineChunkCs::DoLateInit(
             m_regs.userDataInternalTable.bits.DATA = LowPart(symbol.gpuVirtAddr);
         }
 
-        if (m_device.CoreSettings().pipelinePrefetchEnable)
+        if (device.CoreSettings().pipelinePrefetchEnable)
         {
             m_prefetchAddr = pUploader->PrefetchAddr();
             m_prefetchSize = pUploader->PrefetchSize();
@@ -100,27 +117,29 @@ void PipelineChunkCs::DoLateInit(
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
 // determining the values of other registers.
 void PipelineChunkCs::LateInit(
+    const Device&                           device,
     const Util::PalAbi::CodeObjectMetadata& metadata,
     uint32                                  wavefrontSize,
     DispatchDims*                           pThreadsPerTg,
     DispatchInterleaveSize                  interleaveSize,
     CodeObjectUploader*                     pUploader)
 {
-    InitRegisters(metadata, interleaveSize, wavefrontSize);
-    DoLateInit(pThreadsPerTg, pUploader);
+    InitRegisters(device, metadata, interleaveSize, wavefrontSize);
+    DoLateInit(device, pThreadsPerTg, pUploader);
 }
 
 // =====================================================================================================================
 // Late initialization for Hsa pipeline chunk.
 void PipelineChunkCs::LateInit(
+    const Device&           device,
     const RegisterVector&   registers,
     uint32                  wavefrontSize,
     DispatchDims*           pThreadsPerTg,
     DispatchInterleaveSize  interleaveSize,
     CodeObjectUploader*     pUploader)
 {
-    InitRegisters(registers, interleaveSize, wavefrontSize);
-    DoLateInit(pThreadsPerTg, pUploader);
+    InitRegisters(device, registers, interleaveSize, wavefrontSize);
+    DoLateInit(device, pThreadsPerTg, pUploader);
 }
 
 // =====================================================================================================================
@@ -155,11 +174,12 @@ void PipelineChunkCs::InitGpuAddrFromMesh(
 // =====================================================================================================================
 // Helper method which initializes registers from the metadata extraced from an ELF metadata blob.
 void PipelineChunkCs::InitRegisters(
+    const Device&                     device,
     const PalAbi::CodeObjectMetadata& metadata,
     DispatchInterleaveSize            interleaveSize,
     uint32                            wavefrontSize)
 {
-    const Gfx9PalSettings& settings = m_device.Settings();
+    const Gfx9PalSettings& settings = device.Settings();
 
     m_regs.computePgmRsrc1.u32All = AbiRegisters::ComputePgmRsrc1(metadata);
     if (settings.waCwsrThreadgroupTrap != 0)
@@ -174,23 +194,24 @@ void PipelineChunkCs::InitRegisters(
     m_regs.computeNumThreadY.u32All = AbiRegisters::ComputeNumThreadY(metadata);
     m_regs.computeNumThreadZ.u32All = AbiRegisters::ComputeNumThreadZ(metadata);
 
-    m_regs.computePgmRsrc3.u32All = AbiRegisters::ComputePgmRsrc3(metadata, m_device, m_pStageInfo->codeLength);
-    m_regs.computeShaderChksum.u32All = AbiRegisters::ComputeShaderChkSum(metadata, m_device);
+    m_regs.computePgmRsrc3.u32All = AbiRegisters::ComputePgmRsrc3(metadata, device, m_pStageInfo->codeLength);
+    m_regs.computeShaderChksum.u32All = AbiRegisters::ComputeShaderChkSum(metadata, device);
     m_regs.dynamic.computeResourceLimits.u32All =
-        AbiRegisters::ComputeResourceLimits(metadata, m_device, wavefrontSize);
+        AbiRegisters::ComputeResourceLimits(metadata, device, wavefrontSize);
 
-    m_regs.computeDispatchInterleave = AbiRegisters::ComputeDispatchInterleave(m_device, interleaveSize);
+    m_regs.computeDispatchInterleave = AbiRegisters::ComputeDispatchInterleave(device, interleaveSize);
 }
 
 // =====================================================================================================================
 // Helper method which initializes registers from the register vector extraced from an ELF metadata blob.
 void PipelineChunkCs::InitRegisters(
+    const Device&          device,
     const RegisterVector&  registers,
     DispatchInterleaveSize interleaveSize,
     uint32                 wavefrontSize)
 {
-    const Gfx9PalSettings&   settings  = m_device.Settings();
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    const Gfx9PalSettings&   settings  = device.Settings();
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
 
     m_regs.computePgmRsrc1.u32All = registers.At(mmCOMPUTE_PGM_RSRC1);
     if (settings.waCwsrThreadgroupTrap != 0)
@@ -207,9 +228,9 @@ void PipelineChunkCs::InitRegisters(
 
     m_regs.computePgmRsrc3.u32All = registers.At(mmCOMPUTE_PGM_RSRC3);
 
-    if (IsGfx11(chipProps.gfxLevel))
+    if (m_flags.isGfx11)
     {
-        m_regs.computePgmRsrc3.gfx11.INST_PREF_SIZE = m_device.GetShaderPrefetchSize(m_pStageInfo->codeLength);
+        m_regs.computePgmRsrc3.gfx11.INST_PREF_SIZE = device.GetShaderPrefetchSize(m_pStageInfo->codeLength);
 
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
         // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
@@ -218,7 +239,7 @@ void PipelineChunkCs::InitRegisters(
         m_regs.computePgmRsrc3.gfx11.IMAGE_OP = 1;
     }
 
-    if (chipProps.gfx9.supportSpp == 1)
+    if (m_flags.supportSpp == 1)
     {
         registers.HasEntry(mmCOMPUTE_SHADER_CHKSUM, &m_regs.computeShaderChksum.u32All);
     }
@@ -271,9 +292,9 @@ void PipelineChunkCs::InitRegisters(
         break;
     }
 
-    if (IsGfx11(chipProps.gfxLevel))
+    if (m_flags.isGfx11)
     {
-        m_regs.computeDispatchInterleave = AbiRegisters::ComputeDispatchInterleave(m_device, interleaveSize);
+        m_regs.computeDispatchInterleave = AbiRegisters::ComputeDispatchInterleave(device, interleaveSize);
     }
 }
 
@@ -335,8 +356,6 @@ void PipelineChunkCs::SetupSignatureFromMetadata(
 {
     const Util::PalAbi::HardwareStageMetadata& hwCs = metadata.pipeline.hardwareStage[uint32(Abi::HardwareStage::Cs)];
     PAL_ASSERT(hwCs.userSgprs <= 16);
-
-    const auto& chipProps = m_device.Parent()->ChipProperties();
 
     for (uint16 offset = 0; offset < 16; ++offset)
     {
@@ -422,11 +441,9 @@ void PipelineChunkCs::SetupSignatureFromMetadata(
 
 // =====================================================================================================================
 void PipelineChunkCs::SetupSignatureFromRegisters(
-    ComputeShaderSignature*   pSignature,
-    const RegisterVector&     registers)
+    ComputeShaderSignature* pSignature,
+    const RegisterVector&   registers)
 {
-    const auto& chipProps = m_device.Parent()->ChipProperties();
-
     for (uint16 offset = mmCOMPUTE_USER_DATA_0; offset <= mmCOMPUTE_USER_DATA_15; ++offset)
     {
         uint32 value = 0;
@@ -503,23 +520,23 @@ void PipelineChunkCs::SetupSignatureFromRegisters(
 // =====================================================================================================================
 // Helper to write DynamicLaunchDesc registers and update dynamic register state. This function must be called
 // immediately before any dynamic register writes. Returns the next unused DWORD in pCmdSpace.
-uint32* PipelineChunkCs::UpdateDynamicRegInfo(
-    CmdStream*                      pCmdStream,
-    uint32*                         pCmdSpace,
+void PipelineChunkCs::UpdateDynamicRegInfo(
     HwRegInfo::Dynamic*             pDynamicRegs,
     const DynamicComputeShaderInfo& csInfo
     ) const
 {
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
     constexpr uint32 Gfx9MaxTgPerCu = 15;
     pDynamicRegs->computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx9MaxTgPerCu);
     if (csInfo.maxWavesPerCu > 0)
     {
+        const uint32 wavesPerSe = Util::Min(m_flags.maxWavesPerSe,
+                                            static_cast<uint32>(csInfo.maxWavesPerCu * m_flags.numCuPerSe));
+        PAL_ASSERT(wavesPerSe <= (COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH_MASK >>
+                                  COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH__SHIFT));
+
         // Yes, this is actually WAVES_PER_SE.
-        pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH =
-                            ComputePipeline::CalcMaxWavesPerSe(chipProps, csInfo.maxWavesPerCu);
+        pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH = wavesPerSe;
     }
 
     // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to the next CU.
@@ -538,8 +555,6 @@ uint32* PipelineChunkCs::UpdateDynamicRegInfo(
         pDynamicRegs->computePgmRsrc2.bits.LDS_SIZE =
             Pow2Align((csInfo.ldsBytesPerTg / sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
     }
-
-    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -554,12 +569,12 @@ void PipelineChunkCs::AccumulateShCommandsDynamic(
     const uint32 startingIdx = *pNumRegs;
 #endif
 
-    SetOneShRegValPairPacked(pRegPairs, pNumRegs, mmCOMPUTE_PGM_RSRC2, dynamicRegs.computePgmRsrc2.u32All);
+    SetOneShRegValPair(pRegPairs, pNumRegs, mmCOMPUTE_PGM_RSRC2, dynamicRegs.computePgmRsrc2.u32All);
 
-    SetOneShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             mmCOMPUTE_RESOURCE_LIMITS,
-                             dynamicRegs.computeResourceLimits.u32All);
+    SetOneShRegValPair(pRegPairs,
+                       pNumRegs,
+                       mmCOMPUTE_RESOURCE_LIMITS,
+                       dynamicRegs.computeResourceLimits.u32All);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + NumDynamicRegs));
@@ -577,47 +592,46 @@ void PipelineChunkCs::AccumulateShCommandsSetPath(
     const uint32 startingIdx = *pNumRegs;
 #endif
 
-    SetSeqShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             mmCOMPUTE_NUM_THREAD_X,
-                             mmCOMPUTE_NUM_THREAD_Z,
-                             &m_regs.computeNumThreadX);
+    SetSeqShRegValPair(pRegPairs,
+                       pNumRegs,
+                       mmCOMPUTE_NUM_THREAD_X,
+                       mmCOMPUTE_NUM_THREAD_Z,
+                       &m_regs.computeNumThreadX);
 
-    SetOneShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             mmCOMPUTE_PGM_LO,
-                             m_regs.computePgmLo.u32All);
+    SetOneShRegValPair(pRegPairs,
+                       pNumRegs,
+                       mmCOMPUTE_PGM_LO,
+                       m_regs.computePgmLo.u32All);
 
-    SetOneShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             mmCOMPUTE_PGM_RSRC1,
-                             m_regs.computePgmRsrc1.u32All);
+    SetOneShRegValPair(pRegPairs,
+                       pNumRegs,
+                       mmCOMPUTE_PGM_RSRC1,
+                       m_regs.computePgmRsrc1.u32All);
 
-    SetOneShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             mmCOMPUTE_PGM_RSRC3,
-                             m_regs.computePgmRsrc3.u32All);
+    SetOneShRegValPair(pRegPairs,
+                       pNumRegs,
+                       mmCOMPUTE_PGM_RSRC3,
+                       m_regs.computePgmRsrc3.u32All);
 
     if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
     {
-        SetOneShRegValPairPacked(pRegPairs,
-                                 pNumRegs,
-                                 mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                                 m_regs.userDataInternalTable.u32All);
+        SetOneShRegValPair(pRegPairs,
+                           pNumRegs,
+                           mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                           m_regs.userDataInternalTable.u32All);
     }
 
-    SetOneShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE,
-                             m_regs.computeDispatchInterleave.u32All);
+    SetOneShRegValPair(pRegPairs,
+                       pNumRegs,
+                       Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE,
+                       m_regs.computeDispatchInterleave.u32All);
 
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-    if (chipProps.gfx9.supportSpp != 0)
+    if (m_flags.supportSpp != 0)
     {
-        SetOneShRegValPairPacked(pRegPairs,
-                                 pNumRegs,
-                                 mmCOMPUTE_SHADER_CHKSUM,
-                                 m_regs.computeShaderChksum.u32All);
+        SetOneShRegValPair(pRegPairs,
+                           pNumRegs,
+                           mmCOMPUTE_SHADER_CHKSUM,
+                           m_regs.computeShaderChksum.u32All);
     }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -638,7 +652,7 @@ uint32* PipelineChunkCs::WriteShCommands(
 {
     HwRegInfo::Dynamic dynamicRegs = m_regs.dynamic; // "Dynamic" bind-time register state.
 
-    pCmdSpace = UpdateDynamicRegInfo(pCmdStream, pCmdSpace, &dynamicRegs, csInfo);
+    UpdateDynamicRegInfo(&dynamicRegs, csInfo);
 
     if (regPairsSupported)
     {
@@ -652,7 +666,7 @@ uint32* PipelineChunkCs::WriteShCommands(
 
         if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
         {
-            SetOneShRegValPairPacked(regPairs, &numRegs, m_pCsPerfDataInfo->regOffset, m_pCsPerfDataInfo->gpuVirtAddr);
+            SetOneShRegValPair(regPairs, &numRegs, m_pCsPerfDataInfo->regOffset, m_pCsPerfDataInfo->gpuVirtAddr);
         }
 
         PAL_ASSERT(numRegs <= NumHwRegInfoRegs);
@@ -674,10 +688,9 @@ uint32* PipelineChunkCs::WriteShCommands(
 
     if (prefetch && (m_prefetchAddr != 0))
     {
-        const EngineType       engine   = pCmdStream->GetEngineType();
-        const Gfx9PalSettings& settings = m_device.Settings();
-        const PrefetchMethod   method   = (engine == EngineTypeCompute) ? settings.shaderPrefetchMethodAce
-                                                                        : settings.shaderPrefetchMethodGfx;
+        const EngineType     engine = pCmdStream->GetEngineType();
+        const PrefetchMethod method = (engine == EngineTypeCompute) ? m_flags.acePrefetchMethod
+                                                                    : m_flags.gfxPrefetchMethod;
 
         if (method != PrefetchDisabled)
         {
@@ -687,7 +700,7 @@ uint32* PipelineChunkCs::WriteShCommands(
             cacheInfo.usageMask           = CoherShaderRead;
             cacheInfo.addrTranslationOnly = (method == PrefetchPrimeUtcL2);
 
-            pCmdSpace += m_device.CmdUtil().BuildPrimeGpuCaches(cacheInfo, engine, pCmdSpace);
+            pCmdSpace = pCmdStream->WritePrimeGpuCaches(cacheInfo, engine, pCmdSpace);
         }
     }
 
@@ -722,8 +735,6 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
     uint32*    pCmdSpace
     ) const
 {
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
     pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_NUM_THREAD_X,
                                               mmCOMPUTE_NUM_THREAD_Z,
                                               ShaderCompute,
@@ -749,14 +760,14 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                                                 pCmdSpace);
     }
 
-    if (IsGfx11(chipProps.gfxLevel))
+    if (m_flags.isGfx11)
     {
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE,
                                                                 m_regs.computeDispatchInterleave.u32All,
                                                                 pCmdSpace);
     }
 
-    if (chipProps.gfx9.supportSpp != 0)
+    if (m_flags.supportSpp != 0)
     {
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_SHADER_CHKSUM,
                                                                 m_regs.computeShaderChksum.u32All,
@@ -806,9 +817,10 @@ void PipelineChunkCs::UpdateComputePgmRsrsAfterLibraryLink(
 void PipelineChunkCs::Clone(
     const PipelineChunkCs& chunkCs)
 {
-    m_regs = chunkCs.m_regs;
+    m_regs         = chunkCs.m_regs;
     m_prefetchAddr = chunkCs.m_prefetchAddr;
     m_prefetchSize = chunkCs.m_prefetchSize;
+    m_flags        = chunkCs.m_flags;
 }
 
 } // Gfx9

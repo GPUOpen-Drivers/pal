@@ -38,12 +38,10 @@ class   Device;
 namespace AddrMgr2
 {
 
-#if ADDR_GFX11_BUILD
 static_assert(static_cast<uint32>(ADDR_SW_256KB_Z_X) == static_cast<uint32>(ADDR_SW_VAR_Z_X),
               "mismatched assumption expecting same swizzle enum value");
 static_assert(static_cast<uint32>(ADDR_SW_256KB_R_X) == static_cast<uint32>(ADDR_SW_VAR_R_X),
               "mismatched assumption expecting same swizzle enum value");
-#endif
 
 // Bitmasks for swizzle mode determination on GFX11
 constexpr uint32 Gfx11LinearSwModeMask = (1u << ADDR_SW_LINEAR);
@@ -64,19 +62,13 @@ constexpr uint32 Gfx11Blk64KBSwModeMask = (1u << ADDR_SW_64KB_S)   |
                                           (1u << ADDR_SW_64KB_D_X) |
                                           (1u << ADDR_SW_64KB_R_X);
 
-#if ADDR_GFX11_BUILD
 constexpr uint32 Gfx11Blk256KBSwModeMask = (1u << ADDR_SW_256KB_Z_X) |
                                            (1u << ADDR_SW_256KB_S_X) |
                                            (1u << ADDR_SW_256KB_D_X) |
                                            (1u << ADDR_SW_256KB_R_X);
-#else
-constexpr uint32 Gfx11Blk256KBSwModeMask = 0;
-#endif
 
 constexpr uint32 Gfx11ZSwModeMask = (1u << ADDR_SW_64KB_Z_X)
-#if ADDR_GFX11_BUILD
                                      | (1u << ADDR_SW_256KB_Z_X)
-#endif
                                      ;
 
 constexpr uint32 Gfx11StandardSwModeMask = (1u << ADDR_SW_4KB_S)    |
@@ -84,9 +76,7 @@ constexpr uint32 Gfx11StandardSwModeMask = (1u << ADDR_SW_4KB_S)    |
                                            (1u << ADDR_SW_64KB_S_T) |
                                            (1u << ADDR_SW_4KB_S_X)  |
                                            (1u << ADDR_SW_64KB_S_X)
-#if ADDR_GFX11_BUILD
                                            | (1u << ADDR_SW_256KB_S_X)
-#endif
                                            ;
 
 constexpr uint32 Gfx11DisplaySwModeMask = (1u << ADDR_SW_256B_D)   |
@@ -95,15 +85,11 @@ constexpr uint32 Gfx11DisplaySwModeMask = (1u << ADDR_SW_256B_D)   |
                                           (1u << ADDR_SW_64KB_D_T) |
                                           (1u << ADDR_SW_4KB_D_X)  |
                                           (1u << ADDR_SW_64KB_D_X)
-#if ADDR_GFX11_BUILD
                                           | (1u << ADDR_SW_256KB_D_X)
-#endif
                                           ;
 
 constexpr uint32 Gfx11RenderSwModeMask = (1u << ADDR_SW_64KB_R_X)
-#if ADDR_GFX11_BUILD
                                          | (1u << ADDR_SW_256KB_R_X)
-#endif
                                          ;
 
 constexpr uint32 Gfx11XSwModeMask = (1u << ADDR_SW_4KB_S_X)  |
@@ -123,18 +109,12 @@ constexpr uint32 Gfx11Rsrc3dSwModeMask = Gfx11LinearSwModeMask    |
                                          Gfx11ZSwModeMask         |
                                          Gfx11RenderSwModeMask    |
                                          (1u << ADDR_SW_64KB_D_X)
-#if ADDR_GFX11_BUILD
                                          | (1u << ADDR_SW_256KB_D_X)
-#endif
                                          ;
 
 constexpr uint32 Gfx11Rsrc3dThin64KBSwModeMask = (1u << ADDR_SW_64KB_Z_X) | (1u << ADDR_SW_64KB_R_X);
 
-#if ADDR_GFX11_BUILD
 constexpr uint32 Gfx11Rsrc3dThin256KBSwModeMask = (1u << ADDR_SW_256KB_Z_X) | (1u << ADDR_SW_256KB_R_X);
-#else
-constexpr uint32 Gfx11Rsrc3dThin256KBSwModeMask = 0;
-#endif
 
 constexpr uint32 Gfx11Rsrc3dThinSwModeMask = Gfx11Rsrc3dThin64KBSwModeMask | Gfx11Rsrc3dThin256KBSwModeMask;
 
@@ -234,9 +214,7 @@ constexpr bool IsStandardSwzzle(
             || (swizzleMode == ADDR_SW_64KB_S_T)
             || (swizzleMode == ADDR_SW_4KB_S_X)
             || (swizzleMode == ADDR_SW_64KB_S_X)
-#if ADDR_GFX11_BUILD
             || (swizzleMode == ADDR_SW_256KB_S_X)
-#endif
            );
 }
 
@@ -261,9 +239,7 @@ constexpr bool IsZSwizzle(
             || (swizzleMode == ADDR_SW_64KB_Z_T)
             || (swizzleMode == ADDR_SW_4KB_Z_X)
             || (swizzleMode == ADDR_SW_64KB_Z_X)
-#if ADDR_GFX11_BUILD
             || (swizzleMode == ADDR_SW_256KB_Z_X)  // reused enum from ADDR_SW_VAR_Z_X
-#endif
            );
 }
 
@@ -278,9 +254,7 @@ constexpr bool IsDisplayableSwizzle(
             || (swizzleMode == ADDR_SW_64KB_D)
             || (swizzleMode == ADDR_SW_64KB_D_T)
             || (swizzleMode == ADDR_SW_64KB_D_X)
-#if ADDR_GFX11_BUILD
             || (swizzleMode == ADDR_SW_256KB_D_X)
-#endif
            );
 }
 
@@ -294,9 +268,7 @@ constexpr bool IsRotatedSwizzle(
             || (swizzleMode == ADDR_SW_64KB_R)
             || (swizzleMode == ADDR_SW_64KB_R_T)
             || (swizzleMode == ADDR_SW_64KB_R_X)
-#if ADDR_GFX11_BUILD
             || (swizzleMode == ADDR_SW_256KB_R_X)  // reused enum from ADDR_SW_VAR_R_X
-#endif
            );
 }
 
@@ -313,12 +285,10 @@ constexpr bool IsXorSwizzle(
             || (swizzleMode == ADDR_SW_64KB_S_X)
             || (swizzleMode == ADDR_SW_64KB_D_X)
             || (swizzleMode == ADDR_SW_64KB_R_X)
-#if ADDR_GFX11_BUILD
             || (swizzleMode == ADDR_SW_256KB_Z_X)  // reused enum from ADDR_SW_VAR_Z_X
             || (swizzleMode == ADDR_SW_256KB_S_X)
             || (swizzleMode == ADDR_SW_256KB_D_X)
             || (swizzleMode == ADDR_SW_256KB_R_X)  // reused enum from ADDR_SW_VAR_R_X
-#endif
            );
 }
 
@@ -336,10 +306,8 @@ constexpr bool IsNonBcViewCompatible(
               // Addrlib supports linear swizzle modes for 2D/3D BCn images so we must add this back so 3D thin BCn
               // images can call addrlib ComputeNonBlockCompressedView for not missing mips.
               || (swizzleMode == ADDR_SW_LINEAR)
-#if ADDR_GFX11_BUILD
               || (swizzleMode == ADDR_SW_256KB_Z_X)
               || (swizzleMode == ADDR_SW_256KB_R_X)
-#endif
             )));
 }
 

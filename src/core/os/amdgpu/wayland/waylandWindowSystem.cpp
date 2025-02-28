@@ -53,9 +53,9 @@ static struct wl_interface wlSurfaceInterface = {};
 #undef WL_EXPORT
 #define WL_EXPORT
 
-#include "core/os/amdgpu/wayland/protocol/wayland-dmabuf-protocol.inc"
-#include "core/os/amdgpu/wayland/protocol/wayland-drm-protocol.inc"
-#include "core/os/amdgpu/wayland/protocol/wayland-drm-syncobj-protocol.inc"
+#include "amdgpu/include/wayland/wayland-dmabuf-protocol.inc"
+#include "amdgpu/include/wayland/wayland-drm-protocol.inc"
+#include "amdgpu/include/wayland/wayland-drm-syncobj-protocol.inc"
 }
 
 namespace Pal
@@ -1143,6 +1143,7 @@ Result WaylandWindowSystem::Present(
     m_waylandProcs.pfnWlDisplayFlush(m_pDisplay);
 
     Developer::PresentationModeData data = {};
+    data.presentKey = PresentKeyFromOsWindowHandle({ .pSurface = m_pSurface });
     m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, &data);
 
     if (m_windowSystemProperties.useExplicitSync)

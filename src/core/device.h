@@ -50,6 +50,8 @@
 
 #include "core/hw/amdgpu_asic.h"
 
+#include "g_platformSettings.h"
+
 #if PAL_BUILD_GFX
 
 #include "core/hw/gfxip/gfx9/gfx9PerfCtrInfo.h"
@@ -91,10 +93,7 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 // PAL minimum fragment size for local memory allocations
 constexpr gpusize PageSize = 0x1000u;
 
-// PAL maximum number of DFWX slots
-constexpr uint32 MaxDfwxSlots = 8;
-
-constexpr char SettingsFileName[] = "amdVulkanSettings.cfg";
+constexpr const char* SettingsFileName = VulkanSettingsFileName;
 
 // Maximum number of excluded virtual address ranges.
 constexpr size_t MaxExcludedVaRanges = 32;
@@ -419,6 +418,7 @@ struct GpuEngineProperties
                 uint32 memory32bPredicationSupport     :  1;
                 uint32 conditionalExecutionSupport     :  1;
                 uint32 loopExecutionSupport            :  1;
+                uint32 constantEngineSupport           :  1;
                 uint32 regMemAccessSupport             :  1;
                 uint32 supportsMismatchedTileTokenCopy :  1;
                 uint32 supportsImageInitBarrier        :  1;
@@ -427,11 +427,6 @@ struct GpuEngineProperties
                 uint32 supportVirtualMemoryRemap       :  1;
                 uint32 supportsMidCmdBufPreemption     :  1;
                 uint32 supportSvm                      :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
-                uint32 p2pCopyToInvisibleHeapIllegal   :  1;
-#else
-                uint32 reserved834                     :  1;
-#endif
                 uint32 mustUseSvmIfSupported           :  1;
                 uint32 supportsTrackBusyChunks         :  1;
                 uint32 supportsUnmappedPrtPageAccess   :  1;
@@ -516,9 +511,6 @@ constexpr uint32 MaxVgprPerShader = 256;
 
 #if PAL_BUILD_GFX
 constexpr uint32 Gfx9MaxShaderEngines = 6;  // GFX11 parts have six SE's
-
-// Minimum PFP uCode version that indicates the device is running in RS64 mode
-constexpr uint32 Gfx11Rs64MinPfpUcodeVersion = 300;
 #endif
 
 // =====================================================================================================================
@@ -541,11 +533,9 @@ constexpr IpTriple CreateGfxTriple(
     case GfxIpLevel::GfxIp11_0:
         retVal = { .major = 11, .minor = 0, .stepping = stepping };
         break;
-#if PAL_BUILD_GFX115
     case GfxIpLevel::GfxIp11_5:
         retVal = { .major = 11, .minor = 5, .stepping = stepping };
         break;
-#endif
 #endif
     default:
         PAL_ASSERT_ALWAYS();
@@ -585,11 +575,9 @@ constexpr GfxIpLevel IpTripleToGfxLevel(
         case 0:
             retVal = GfxIpLevel::GfxIp11_0;
             break;
-#if PAL_BUILD_GFX115
         case 5:
             retVal = GfxIpLevel::GfxIp11_5;
             break;
-#endif
         default:
             PAL_ASSERT_ALWAYS();
             break;
@@ -696,6 +684,7 @@ struct GpuChipProperties
         uint32 numOffchipTessBuffers;
         uint32 offChipTessBufferSize;                // Size of each off-chip tessellation buffer in bytes.
         uint32 tessFactorBufferSizePerSe;            // Size of the tessellation-factor buffer per SE, in bytes.
+        uint32 ceRamSize;                            // Maximum on-chip CE RAM size in bytes.
         uint32 maxPrimgroupSize;
         uint32 mallSizeInBytes;                      // Total size in bytes of MALL (Memory Attached Last Level - L3)
                                                      // cache in the device.
@@ -884,7 +873,8 @@ struct GpuChipProperties
                 uint32 supportFloat8                       :  1; // HW supports float 8-bit.
                 uint32 supportInt4                         :  1; // HW supports integer 4-bit.
                 uint64 placeholder7                        :  1;
-                uint64 reserved                            :  8;
+                uint64 placeholder8 : 1;
+                uint64 reserved                            :  7;
             };
 
             RayTracingIpLevel        rayTracingIp;      //< HW RayTracing IP version
@@ -950,18 +940,6 @@ struct GpuChipProperties
         uint32 u32All;
     } p2pSupport;
 
-#if PAL_BUILD_GFX115
-    union
-    {
-        struct
-        {
-            uint32 useBranchHeaders     :  1;
-            uint32 reserved             : 31;
-        } gfx11;
-
-        uint32 u32All;
-    } npiFlags;
-#endif
 };
 
 // Helper function that calculates memory ops per clock for a given memory type.
@@ -1768,6 +1746,9 @@ public:
     bool IsPreemptionSupported(EngineType engineType) const
         { return m_engineProperties.perEngine[engineType].flags.supportsMidCmdBufPreemption; }
 
+    bool IsConstantEngineSupported(EngineType engineType) const
+        { return (m_engineProperties.perEngine[engineType].flags.constantEngineSupport != 0); }
+
     // Returns whether any pixel-wait-sync-plus feature can be enabled.
     bool UsePws(EngineType engineType) const;
 
@@ -2219,11 +2200,7 @@ extern void InitializeGpuEngineProperties(
 
 constexpr bool IsGfx11(GfxIpLevel gfxLevel)
 {
-    return (gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_GFX115
-            || (gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ;
+    return (gfxLevel == GfxIpLevel::GfxIp11_0) || (gfxLevel == GfxIpLevel::GfxIp11_5);
 }
 
 inline bool IsGfx11(const Device& device)
@@ -2257,22 +2234,10 @@ inline bool IsNavi31(const Device& device)
 {
     return AMDGPU_IS_NAVI31(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-inline bool IsNavi31XtxA0(const Device& device)
-{
-    return SKU_IS_NAVI31_XTX_A0(device.ChipProperties().deviceId,
-                                device.ChipProperties().eRevId,
-                                device.ChipProperties().revisionId);
-}
 
 inline bool IsNavi32(const Device& device)
 {
     return AMDGPU_IS_NAVI32(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-inline bool IsNavi32XlA0(const Device& device)
-{
-    return SKU_IS_NAVI32_XL_A0(device.ChipProperties().deviceId,
-                               device.ChipProperties().eRevId,
-                               device.ChipProperties().revisionId);
 }
 
 inline bool IsNavi33(const Device& device)
@@ -2309,31 +2274,28 @@ inline bool IsGfx10(const Device& device)
     return IsGfx10(device.ChipProperties().gfxLevel);
 }
 
-#if PAL_BUILD_GFX115
 constexpr bool IsGfx115(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp11_5);
 }
-
 inline bool IsGfx115(const Device& device)
 {
     return IsGfx115(device.ChipProperties().gfxLevel);
 }
 
-#if PAL_BUILD_STRIX
 inline bool IsStrixFamily(const Device& device)
 {
     return FAMILY_IS_STX(device.ChipProperties().familyId);
 }
-#endif
-
-#if PAL_BUILD_STRIX1
 inline bool IsStrix1(const Device& device)
 {
     return AMDGPU_IS_STRIX1(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-#endif
-
+#if PAL_BUILD_STRIX_HALO
+inline bool IsStrixHalo(const Device& device)
+{
+    return AMDGPU_IS_STRIX_HALO(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
 #endif
 
 // Gfx10 / Navi1x

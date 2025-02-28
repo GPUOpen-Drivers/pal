@@ -1,4 +1,4 @@
-/* Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All rights reserved. */
+/* Copyright (c) 2022-2025 Advanced Micro Devices, Inc. All rights reserved. */
 
 // ============================================================================
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
@@ -55,6 +55,17 @@ enum {{enum.Name}} : {{enum.EnumBase}}
 {% endif -%}
 {% endfor -%}
 
+{% if Constants|length > 0 %}
+/// Constants /////////////////////////////////////////////////////////////////////
+{% endif -%}
+{% for constant in Constants -%}
+{{ prep_cond_begin(constant.BuildTypes, constant.OrBuildTypes) -}}
+{% if constant.Description %}// {{constant.Description | wordwrap(100) | replace('\n', '\n    // ')}}{% endif %}
+{{constant.Definition}}
+{{ prep_cond_end(constant.BuildTypes, constant.OrBuildTypes) }}
+{% endfor -%}
+
+/// Settings /////////////////////////////////////////////////////////////////////
 struct {{SettingsStructName}}
 {
 {% for setting in Settings -%}

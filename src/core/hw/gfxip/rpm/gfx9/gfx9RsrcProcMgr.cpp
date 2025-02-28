@@ -451,7 +451,7 @@ void RsrcProcMgr::CmdUpdateMemory(
     ) const
 {
     // Verify the command buffer supports the CPDMA engine.
-    auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
+    Pal::CmdStream* const pStream = pCmdBuffer->GetMainCmdStream();
     PAL_ASSERT(pStream != nullptr);
 
     // Prepare to issue one or more DMA_DATA packets. Start the dstAddr at the beginning of the dst buffer. The srcAddr
@@ -529,7 +529,7 @@ void RsrcProcMgr::CmdResolveQuery(
         // Condition above would be false due to the flags check for equality:
         PAL_ASSERT((flags & QueryResultPreferShaderPath) == 0);
 
-        auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+        Pal::CmdStream* const pStream = pCmdBuffer->GetMainCmdStream();
         PAL_ASSERT(pStream != nullptr);
 
         uint32*      pCmdSpace         = nullptr;
@@ -544,6 +544,12 @@ void RsrcProcMgr::CmdResolveQuery(
             pCmdSpace = pStream->ReserveCommands();
             pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
             pStream->CommitCommands(pCmdSpace);
+        }
+
+        // Note that SetCpBltState() only applies to CP DMA so we don't need to call it here.
+        if (remainingResolves > 0)
+        {
+            pCmdBuffer->SetCpBltWriteCacheState(true);
         }
 
         // If QueryResultAccumulate is not set, we need to write the result to 0 first.
@@ -599,8 +605,6 @@ void RsrcProcMgr::CmdResolveQuery(
     }
     else
     {
-        PAL_ASSERT(pCmdBuffer->IsComputeSupported());
-
         CmdResolveQueryComputeShader(pCmdBuffer,
                                      queryPool,
                                      flags,
@@ -627,7 +631,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
     gpusize               dstStride
     ) const
 {
-    auto*const pStream = static_cast<CmdStream*>(pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute));
+    auto*const pStream = static_cast<CmdStream*>(pCmdBuffer->GetMainCmdStream());
     PAL_ASSERT(pStream != nullptr);
 
     if (TestAnyFlagSet(flags, QueryResultWait) && queryPool.HasTimestamps())
@@ -765,8 +769,7 @@ void RsrcProcMgr::FastDepthStencilClearComputeCommon(
         // of questionable correctness.
 
         const EngineType engineType = pCmdBuffer->GetEngineType();
-        auto*const       pCmdStream =
-            static_cast<CmdStream*>(pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute));
+        auto*const       pCmdStream = static_cast<CmdStream*>(pCmdBuffer->GetMainCmdStream());
 
         PAL_ASSERT(pCmdStream != nullptr);
 
@@ -1057,7 +1060,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         const auto&       createInfo        = image.GetImageCreateInfo();
         const auto*       pPipeline         = GetComputeMaskRamExpandPipeline(image);
         const auto*       pHtile            = pGfxImage->GetHtile();
-        auto*             pComputeCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+        Pal::CmdStream*   pComputeCmdStream = pCmdBuffer->GetMainCmdStream();
         const EngineType  engineType        = pCmdBuffer->GetEngineType();
 
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -1151,7 +1154,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         if ((image.SubresourceInfo(range.startSubres)->flags.supportMetaDataTexFetch == 0) &&
             image.IsStencilPlane(range.startSubres.plane))
         {
-            auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+            Pal::CmdStream* const pCmdStream = pCmdBuffer->GetMainCmdStream();
             PAL_ASSERT(pCmdStream != nullptr);
             const EngineType engineType = pCmdBuffer->GetEngineType();
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
@@ -1353,9 +1356,8 @@ bool RsrcProcMgr::WillResummarizeWithCompute(
         (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
 
     return ((pCmdBuffer->GetEngineType() == EngineTypeCompute) ||
-            (pCmdBuffer->IsComputeSupported() &&
-             (pPublicSettings->expandHiZRangeForResummarize ||
-              z16Unorm1xAaDecompressUninitializedActive)));
+            pPublicSettings->expandHiZRangeForResummarize ||
+            z16Unorm1xAaDecompressUninitializedActive);
 }
 
 // =====================================================================================================================
@@ -1375,8 +1377,7 @@ void RsrcProcMgr::HwlFastColorClear(
 
     PAL_ASSERT(gfx9Image.HasDccData());
 
-    auto*const pCmdStream = static_cast<CmdStream*>(
-        pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute));
+    auto*const pCmdStream = static_cast<CmdStream*>(pCmdBuffer->GetMainCmdStream());
 
     PAL_ASSERT(pCmdStream != nullptr);
 
@@ -1651,8 +1652,7 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
             (pView->MipLevel() >= range.startSubres.mipLevel) &&
             (pView->MipLevel() < range.startSubres.mipLevel + range.numMips))
         {
-            CmdStream* pStream = static_cast<CmdStream*>(
-                pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
+            CmdStream* pStream = static_cast<CmdStream*>(pCmdBuffer->GetMainCmdStream());
 
             uint32* pCmdSpace = pStream->ReserveCommands();
             pCmdSpace = pView->WriteUpdateFastClearDepthStencilValue(metaDataClearFlags, depth, stencil,
@@ -1732,7 +1732,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                     fastClearMethod[idx] = subResInfo.clearMethod;
                 }
 
-                auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+                Pal::CmdStream* const pCmdStream = pCmdBuffer->GetMainCmdStream();
                 PAL_ASSERT(pCmdStream != nullptr);
 
                 for (uint32 idx = 0; idx < rangeCount; idx++)
@@ -1816,10 +1816,9 @@ void RsrcProcMgr::HwlDepthStencilClear(
                         // prefer the graphics path for this case. While the image size is over this critical value,
                         // compute path has a good performance advantage, prefer the compute path for this.
                         fastDepthStencilClearMode =
-                            ((pCmdBuffer->IsComputeSupported() == false)             ||
-                            (fastClearMethod[idx] == ClearMethod::DepthFastGraphics) ||
-                            (fastClear == false)                                     ||
-                            PreferFastDepthStencilClearGraphics(dstImage, depthLayout, stencilLayout))
+                            ((fastClearMethod[idx] == ClearMethod::DepthFastGraphics) ||
+                             (fastClear == false)                                     ||
+                             PreferFastDepthStencilClearGraphics(dstImage, depthLayout, stencilLayout))
                             ? FastDepthStencilClearMode::Graphics
                             : FastDepthStencilClearMode::Compute;
                     }
@@ -2307,8 +2306,8 @@ void RsrcProcMgr::HwlResolveImageGraphics(
             PAL_ASSERT(Formats::HaveSameNumFmt(dstFormat.format, pRegions[idx].swizzledFormat.format) ||
                 dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout, true));
 
-            srcFormat.format = pRegions[idx].swizzledFormat.format;
-            dstFormat.format = pRegions[idx].swizzledFormat.format;
+            srcFormat = pRegions[idx].swizzledFormat;
+            dstFormat = pRegions[idx].swizzledFormat;
         }
 
         // Non-SRGB can be treated as SRGB when copying to non-srgb image
@@ -2789,8 +2788,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     // that PAL currently does not include the padding so we never satisfy the exception.
     if (fastClear)
     {
-        auto*const pCmdStream = static_cast<Gfx9::CmdStream*>(
-            pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
+        auto*const pCmdStream = static_cast<Gfx9::CmdStream*>(pCmdBuffer->GetMainCmdStream());
         PAL_ASSERT(pCmdStream != nullptr);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
@@ -2847,14 +2845,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
         // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
         // when using a float depth format. DepthExpand pipeline disables clamping by default.
         const bool disableClamp = ((depth < 0.0f) || (depth > 1.0f));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-        bindParams.graphics.dynamicState.enable.depthClampMode = 1;
-        bindParams.graphics.dynamicState.depthClampMode =
-            disableClamp ? DepthClampMode::_None : DepthClampMode::Viewport;
-#else
+
         bindParams.gfxDynState.enable.depthClampMode = 1;
         bindParams.gfxDynState.depthClampMode        = disableClamp ? DepthClampMode::_None : DepthClampMode::Viewport;
-#endif
     }
     pCmdBuffer->CmdBindPipeline(bindParams);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,
@@ -3056,12 +3049,12 @@ void RsrcProcMgr::DccDecompressOnCompute(
 {
     PAL_ASSERT(range.numPlanes == 1);
 
-    const auto&   device            = *m_pDevice->Parent();
-    const auto&   parentImg         = *image.Parent();
-    const auto*   pPipeline         = GetComputeMaskRamExpandPipeline(parentImg);
-    auto*         pComputeCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
-    uint32*       pComputeCmdSpace  = nullptr;
-    const auto&   createInfo        = parentImg.GetImageCreateInfo();
+    const auto&     device            = *m_pDevice->Parent();
+    const auto&     parentImg         = *image.Parent();
+    const auto*     pPipeline         = GetComputeMaskRamExpandPipeline(parentImg);
+    Pal::CmdStream* pComputeCmdStream = pCmdBuffer->GetMainCmdStream();
+    uint32*         pComputeCmdSpace  = nullptr;
+    const auto&     createInfo        = parentImg.GetImageCreateInfo();
 
     // If this trips, we have a big problem...
     PAL_ASSERT(pComputeCmdStream != nullptr);
@@ -3254,6 +3247,7 @@ void RsrcProcMgr::FastClearEliminate(
     // Execute a generic CB blit using the fast-clear Eliminate pipeline.
     GenericColorBlit(pCmdBuffer, *image.Parent(), range,
         pQuadSamplePattern, RpmGfxPipeline::FastClearElim, pGpuMem, metaDataOffset, { });
+
     // Clear the FCE meta data over the given range because those mips must now be FCEd.
     if (image.GetFastClearEliminateMetaDataAddr(range.startSubres) != 0)
     {
@@ -3578,7 +3572,7 @@ void RsrcProcMgr::PfpCopyMetadataHeader(
     bool          hasDccLookupTable
     ) const
 {
-    Pal::CmdStream* pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
+    Pal::CmdStream* pCmdStream = pCmdBuffer->GetMainCmdStream();
 
     DmaDataInfo dmaDataInfo = {};
     dmaDataInfo.dstSel      = dst_sel__pfp_dma_data__dst_addr_using_l2;
@@ -3727,9 +3721,7 @@ static void SyncImageCpDmaCopy(
 {
     if (pCmdBuffer->GetCmdBufState().flags.cpBltActive)
     {
-        const auto cmdStreamEngine = pCmdBuffer->IsGraphicsSupported() ? CmdBufferEngineSupport::Graphics
-                                                                       : CmdBufferEngineSupport::Compute;
-        CmdStream* pCmdStream = static_cast<CmdStream*>(pCmdBuffer->GetCmdStreamByEngine(cmdStreamEngine));
+        auto* pCmdStream = static_cast<CmdStream*>(pCmdBuffer->GetMainCmdStream());
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         pCmdSpace += cmdUtil.BuildWaitDmaData(pCmdSpace);
@@ -4140,7 +4132,7 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                 // needs to be done once before the first pixel-level copy.
                 if (issuedCsPartialFlush == false)
                 {
-                    Pal::CmdStream*  pPalCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+                    Pal::CmdStream*  pPalCmdStream = pCmdBuffer->GetMainCmdStream();
                     CmdStream*       pGfxCmdStream = static_cast<CmdStream*>(pPalCmdStream);
                     uint32*          pCmdSpace     = pGfxCmdStream->ReserveCommands();
                     const EngineType engineType    = pGfxCmdStream->GetEngineType();
@@ -4204,7 +4196,7 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
     // We need a CS wait-for-idle before we try to restore the global internal table user data. There are a few ways
     // we could acomplish that, but the most simple way is to just do a wait for idle right here. We only need to
     // call this function once per command buffer (and only if we use a non-PAL ABI pipeline) so it should be fine.
-    Pal::CmdStream* pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+    Pal::CmdStream* pCmdStream = pCmdBuffer->GetMainCmdStream();
     uint32*         pCmdSpace  = pCmdStream->ReserveCommands();
 
     pCmdSpace = pCmdBuffer->WriteWaitCsIdle(pCmdSpace);
@@ -5012,8 +5004,6 @@ void RsrcProcMgr::InitHtileData(
     const gpusize      hTileBaseAddr   = dstImage.GetMaskRamBaseAddr(pHtile, 0);
     const auto*        pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
 
-    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
-
     // Save the command buffer's state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
@@ -5031,10 +5021,11 @@ void RsrcProcMgr::InitHtileData(
     // Bind the pipeline.
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
-    // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
+    // The shaders assume that the SRDs are eight dwords long (i.e,. worst case) as future-proofness.
+    // Put the new HTile data in user data 8 and the old HTile data mask in user data 9.
     const uint32 hTileUserData[2] = { hTileValue & hTileMask, ~hTileMask };
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
-                               DwordsPerBufferSrd,
+                               SrdDwordAlignment(),
                                NumBytesToNumDwords(sizeof(hTileUserData)),
                                hTileUserData);
 
@@ -5106,8 +5097,6 @@ void RsrcProcMgr::WriteHtileData(
     const auto&        hTileAddrOut    = pHtile->GetAddrOutput();
     const gpusize      hTileBaseAddr   = dstImage.GetMaskRamBaseAddr(pHtile, range.startSubres.arraySlice);
     const auto*        pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
-
-    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
     // Save the command buffer's state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -5223,8 +5212,11 @@ void RsrcProcMgr::WriteHtileData(
                                            DwordsPerBufferSrd,
                                            &htileSurfSrd.u32All[0]);
 
+                // The fast-depth-clear shaders assume the SRD is eight dwords long as feature-proofness
+                // for future GPUs.  The SRDs aren't really that long, but space the constant data out as if
+                // it were.
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
-                                           DwordsPerBufferSrd,
+                                           (numConstDwords == 2) ? SrdDwordAlignment() : DwordsPerBufferSrd,
                                            numConstDwords,
                                            hTileUserData);
 
@@ -5547,7 +5539,6 @@ void RsrcProcMgr::InitHtile(
 
     // There shouldn't be any 3D images with HTile allocations.
     PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
-    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
     if (clearMask != 0)
     {
@@ -5590,7 +5581,7 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetadata(
 
     if (gfx9DstImage.HasDccData() && (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
     {
-        auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+        Pal::CmdStream* const pStream = pCmdBuffer->GetMainCmdStream();
 
         for (uint32 idx = 0; idx < regionCount; ++idx)
         {
@@ -5673,7 +5664,7 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetadata(
         }
         else
         {
-            auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+            Pal::CmdStream* const pStream = pCmdBuffer->GetMainCmdStream();
 
             // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst";
             // if the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
@@ -5727,7 +5718,7 @@ uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
     uint32                       bpp
     ) const
 {
-    Pal::CmdStream*const pCmdStream   = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+    Pal::CmdStream*const pCmdStream   = pCmdBuffer->GetMainCmdStream();
     const GpuMemory*     pGpuMem      = dstImage.GetBoundGpuMemory().Memory();
     const auto&          palDevice    = *(m_pDevice->Parent());
     const auto&          coreSettings = palDevice.Settings();
@@ -6202,7 +6193,7 @@ void RsrcProcMgr::CopyVrsIntoHtile(
 
     PAL_ASSERT((pHtile != nullptr) && (pHtile->GetHtileUsage().vrs != 0));
 
-    auto*const pCmdStream = static_cast<CmdStream*>(pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
+    auto*const pCmdStream = static_cast<CmdStream*>(pCmdBuffer->GetMainCmdStream());
 
     // Step 1: The internal pre-CS barrier. The depth image is already bound as a depth view so if we just launch the
     // shader right away we risk corrupting HTile. We need to be sure that any prior draws that reference the depth
@@ -6522,9 +6513,7 @@ void RsrcProcMgr::CmdResolveImage(
                 PAL_NOT_IMPLEMENTED();
             }
         }
-        else if (pCmdBuffer->IsComputeSupported() &&
-                 ((srcMethod.shaderCsFmask == 1) ||
-                  (srcMethod.shaderCs == 1)))
+        else if ((srcMethod.shaderCsFmask == 1) || (srcMethod.shaderCs == 1))
         {
             ResolveImageCompute(pCmdBuffer,
                                 srcImage,

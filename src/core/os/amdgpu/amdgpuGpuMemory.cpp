@@ -95,9 +95,19 @@ GpuMemory::~GpuMemory()
 
     if ((m_vaPartition == VaPartition::Svm) && (IsGpuVaPreReserved() == false))
     {
-        result = IsSvmAlloc()
-                    ? VirtualRelease(reinterpret_cast<void*>(m_desc.gpuVirtAddr), static_cast<size_t>(m_desc.size))
-                    : FreeSvmVirtualAddress();
+        if (IsSvmAlloc())
+        {
+            result = VirtualRelease(reinterpret_cast<void*>(m_desc.gpuVirtAddr), static_cast<size_t>(m_desc.size));
+        }
+        else if (m_desc.gpuVirtAddr == 0)
+        {
+            result = Result::Success;
+        }
+        else
+        {
+            result = FreeSvmVirtualAddress();
+        }
+
         PAL_ASSERT(result == Result::Success);
     }
 
@@ -327,7 +337,12 @@ Result GpuMemory::AllocateOrPinMemory(
             {
                 m_hSurface = bufferHandle;
                 // Mapping the virtual address to the buffer object.
-                result = pDevice->MapVirtualAddress(bufferHandle, m_offset, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
+                result = pDevice->MapVirtualAddress(bufferHandle,
+                                                    m_offset,
+                                                    m_desc.size,
+                                                    m_desc.gpuVirtAddr,
+                                                    m_mtype,
+                                                    MallPolicy());
             }
 
             // Add internal memory to the global list, all of the internal memory are alwaysResident memory.
@@ -346,7 +361,7 @@ Result GpuMemory::AllocateOrPinMemory(
         {
             // base driver requires us to reserve the PRT range ahead of time
             // they will mark the T flag as 1 and set the valid flag as 0 for the whole range.
-            result = pDevice->ReservePrtVaRange(m_desc.gpuVirtAddr, m_desc.size, m_mtype);
+            result = pDevice->ReservePrtVaRange(m_desc.gpuVirtAddr, m_desc.size, m_mtype, MallPolicy());
         }
     }
 
@@ -491,7 +506,7 @@ Result GpuMemory::ImportMemory(
 
     if ((result == Result::Success) && (m_amdgpuFlags.isShared == 0))
     {
-        result = pDevice->MapVirtualAddress(m_hSurface, 0, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
+        result = pDevice->MapVirtualAddress(m_hSurface, 0, m_desc.size, m_desc.gpuVirtAddr, m_mtype, MallPolicy());
 
         if (result == Result::Success)
         {

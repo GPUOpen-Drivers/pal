@@ -41,16 +41,16 @@ ColorBlendState::ColorBlendState(
     const Device&                    device,
     const ColorBlendStateCreateInfo& createInfo)
     :
-    Pal::ColorBlendState(createInfo),
-    m_device(device)
+    Pal::ColorBlendState(createInfo)
 {
-    m_flags.u32All = 0;
-    m_flags.rbPlus = device.Settings().rbPlusEnable;
+    m_flags.u32All  = 0;
+    m_flags.rbPlus  = device.Settings().rbPlusEnable;
+    m_flags.isGfx11 = IsGfx11(*(device.Parent()));
 
     memset(&m_blendOpts[0], 0, sizeof(m_blendOpts));
     memset(&m_regs,         0, sizeof(m_regs));
 
-    Init(createInfo);
+    Init(device, createInfo);
 }
 
 // =====================================================================================================================
@@ -61,7 +61,7 @@ BlendOp ColorBlendState::HwBlendOp(
 {
     BlendOp hwOp = BLEND_ZERO;
 
-    if (IsGfx10(*m_device.Parent()))
+    if (m_flags.isGfx11 == 0)
     {
         constexpr BlendOp BlendOpTbl[] =
         {
@@ -301,6 +301,7 @@ static uint32 BlendOptToHw(
 // Performs Gfx9 hardware-specific initialization for a color blend state object, including:
 // Set up the image of PM4 commands used to write the pipeline to HW.
 void ColorBlendState::Init(
+    const Device&                    device,
     const ColorBlendStateCreateInfo& blend)
 {
     for (uint32 i = 0; i < MaxColorTargets; i++)
@@ -334,7 +335,7 @@ void ColorBlendState::Init(
         }
     }
 
-    m_flags.dualSourceBlend = m_device.CanEnableDualSourceBlend(blend);
+    m_flags.dualSourceBlend = device.CanEnableDualSourceBlend(blend);
 
     // CB_BLEND1_CONTROL.ENABLE must be 1 for dual source blending.
     m_regs.cbBlendControl[1].bits.ENABLE |= m_flags.dualSourceBlend;
@@ -508,7 +509,6 @@ uint32* ColorBlendState::WriteCommands(
 // =====================================================================================================================
 // Writes the PM4 commands required to enable or disable blending opts. Returns the next unused DWORD in pCmdSpace.
 uint8 ColorBlendState::WriteBlendOptimizations(
-    CmdStream*                     pCmdStream,
     const SwizzledFormat*          pTargetFormats,     // [in] Array of pixel formats per target.
     const uint8*                   pTargetWriteMasks,  // [in] Array of 4-bit write masks for each target.
     uint32                         numRenderTargets,
@@ -685,9 +685,7 @@ uint32* ColorBlendState::HandleAlphaToCoverage(
     uint32*    pCmdSpace
     ) const
 {
-    const Pal::Device& device = *(m_device.Parent());
-
-    if (IsGfx11(device)                &&
+    if ((m_flags.isGfx11 != 0)         &&
         (m_flags.dualSourceBlend == 0) &&
         (m_flags.rbPlus != 0)          &&
         IsBlendEnabled(0))

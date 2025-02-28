@@ -51,11 +51,6 @@ public:
         gpusize           dataSize,
         const uint32*     pData) override;
 
-    virtual void CmdWriteTimestamp(
-        uint32            stageMask,
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstOffset) override;
-
     virtual void CmdWriteImmediate(
         uint32             stageMask,
         uint64             data,
@@ -67,8 +62,8 @@ public:
 protected:
     virtual ~DmaCmdBuffer() {}
 
-    virtual Result AddPreamble() override;
-    virtual Result AddPostamble() override;
+    virtual void AddPreamble() override;
+    virtual void AddPostamble() override;
 
     virtual void SetupDmaInfoExtent(DmaImageInfo*  pImageInfo) const override;
 
@@ -147,6 +142,8 @@ protected:
 protected:
     virtual bool UseT2tScanlineCopy(const DmaImageCopyInfo& imageCopyInfo) const override;
 
+    virtual void WriteTimestampCmd(gpusize dstAddr) override;
+
     virtual DmaMemImageCopyMethod GetMemImageCopyMethod(bool                         isLinearImg,
                                                         const DmaImageInfo&          imageInfo,
                                                         const MemoryImageCopyRegion& region) const override;
@@ -220,8 +217,6 @@ private:
     static uint32* UpdateImageMetaData(
         const DmaImageInfo&  image,
         uint32*              pCmdSpace);
-
-    void WriteTimestampCmd(gpusize dstAddr);
 
     Gfx10SdmaBypassMall GetSettingByPassMall() const;
     bool GetSettingPreferCompressedSource() const;

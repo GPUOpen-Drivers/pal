@@ -61,8 +61,7 @@ struct MergedFlatFmtInfo
 };
 
 extern const MergedFlatFmtInfo*  MergedChannelFlatFmtInfoTbl(
-    GfxIpLevel                      gfxIpLevel,
-    const Pal::PalPlatformSettings* pSettings);
+    GfxIpLevel gfxIpLevel);
 
 extern Chip::BUF_FMT             HwBufFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
 extern Chip::IMG_FMT             HwImgFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);

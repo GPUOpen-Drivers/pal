@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@ extern "C" {
 #define DD_DRIVER_UTILS_API_NAME "DD_DRIVER_UTILS_API"
 
 #define DD_DRIVER_UTILS_API_VERSION_MAJOR 0
-#define DD_DRIVER_UTILS_API_VERSION_MINOR 3
+#define DD_DRIVER_UTILS_API_VERSION_MINOR 4
 #define DD_DRIVER_UTILS_API_VERSION_PATCH 0
 
 typedef enum DD_DRIVER_UTILS_FEATURE_FLAG

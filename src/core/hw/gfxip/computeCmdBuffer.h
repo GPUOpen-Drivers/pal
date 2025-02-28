@@ -26,7 +26,6 @@
 #pragma once
 
 #include "core/hw/gfxip/gfxCmdBuffer.h"
-#include "core/hw/gfxip/gfxCmdStream.h"
 
 namespace Pal
 {
@@ -46,10 +45,6 @@ public:
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
 
-    // Returns the number of command streams associated with this command buffer.
-    // Compute command buffers will only ever have one command stream.
-    virtual uint32 NumCmdStreams() const override { return 1; }
-
     // Returns a pointer to the command stream specified by "cmdStreamIdx".
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const override
     {
@@ -64,9 +59,6 @@ public:
         SwizzledFormat format,
         uint32         targetIndex) override { PAL_NEVER_CALLED(); }
 
-    // Returns a pointer to the command stream associated with the specified engine type
-    virtual CmdStream* GetCmdStreamByEngine(CmdBufferEngineSupport engineType) override;
-
     // Increments the submit-count of the command stream(s) contained in this command buffer.
     virtual void IncrementSubmitCount() override
         { m_pCmdStream->IncrementSubmitCount(); }
@@ -77,7 +69,7 @@ protected:
     ComputeCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
-        const GfxBarrierMgr*       pBarrierMgr,
+        const GfxBarrierMgr&       barrierMgr,
         GfxCmdStream*              pCmdStream,
         bool                       useUpdateUserData);
 
@@ -99,9 +91,6 @@ protected:
     }  m_spillTable;
 
 private:
-    const GfxDevice&   m_device;
-    GfxCmdStream*const m_pCmdStream;
-
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(ComputeCmdBuffer);
 };

@@ -28,19 +28,32 @@
 #include "palInlineFuncs.h"
 #include "lz4hc.h"
 
+#include "palListImpl.h"
+#include "palMutex.h"
+#include "palSysMemory.h"
+#include "palThread.h"
+
 namespace Util
 {
 // Used to store state information on a thread by thread basis.
-// We need to create our own global allocator because it needs to last the lifetime of the process,
-// since we do not know when threads will be destroyed.
+// We need to create our own global allocator because it needs to last the lifetime of the process.
 GenericAllocator g_lz4CompressorGlobalAllocator{};
 thread_local Lz4Compressor::ThreadLocalData g_lz4CompressorThreadLocalData;
+
+// We need to make sure we free *all* allocations on device shut down,
+// in order to pass HLK tests that detect memory leaks. We cannot wait
+// until the thread exits to free the local data, so we track it in
+// a list so it can be freed from another thread.
+RWLock                         g_lz4CompressorThreadLocalLock;
+List<void**, GenericAllocator> g_lz4CompressorThreadLocalList(&g_lz4CompressorGlobalAllocator);
+volatile uint32                g_lz4CompressorCount = 0;
 
 // =====================================================================================================================
 Lz4Compressor::Lz4Compressor(
     bool useHighCompression)
     : m_useHighCompression(useHighCompression)
 {
+    AtomicIncrement(&g_lz4CompressorCount);
     if (m_useHighCompression == true)
     {
         m_compressionParam = LZ4HC_CLEVEL_DEFAULT;
@@ -48,6 +61,29 @@ Lz4Compressor::Lz4Compressor(
     else
     {
         m_compressionParam = 1;
+    }
+}
+
+// =====================================================================================================================
+Lz4Compressor::~Lz4Compressor()
+{
+    // If no more compressor instances, delete all the thread local data.
+    // Beware the edge case where the count goes to 0 then immediately back up to 1 on a different thread.
+    if(AtomicDecrement(&g_lz4CompressorCount) == 0)
+    {
+        g_lz4CompressorThreadLocalLock.LockForWrite();
+
+        while (g_lz4CompressorThreadLocalList.NumElements() != 0)
+        {
+            auto it = g_lz4CompressorThreadLocalList.Begin();
+
+            void** ppState = *it.Get();
+            PAL_SAFE_FREE(*ppState, &g_lz4CompressorGlobalAllocator);
+
+            g_lz4CompressorThreadLocalList.Erase(&it);
+        }
+
+        g_lz4CompressorThreadLocalLock.UnlockForWrite();
     }
 }
 
@@ -94,6 +130,10 @@ Result Lz4Compressor::Compress(
 {
     Result result = Result::Success;
 
+    // This read lock prevents a potential race condition with the destructor.
+    // The actual data is thread local, so doesn't need protection from other threads in Compress().
+    g_lz4CompressorThreadLocalLock.LockForRead();
+
     // Allocate (thread local) state if necessary.
     bool stateNeedsInit = false;
     void* pState = nullptr;
@@ -124,15 +164,24 @@ Result Lz4Compressor::Compress(
             }
             else
             {
+                // Put in the list to be freed at shutdown.
+                g_lz4CompressorThreadLocalLock.UnlockForRead();
+                g_lz4CompressorThreadLocalLock.LockForWrite();
+
                 // Store in the thread local data
                 if (m_useHighCompression == false)
                 {
                     g_lz4CompressorThreadLocalData.m_pState = pState;
+                    g_lz4CompressorThreadLocalList.PushBack(&(g_lz4CompressorThreadLocalData.m_pState));
                 }
                 else
                 {
                     g_lz4CompressorThreadLocalData.m_pStateHC = pState;
+                    g_lz4CompressorThreadLocalList.PushBack(&(g_lz4CompressorThreadLocalData.m_pStateHC));
                 }
+
+                g_lz4CompressorThreadLocalLock.UnlockForWrite();
+                g_lz4CompressorThreadLocalLock.LockForRead();
             }
         }
     }
@@ -201,6 +250,8 @@ Result Lz4Compressor::Compress(
             }
         }
     }
+
+    g_lz4CompressorThreadLocalLock.UnlockForRead();
 
     return result;
 }
@@ -271,8 +322,31 @@ Result Lz4Compressor::Decompress(
 // =====================================================================================================================
 Lz4Compressor::ThreadLocalData::~ThreadLocalData()
 {
-    PAL_SAFE_FREE(m_pState, &g_lz4CompressorGlobalAllocator);
-    PAL_SAFE_FREE(m_pStateHC, &g_lz4CompressorGlobalAllocator);
+    if ((m_pState != nullptr) || (m_pStateHC != nullptr))
+    {
+        // Our thread is ending, and thread local storage is going away.
+        // We need to remove the state pointers from the list.
+        g_lz4CompressorThreadLocalLock.LockForWrite();
+
+        auto it = g_lz4CompressorThreadLocalList.Begin();
+        while (it != g_lz4CompressorThreadLocalList.End())
+        {
+            void** ppState = *it.Get();
+            if ((ppState == &m_pState) || (ppState == &m_pStateHC))
+            {
+                g_lz4CompressorThreadLocalList.Erase(&it);
+            }
+            else
+            {
+                it.Next();
+            }
+        }
+
+        g_lz4CompressorThreadLocalLock.UnlockForWrite();
+
+        PAL_SAFE_FREE(m_pState, &g_lz4CompressorGlobalAllocator);
+        PAL_SAFE_FREE(m_pStateHC, &g_lz4CompressorGlobalAllocator);
+    }
 }
 
 } //namespace Util

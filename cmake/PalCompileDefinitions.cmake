@@ -46,48 +46,21 @@ function(pal_compile_definitions_gpu TARGET)
 
         # PAL GFXx BUILD Defines
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX9=$<BOOL:${PAL_BUILD_GFX9}>)
-#if PAL_BUILD_GFX11
         target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX11=$<BOOL:${PAL_BUILD_GFX11}>)
-#endif
-#if PAL_BUILD_GFX115
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX115=$<BOOL:${PAL_BUILD_GFX115}>)
-#endif
 
         # PAL no longer references these defines and our clients must remove their references when upgrading.
-        if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 845)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX10=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX103=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI12=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI14=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI2X=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI21=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI22=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI23=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI24=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_REMBRANDT=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_RAPHAEL=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_MENDOCINO=$<BOOL:${PAL_BUILD_GFX9}>)
-        endif()
-        if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 846)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI3X=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI31=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI32=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI33=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX=$<BOOL:${PAL_BUILD_GFX9}>)
-            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX1=$<BOOL:${PAL_BUILD_GFX9}>)
-        endif()
         if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX2=$<BOOL:${PAL_BUILD_GFX9}>)
         endif()
+        if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 917)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX115=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_STRIX=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_STRIX1=$<BOOL:${PAL_BUILD_GFX9}>)
+        endif()
 
-#if PAL_BUILD_STRIX
-        # Define for ASIC Family and is not associated with a CHIP_HDR
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_STRIX=$<BOOL:${PAL_BUILD_STRIX}>)
-#endif
-
-#if PAL_BUILD_STRIX1
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_STRIX1=$<BOOL:${PAL_BUILD_STRIX1}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_STRIX1=$<BOOL:${CHIP_HDR_STRIX1}>)
+#if PAL_BUILD_STRIX_HALO
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_STRIX_HALO=$<BOOL:${PAL_BUILD_STRIX_HALO}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_STRIX_HALO=$<BOOL:${CHIP_HDR_STRIX_HALO}>)
 #endif
 
     endif()

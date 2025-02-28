@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -174,7 +174,7 @@ ADDR_E_RETURNCODE Lib::Create(
 #if ADDR_NAVI31_BUILD || ADDR_NAVI32_BUILD || ADDR_NAVI33_BUILD
                     case FAMILY_NV3:
 #endif
-#if ADDR_STRIX1_BUILD
+#if ADDR_STRIX1_BUILD|| ADDR_STRIX_HALO_BUILD
                     case FAMILY_STX:
 #endif
 #if ADDR_PHOENIX_BUILD

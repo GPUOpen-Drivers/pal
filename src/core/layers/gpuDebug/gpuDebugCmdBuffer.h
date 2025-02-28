@@ -250,11 +250,9 @@ public:
         const ColorSpaceConversionRegion* pRegions,
         TexFilter                         filter,
         const ColorSpaceConversionTable&  cscTable) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     virtual void CmdCloneImageData(
         const IImage& srcImage,
         const IImage& dstImage) override;
-#endif
     virtual void CmdCopyMemoryToImage(
         const IGpuMemory&            srcGpuMemory,
         const IImage&                dstImage,
@@ -770,9 +768,7 @@ private:
     void ReplayCmdScaledCopyImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdGenerateMipmaps(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdColorSpaceConversionCopy(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     void ReplayCmdCloneImageData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdCopyMemoryToImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImageToMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyMemoryToTiledImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

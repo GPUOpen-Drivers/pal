@@ -193,15 +193,7 @@ void CmdBuffer::CmdPostProcessFrame(
         (m_pDevice->GetSettings()->disableDebugOverlayVisualConfirm == false) &&
         Device::DetermineDbgOverlaySupport(m_queueType))
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
         DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.debugOverlay, postProcessInfo.srcImageLayout);
-#else
-        // layout is unknown, make an assumption here.
-        const uint32 engines  = (m_queueType == QueueTypeUniversal) ? LayoutUniversalEngine : LayoutComputeEngine;
-        const ImageLayout srcImageLayout = { .usages = LayoutShaderRead | LayoutShaderWrite, .engines = engines };
-
-        DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.debugOverlay, srcImageLayout);
-#endif
 
         if (pAddedGpuWork != nullptr)
         {

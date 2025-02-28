@@ -212,9 +212,7 @@ typedef enum SqttGfxIpLevel
     SQTT_GFXIP_LEVEL_GFXIP_10_1 = 0x7,
     SQTT_GFXIP_LEVEL_GFXIP_10_3 = 0x9,
     SQTT_GFXIP_LEVEL_GFXIP_11_0 = 0xC,
-#if PAL_BUILD_GFX115
     SQTT_GFXIP_LEVEL_GFXIP_11_5 = 0xD,
-#endif
 } SqttGfxIpLevel;
 
 /** An enumeration of memory types.
@@ -402,7 +400,7 @@ typedef enum SqttVersion
     SQTT_VERSION_2_0          = 0x3,                        /*!< TT 2.0 Southern Islands ("GfxIp6"). */
     SQTT_VERSION_2_1          = 0x4,                        /*!< TT 2.1 Sea Islands ("GfxIp7"). */
     SQTT_VERSION_2_2          = 0x5,                        /*!< TT 2.2 Volcanic Islands ("GfxIp8"). */
-    SQTT_VERSION_2_3          = 0x6,                        /*!< TT 2.3 Vega, MI100, MI200 (GfxIp9). */
+    SQTT_VERSION_2_3          = 0x6,                        /*!< TT 2.3 Vega (GfxIp9). */
     SQTT_VERSION_3_0          = 0x7,                        /*!< TT 3.0 Navi1, Navi2 (GfxIp10-10.3). */
     SQTT_VERSION_2_4          = SQTT_VERSION_3_0,           /*!< Left for legacy reasons. */
     SQTT_VERSION_RESERVED_0x8 = 0x8,                        /*!< Reserved. */

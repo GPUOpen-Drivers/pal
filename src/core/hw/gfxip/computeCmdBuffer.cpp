@@ -50,14 +50,12 @@ static void PAL_STDCALL DummyCmdSetUserDataGfx(
 ComputeCmdBuffer::ComputeCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
-    const GfxBarrierMgr*       pBarrierMgr,
+    const GfxBarrierMgr&       barrierMgr,
     GfxCmdStream*              pCmdStream,
     bool                       useUpdateUserData)
     :
-    GfxCmdBuffer(device, createInfo, pBarrierMgr),
-    m_spillTable{},
-    m_device(device),
-    m_pCmdStream(pCmdStream)
+    GfxCmdBuffer(device, createInfo, pCmdStream, barrierMgr, false),
+    m_spillTable{}
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeCompute);
 
@@ -156,13 +154,6 @@ void ComputeCmdBuffer::DumpCmdStreamsToFile(
     ) const
 {
     m_pCmdStream->DumpCommands(pFile, "# Compute Queue - Command length = ", mode);
-}
-
-// =====================================================================================================================
-CmdStream* ComputeCmdBuffer::GetCmdStreamByEngine(
-    CmdBufferEngineSupport engineType)
-{
-    return TestAnyFlagSet(m_engineSupport, engineType) ? m_pCmdStream : nullptr;
 }
 
 // =====================================================================================================================

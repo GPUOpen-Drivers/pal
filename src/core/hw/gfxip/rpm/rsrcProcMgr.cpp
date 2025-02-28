@@ -2618,14 +2618,12 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
             // srgb can be treated as non-srgb when copying from srgb image
             if (copyInfo.flags.srcAsNorm)
             {
                 srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
                 PAL_ASSERT(Formats::IsUndefined(srcFormat.format) == false);
             }
-#endif
             else if (copyInfo.flags.srcAsSrgb)
             {
                 srcFormat.format = Formats::ConvertToSrgb(srcFormat.format);
@@ -3233,19 +3231,22 @@ void RsrcProcMgr::FillMem32Bit(
     for (gpusize fillOffset = 0; fillOffset < fillSize; fillOffset += FillSizeLimit)
     {
         const uint32 numDwords = uint32(Min(FillSizeLimit, (fillSize - fillOffset)) / sizeof(uint32));
+        const auto&  srdSizes  = device.ChipProperties().srdSizes;
 
         dstBufferView.gpuAddr = dstGpuVirtAddr + fillOffset;
         dstBufferView.range   = numDwords * sizeof(uint32);
 
         // Both shaders have this user-data layout:
         // [0]: The fill pattern.
-        // [1-4]: The buffer view, all AMD HW has 4-DW buffer views.
-        PAL_ASSERT(device.ChipProperties().srdSizes.typedBufferView <= 4 * sizeof(uint32));
+        // [1-8]: The buffer view, all AMD HW has fewer than 8 DW buffer views.
+        constexpr uint32 MaxBufferViewSrdDwords = 8;
+        const     uint32 typedBufferViewSizeDwords = Util::NumBytesToNumDwords(srdSizes.typedBufferView);
+        PAL_ASSERT(typedBufferViewSizeDwords <= MaxBufferViewSrdDwords);
 
-        constexpr uint32 NumUserData = 5;
+        constexpr uint32 NumUserData = 1 + MaxBufferViewSrdDwords;
         uint32 userData[NumUserData] = { data };
         device.CreateTypedBufferViewSrds(1, &dstBufferView, &userData[1]);
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, NumUserData, userData);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 1 + typedBufferViewSizeDwords, userData);
 
         // Issue a dispatch with the correct number of DWORDs per thread.
         const uint32 minThreads   = is4xOptimized ? (numDwords / 4) : numDwords;
@@ -3614,9 +3615,8 @@ void RsrcProcMgr::SlowClearCompute(
     RpmUtil::ConvertAndPackClearColor(color,
                                       createInfo.swizzledFormat,
                                       baseFormat,
-                                      viewFormat,
+                                      nullptr,
                                       clearRange.startSubres.plane,
-                                      false,
                                       true,
                                       info.packedColor);
 
@@ -4323,8 +4323,8 @@ void RsrcProcMgr::ResolveImageCompute(
             PAL_ASSERT(Formats::HaveSameNumFmt(dstFormat.format, pRegions[idx].swizzledFormat.format) ||
                        dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout, true));
 
-            srcFormat.format = pRegions[idx].swizzledFormat.format;
-            dstFormat.format = pRegions[idx].swizzledFormat.format;
+            srcFormat = pRegions[idx].swizzledFormat;
+            dstFormat = pRegions[idx].swizzledFormat;
         }
 
         // Non-SRGB can be treated as SRGB when copying to non-srgb image
@@ -5852,7 +5852,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
                                  groupFastClearable,
                                  TestAnyFlagSet(flags, DsClearAutoSync),
                                  rectCount,
-                                 &boxes[0]);
+                                 boxes.Data());
         }
     }
 }
@@ -6030,6 +6030,8 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
                                Formats::IsBlockCompressed(dstInfo.swizzledFormat.format));
     const bool isYuv        = (Formats::IsYuv(srcInfo.swizzledFormat.format) ||
                                Formats::IsYuv(dstInfo.swizzledFormat.format));
+    const bool isMm = (Formats::IsMmFormat(srcInfo.swizzledFormat.format) ||
+                       Formats::IsMmFormat(dstInfo.swizzledFormat.format));
 
     const bool isSrgbWithFormatConversion = (Formats::IsSrgb(dstInfo.swizzledFormat.format) &&
                                              TestAnyFlagSet(copyFlags, CopyFormatConversion));
@@ -6049,6 +6051,7 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
           (dstInfo.samples == 1)               &&
           (isCompressed == false)              &&
           (isYuv == false)                     &&
+          (isMm == false)                      &&
           (isMacroPixelPackedRgbOnly == false) &&
           (bothColor == true)                  &&
           (isSrgbWithFormatConversion == false))))
@@ -6192,13 +6195,8 @@ void RsrcProcMgr::SlowClearGraphics(
         if (color.disabledChannelMask != 0)
         {
             // Overwrite CbTargetMask for different writeMasks.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-            bindPipelineInfo.graphics.dynamicState.enable.colorWriteMask = 1;
-            bindPipelineInfo.graphics.dynamicState.colorWriteMask        = ~color.disabledChannelMask;
-#else
             bindPipelineInfo.gfxDynState.enable.colorWriteMask = 1;
             bindPipelineInfo.gfxDynState.colorWriteMask        = ~color.disabledChannelMask;
-#endif
         }
 
         VrsShadingRate clearRate = VrsShadingRate::_2x2;
@@ -6227,9 +6225,8 @@ void RsrcProcMgr::SlowClearGraphics(
         RpmUtil::ConvertAndPackClearColor(color,
                                           createInfo.swizzledFormat,
                                           baseFormat,
-                                          viewFormat,
+                                          &viewFormat,
                                           subresId.plane,
-                                          true,
                                           rawFmtOk,
                                           packedColor);
 
@@ -7094,8 +7091,8 @@ void RsrcProcMgr::ResolveImageFixedFunc(
                                                pRegions[idx].swizzledFormat.format) ||
                        dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout, true));
 
-            srcColorViewInfo.swizzledFormat.format = pRegions[idx].swizzledFormat.format;
-            dstColorViewInfo.swizzledFormat.format = pRegions[idx].swizzledFormat.format;
+            srcColorViewInfo.swizzledFormat = pRegions[idx].swizzledFormat;
+            dstColorViewInfo.swizzledFormat = pRegions[idx].swizzledFormat;
         }
 
         // Setup the viewport and scissor to restrict rendering to the destination region being copied.
@@ -7276,7 +7273,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                     Formats::IsDepthStencilOnly(srcCreateInfo.swizzledFormat.format) ||
                                     Formats::IsDepthStencilOnly(dstCreateInfo.swizzledFormat.format));
 
-    Pal::CmdStream*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+    Pal::CmdStream*const pStream = pCmdBuffer->GetMainCmdStream();
     PAL_ASSERT(pStream != nullptr);
 
     const StencilRefMaskParams stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
@@ -7575,14 +7572,12 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
         // srgb can be treated as non-srgb when copying from srgb image
         if (copyInfo.flags.srcAsNorm)
         {
             srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
             PAL_ASSERT(Formats::IsUndefined(srcFormat.format) == false);
         }
-#endif
         else if (copyInfo.flags.srcAsSrgb)
         {
             srcFormat.format = Formats::ConvertToSrgb(srcFormat.format);
@@ -8397,7 +8392,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     const auto& device          = *m_pDevice->Parent();
     const auto* pPublicSettings = device.GetPublicSettings();
 
-    Pal::CmdStream*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+    Pal::CmdStream*const pStream = pCmdBuffer->GetMainCmdStream();
     PAL_ASSERT(pStream != nullptr);
 
     const StencilRefMaskParams stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };

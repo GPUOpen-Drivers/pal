@@ -36,6 +36,7 @@ namespace Pal
 
 class      CmdStream;
 enum class IndexType : uint32;
+enum RegisterRangeType : uint32;
 
 namespace Gfx9
 {
@@ -134,7 +135,6 @@ struct ReleaseMemGfx : ReleaseMemGeneric
 {
     VGT_EVENT_TYPE vgtEvent;  // Use this event. It must be an EOP TS event or an EOS event.
     bool           usePws;    // This event should increment the PWS counters.
-    bool           waitCpDma; // If wait CP DMA to be idle.
 };
 
 // The "official" "event-write" packet definition (see:  PM4_MEC_EVENT_WRITE) contains "extra" dwords that aren't
@@ -277,6 +277,14 @@ public:
     static constexpr uint32 WriteNonSampleEventDwords = (sizeof(PM4_ME_NON_SAMPLE_EVENT_WRITE) / sizeof(uint32));
     static constexpr uint32 AtomicMemSizeDwords       = PM4_ME_ATOMIC_MEM_SIZEDW__CORE;
     static constexpr uint32 PfpSyncMeSizeDwords       = PM4_PFP_PFP_SYNC_ME_SIZEDW__CORE;
+
+    // See definitions of SET_CONTEXT/SH_REG_PAIRS_PACKED_(N) - these are all 2 DWs (header + # regs) followed by
+    // N instances of PackedRegisterPair (3 DW each per pair).
+    static constexpr uint32 SetRegPairsPackedHeaderSizeInDwords = 2;
+
+    // The SET_REG_CONTEXT/SH_PAIRS packets each have 1 DW of fixed header followed by N pairs of offset/value.
+    static_assert((PM4_PFP_SET_CONTEXT_REG_PAIRS_SIZEDW__GFX11 == 3) && (PM4_PFP_SET_SH_REG_PAIRS_SIZEDW__GFX11 == 3));
+    static constexpr uint32 SetRegPairsFixedPortionSizeDwords = PM4_PFP_SET_CONTEXT_REG_PAIRS_SIZEDW__GFX11 - 2;
 
     // This can't be a precomputed constant, we have to look at some device state.
     uint32 DrawIndexIndirectSize() const;
@@ -427,7 +435,6 @@ public:
         uint32       startInstLoc,
         Pm4Predicate predicate,
         void*        pBuffer) const;
-    template <bool IssueSqttMarkerEvent>
     size_t BuildDrawIndexIndirectMulti(
         gpusize      offset,
         uint32       baseVtxLoc,
@@ -437,8 +444,8 @@ public:
         uint32       count,
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
+        bool         issueSqttMarkerEvent,
         void*        pBuffer) const;
-    template <bool IssueSqttMarkerEvent>
     size_t BuildDrawIndirectMulti(
         gpusize      offset,
         uint32       baseVtxLoc,
@@ -448,6 +455,7 @@ public:
         uint32       count,
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
+        bool         issueSqttMarkerEvent,
         void*        pBuffer) const;
     static size_t BuildDrawIndexAuto(
         uint32       indexCount,
@@ -459,19 +467,18 @@ public:
         gpusize       controlBufferAddr,
         Pm4Predicate  predicate,
         void*         pBuffer);
-    template <bool IssueSqttMarkerEvent>
     size_t BuildDispatchTaskMeshGfx(
         uint32       tgDimOffset,
         uint32       ringEntryLoc,
         Pm4Predicate predicate,
         bool         usesLegacyMsFastLaunch,
         bool         linearDispatch,
+        bool         issueSqttMarkerEvent,
         void*        pBuffer) const;
     static size_t BuildDispatchMeshDirect(
         DispatchDims size,
         Pm4Predicate predicate,
         void*        pBuffer);
-    template <bool IssueSqttMarkerEvent>
     size_t BuildDispatchMeshIndirectMulti(
         gpusize      dataOffset,
         uint32       xyzOffset,
@@ -481,8 +488,8 @@ public:
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
         bool         usesLegacyMsFastLaunch,
+        bool         issueSqttMarkerEvent,
         void*        pBuffer) const;
-    template <bool IssueSqttMarkerEvent>
     size_t BuildDispatchTaskMeshIndirectMultiAce(
         gpusize      dataOffset,
         uint32       ringEntryLoc,
@@ -493,6 +500,7 @@ public:
         gpusize      countGpuAddr,
         bool         isWave32,
         Pm4Predicate predicate,
+        bool         issueSqttMarkerEvent,
         void*        pBuffer) const;
     static size_t BuildDispatchTaskMeshDirectAce(
         DispatchDims size,
@@ -565,6 +573,12 @@ public:
         uint32  count,
         void*   pBuffer) const;
 
+    static size_t BuildLoadConstRam(
+        gpusize srcGpuAddr,
+        uint32  ramByteOffset,
+        uint32  dwordSize,
+        void*   pBuffer);
+
     static size_t BuildLoadShRegs(
         gpusize              gpuVirtAddr,
         const RegisterRange* pRanges,
@@ -594,7 +608,7 @@ public:
 
     static size_t BuildNop(size_t numDwords, void* pBuffer);
 
-    size_t BuildNumInstances(uint32 instanceCount, void* pBuffer) const;
+    static size_t BuildNumInstances(uint32 instanceCount, void* pBuffer);
 
     static size_t BuildOcclusionQuery(gpusize queryMemAddr, gpusize dstMemAddr, void* pBuffer);
 
@@ -663,12 +677,10 @@ public:
         Pm4ShaderType                   shaderType,
         PFP_SET_SH_REG_INDEX_index_enum index,
         void*                           pBuffer) const;
-    template <Pm4ShaderType ShaderType, size_t N>
-    size_t BuildSetMaskedPackedRegPairs(
-        const PackedRegisterPair* pRegPairs,
-        uint32                    (&validMask)[N],
-        bool                      isShReg,
-        void*                     pBuffer) const;
+    template <RegisterRangeType RegType>
+    size_t BuildSetRegPairsPackedHeader(
+        uint32 numRegs,
+        void*  pBuffer) const;
     template <Pm4ShaderType ShaderType>
     size_t BuildSetPackedRegPairs(
         PackedRegisterPair* pRegPairs,
@@ -684,6 +696,19 @@ public:
         PackedRegisterPair* pRegPairs,
         uint32              numRegs,
         void*               pBuffer) const;
+    static size_t BuildSetConstContextRegPairsPacked(
+        const PackedRegisterPair* pRegPairs,
+        uint32                    numRegs,
+        void*                     pBuffer);
+    template <RegisterRangeType RegType>
+    static size_t BuildSetRegPairsHeader(
+        uint32 numRegPairs,
+        void*  pBuffer);
+    template <RegisterRangeType RegType>
+    static size_t BuildSetRegPairs(
+        const RegisterValuePair* pRegPairs,
+        uint32                   numRegPairs,
+        void*                    pBuffer);
     static size_t BuildSetPredication(
         gpusize       gpuVirtAddr,
         bool          predicationBool,
@@ -766,6 +791,13 @@ public:
     const RegisterInfo& GetRegInfo() const { return m_registerInfo; }
 
     size_t BuildHdpFlush(void* pBuffer) const;
+
+    static PM4_ME_TYPE_3_HEADER Type3Header(
+        IT_OpCodeType  opCode,
+        uint32         count,
+        bool           resetFilterCam = false,
+        Pm4ShaderType  shaderType = ShaderGraphics,
+        Pm4Predicate   predicate = PredDisable);
 
 private:
     size_t BuildAcquireMemInternal(

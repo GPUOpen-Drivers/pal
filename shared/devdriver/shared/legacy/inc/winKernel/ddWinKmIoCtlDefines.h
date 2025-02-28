@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,8 @@
 #define DD_IOCTL_NUTCRACKER_AMDLOG_DEVDRIVER CTL_CODE (40000, 0x904, METHOD_BUFFERED, FILE_ALL_ACCESS)
 #define DD_IOCTL_NUTCRACKER_AMDLOG_DEVDRIVER_IN_DIRECT                                                                 \
     CTL_CODE(40000, 0x905, METHOD_IN_DIRECT, FILE_READ_DATA | FILE_WRITE_DATA)
+#define DD_IOCTL_NUTCRACKER_AMDLOG_RGD_OCA_STATUS                                                                      \
+    CTL_CODE(40000, 0x906, METHOD_BUFFERED, FILE_READ_DATA | FILE_WRITE_DATA)
 
 #pragma pack(1)
 

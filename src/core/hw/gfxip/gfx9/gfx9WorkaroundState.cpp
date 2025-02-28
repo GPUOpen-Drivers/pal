@@ -211,14 +211,6 @@ uint32* WorkaroundState::PreDraw(
                                                                          pCmdSpace);
     }
 
-    // This must go last in order to validate that no other context rolls can occur before the draw.
-    if (StateDirty && dirtyFlags.scissorRects)
-    {
-        {
-            pCmdSpace = pCmdBuffer->ValidateScissorRects(pCmdSpace);
-        }
-    }
-
     return pCmdSpace;
 }
 

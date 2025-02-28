@@ -109,11 +109,7 @@ struct     ViewportStateCreateInfo;
 enum class PipelineBindPoint : uint32;
 enum class ShaderType : uint32;
 enum class DccFormatEncoding : uint32;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 853
 enum class Blend : uint8;
-#else
-enum class Blend : uint32;
-#endif
 enum class ClearMethod : uint32;
 
 // Additional information for creating PAL-internal color target views.
@@ -182,7 +178,8 @@ struct GraphicsPipelineInternalCreateInfo
             uint32 dccDecompress     :  1; // DCC decompress BLT.
             uint32 resolveFixedFunc  :  1; // Fixed function resolve.
             uint32 isPartialPipeline :  1; // True if it is a partial pipeline in Graphics shader library
-            uint32 reserved          : 27;
+            uint32 reserved1         :  1;
+            uint32 reserved          : 26;
         };
         uint32 u32All;
     } flags;
@@ -665,10 +662,6 @@ public:
 
     // Init and get the cmd buffer that increment memory of frame count and write to register.
     Result InitAndGetFrameCountCmdBuffer(QueueType queueType, EngineType engineType, GfxCmdBuffer** ppBuffer);
-
-    // Helper to check if this Device can support launching a CE preamble command stream with every Universal Queue
-    // submission.
-    bool SupportsCePreamblePerSubmit() const;
 
     void DescribeDispatch(
         GfxCmdBuffer*               pCmdBuf,

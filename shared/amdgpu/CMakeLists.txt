@@ -26,3 +26,5 @@
 target_sources(pal PRIVATE CMakeLists.txt)
 
 add_subdirectory(include/xcb)
+add_subdirectory(include/drm)
+add_subdirectory(include/wayland)

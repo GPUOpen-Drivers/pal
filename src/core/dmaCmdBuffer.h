@@ -200,6 +200,11 @@ public:
         gpusize           fillSize,
         uint32            data) override;
 
+    virtual void CmdWriteTimestamp(
+        uint32            stageMask,
+        const IGpuMemory& dstGpuMemory,
+        gpusize           dstOffset) override;
+
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
         uint32              slot,
@@ -220,9 +225,6 @@ public:
 
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
-
-    // Returns the number of command streams associated with this command buffer.
-    virtual uint32 NumCmdStreams() const override { return 1; }
 
     // Returns a pointer to the command stream specified by "cmdStreamIdx".
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const override
@@ -360,6 +362,8 @@ protected:
     virtual gpusize GetSubresourceBaseAddr(const Image& image, SubresId subresId) const = 0;
 
     virtual uint32 GetLinearRowPitchAlignment(uint32 bytesPerPixel) const = 0;
+
+    virtual void WriteTimestampCmd(gpusize dstAddr) = 0;
 
     static bool IsImageTmzProtected(const DmaImageInfo& imageInfo)
     {

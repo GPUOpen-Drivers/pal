@@ -42,6 +42,7 @@
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_registers.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_typedef.h"
 
+#include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_ce_pm4_packets.h"  // constant engine
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_mec_pm4_packets.h" // compute engine
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_me_pm4_packets.h"  // micro-engine
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_pfp_pm4_packets.h" // pre-fetch-parser
@@ -321,6 +322,19 @@ enum Pm4ShaderType : uint32
     ShaderCompute   = 1
 };
 
+// This enum describes the type of Register Range
+enum RegisterRangeType : uint32
+{
+    RegRangeUserConfig           = 0x0,
+    RegRangeContext              = 0x1,
+    RegRangeGfxSh                = 0x2,
+    RegRangeCsSh                 = 0x3,
+    RegRangeNonShadowed          = 0x4,
+    RegRangeCpRs64InitSh         = 0x5,
+    RegRangeCpRs64InitCsSh       = 0x6,
+    RegRangeCpRs64InitUserConfig = 0x7,
+};
+
 // This enum defines the predicate value supported in PM4 type 3 header
 enum Pm4Predicate : uint32
 {
@@ -550,6 +564,19 @@ struct GraphicsPipelineSignature
     // Address of each shader stage's user-SGPR for sampleInfo, dualsourceblend, topology.
     PerStageUserData compositeData;
 
+    // Storing these flags near userDataHash to get cache locality as they are accessed together
+    union
+    {
+        struct
+        {
+            uint8 isHwHsEnabled : 1; // Is a HW HW enabled?
+            uint8 isHwGsEnabled : 1; // Is a HW GS enabled?
+            uint8 isHwVsEnabled : 1; // Is a HW VS enabled?
+            uint8 reserved      : 5; // Reserved
+        };
+        uint8 u8All;
+    } flags;
+
     // Hash of each stages user-data mapping, used to speed up pipeline binds.
     uint64  userDataHash[NumHwShaderStagesGfx];
 };
@@ -684,6 +711,9 @@ enum AcquirePoint : uint8
     AcquirePointEop,
     AcquirePointCount
 };
+
+// Minimum PFP uCode version that indicates the device is running in RS64 mode
+constexpr uint32 Gfx11Rs64MinPfpUcodeVersion = 300;
 
 } // Gfx9
 } // Pal

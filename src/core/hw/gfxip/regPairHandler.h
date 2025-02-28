@@ -266,4 +266,172 @@ private:
     static_assert(AllUniqueRegisters(),
                   "All register offsets specified should be unique; no duplicates should be found!");
 };
+
+// =====================================================================================================================
+// Template class which handles compile-time determination of an array layout for packed register-value pairs.
+template <typename Ip, typename T, const T& t>
+class PackedRegPairHandler
+{
+public:
+    // Returns the total number of registers represented in t.
+    static constexpr uint32 NumRegs()
+    {
+        return uint32(sizeof(T) / sizeof(t[0]));
+    }
+
+    // Returns the total number of registers written out. This may be 1 more than NumRegs().
+    static constexpr uint32 NumRegsWritten()
+    {
+        return Util::Pow2Align(NumRegs(), 2);
+    }
+
+    // Returns the number of packed reg pairs.
+    static constexpr uint32 NumPackedRegPairs()
+    {
+        return NumRegsWritten() / 2;
+    }
+
+    // Initializes the RegisterValuePair array with default values of 0's.
+    static constexpr void Init(PackedRegisterPair p[])
+    {
+        for (uint32 i = 0; i < NumRegs(); i++)
+        {
+            if ((i % 2) == 0)
+            {
+                p[i / 2].offset0 = Ip::GetAdjustedRegOffset(t[i]);
+                p[i / 2].value0  = 0;
+            }
+            else
+            {
+                p[i / 2].offset1 = Ip::GetAdjustedRegOffset(t[i]);
+                p[i / 2].value1  = 0;
+            }
+        }
+
+        if ((NumRegs() % 2) != 0)
+        {
+            // Zero out the last offset/value pair.
+            p[NumRegs() / 2].offset1 = 0;
+            p[NumRegs() / 2].value1  = 0;
+        }
+    }
+
+    // Finalize packed reg pairs.
+    static constexpr void Finalize(PackedRegisterPair p[])
+    {
+        if ((NumRegs() % 2) != 0)
+        {
+            // Replicate the last register.
+            p[NumRegs() / 2].offset1 = p[NumRegs() / 2].offset0;
+            p[NumRegs() / 2].value1  = p[NumRegs() / 2].value0;
+        }
+    }
+
+    // Returns a non-const pointer to the entry that corresponds to the specified register offset, when that
+    // register offset is known at compile time. Casts the return value to the specific type specified by R.
+    template <uint32 RegOffset, typename R>
+    static R* Get(PackedRegisterPair p[])
+    {
+        constexpr uint32 RegIdx = Index(RegOffset);
+        static_assert(RegIdx != UINT32_MAX, "Invalid register!");
+        PAL_ASSERT(((RegIdx % 2) == 0) ?
+                   (p[RegIdx / 2].offset0 == Ip::GetAdjustedRegOffset(RegOffset)) :
+                   (p[RegIdx / 2].offset1 == Ip::GetAdjustedRegOffset(RegOffset)));
+        return ((RegIdx % 2) == 0) ? reinterpret_cast<R*>(&p[RegIdx / 2].value0) :
+                                     reinterpret_cast<R*>(&p[RegIdx / 2].value1);
+    }
+
+    // Returns a const reference to the entry that corresponds to the specified register offset, when that
+    // register offset is known at compile time. Casts the return value to the specific type specified by R.
+    template <uint32 RegOffset, typename R>
+    static const R& GetC(const PackedRegisterPair p[])
+    {
+        constexpr uint32 RegIdx = Index(RegOffset);
+        static_assert(RegIdx != UINT32_MAX, "Invalid register!");
+        PAL_ASSERT(((RegIdx % 2) == 0) ?
+                   (p[RegIdx / 2].offset0 == Ip::GetAdjustedRegOffset(RegOffset)) :
+                   (p[RegIdx / 2].offset1 == Ip::GetAdjustedRegOffset(RegOffset)));
+        return ((RegIdx % 2) == 0) ? reinterpret_cast<const R&>(p[RegIdx / 2].value0) :
+                                     reinterpret_cast<const R&>(p[RegIdx / 2].value1);
+    }
+
+private:
+    // Returns the index of the specified register offset.
+    static constexpr uint32 Index(uint32 regOffset)
+    {
+        uint32 index = UINT32_MAX;
+
+        for (uint32 i = 0; i < NumRegs(); i++)
+        {
+            if (t[i] == regOffset)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        return index;
+    }
+
+    // Returns if all registers represented are Context.
+    static constexpr bool EveryRegIsContext()
+    {
+        bool everyRegIsContext = true;
+        for (uint32 i = 0; i < NumRegs(); i++)
+        {
+            if (Ip::IsContext(t[i]) == false)
+            {
+                everyRegIsContext = false;
+                break;
+            }
+        }
+
+        return everyRegIsContext;
+    }
+
+    // Returns if all registers represented are SH.
+    static constexpr bool EveryRegIsSh()
+    {
+        bool everyRegIsSh = true;
+        for (uint32 i = 0; i < NumRegs(); i++)
+        {
+            if (Ip::IsSh(t[i]) == false)
+            {
+                everyRegIsSh = false;
+                break;
+            }
+        }
+
+        return everyRegIsSh;
+    }
+
+    // Verifies that the same register does not appear twice.
+    static constexpr bool AllUniqueRegisters()
+    {
+        bool unique = true;
+        for (uint32 i = 0; unique && (i < NumRegs()); i++)
+        {
+            for (uint32 j = 0; unique && (j < NumRegs()); j++)
+            {
+                if (i == j)
+                {
+                    continue;
+                }
+
+                if (t[i] == t[j])
+                {
+                    unique = false;
+                    break;
+                }
+            }
+        }
+
+        return unique;
+    }
+
+    static_assert(EveryRegIsSh() || EveryRegIsContext(), "It doesn't make sense to mix reg types for Packed.");
+    static_assert(AllUniqueRegisters(),
+                  "All register offsets specified should be unique; no duplicates should be found!");
+};
+
 } // namespace Pal

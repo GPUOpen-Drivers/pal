@@ -161,15 +161,10 @@ Platform::~Platform()
 FpsMgr* Platform::GetFpsMgr(
     UniquePresentKey key)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 805
-    // Let clients that haven't reached version 805 keep using a default FpsMgr.
-    key = 0;
-#endif
-
-    bool existed = true;
-    FpsMgr* pFpsMgr = nullptr;
+    bool     existed  = true;
+    FpsMgr*  pFpsMgr  = nullptr;
     FpsMgr** ppFpsMgr = nullptr;
-    Result result = m_fpsMgrMap.FindAllocate(key, &existed, &ppFpsMgr);
+    Result   result   = m_fpsMgrMap.FindAllocate(key, &existed, &ppFpsMgr);
 
     // Add the new value if it did not exist already. If FindAllocate returns Success, ppFrameData != nullptr.
     if (result == Result::Success)

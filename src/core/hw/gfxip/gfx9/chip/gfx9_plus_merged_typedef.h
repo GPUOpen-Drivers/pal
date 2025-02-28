@@ -458,9 +458,7 @@ typedef union CP_VGT_VSINVOC_COUNT_HI                            regCP_VGT_VSINV
 typedef union CP_VGT_VSINVOC_COUNT_LO                            regCP_VGT_VSINVOC_COUNT_LO;
 typedef union DB_ALPHA_TO_MASK                                   regDB_ALPHA_TO_MASK;
 typedef union DB_CGTT_CLK_CTRL_0                                 regDB_CGTT_CLK_CTRL_0;
-#if   CHIP_HDR_STRIX1
 typedef union DB_CGTT_CLK_CTRL_1                                 regDB_CGTT_CLK_CTRL_1;
-#endif
 typedef union DB_COUNT_CONTROL                                   regDB_COUNT_CONTROL;
 typedef union DB_CREDIT_LIMIT                                    regDB_CREDIT_LIMIT;
 typedef union DB_DEPTH_BOUNDS_MAX                                regDB_DEPTH_BOUNDS_MAX;
@@ -1122,17 +1120,13 @@ typedef union PA_SC_BINNER_CNTL_0                                regPA_SC_BINNER
 typedef union PA_SC_BINNER_CNTL_1                                regPA_SC_BINNER_CNTL_1;
 typedef union PA_SC_BINNER_CNTL_2                                regPA_SC_BINNER_CNTL_2;
 typedef union PA_SC_BINNER_CNTL_OVERRIDE                         regPA_SC_BINNER_CNTL_OVERRIDE;
-#if   CHIP_HDR_STRIX1
 typedef union PA_SC_BINNER_DYNAMIC_BATCH_LIMIT                   regPA_SC_BINNER_DYNAMIC_BATCH_LIMIT;
-#endif
 typedef union PA_SC_BINNER_EVENT_CNTL_0                          regPA_SC_BINNER_EVENT_CNTL_0;
 typedef union PA_SC_BINNER_EVENT_CNTL_1                          regPA_SC_BINNER_EVENT_CNTL_1;
 typedef union PA_SC_BINNER_EVENT_CNTL_2                          regPA_SC_BINNER_EVENT_CNTL_2;
 typedef union PA_SC_BINNER_EVENT_CNTL_3                          regPA_SC_BINNER_EVENT_CNTL_3;
-#if   CHIP_HDR_STRIX1
 typedef union PA_SC_BINNER_OUTPUT_TIMEOUT_CNTL                   regPA_SC_BINNER_OUTPUT_TIMEOUT_CNTL;
 typedef union PA_SC_BINNER_OUTPUT_TIMEOUT_COUNTER                regPA_SC_BINNER_OUTPUT_TIMEOUT_COUNTER;
-#endif
 typedef union PA_SC_BINNER_PERF_CNTL_0                           regPA_SC_BINNER_PERF_CNTL_0;
 typedef union PA_SC_BINNER_PERF_CNTL_1                           regPA_SC_BINNER_PERF_CNTL_1;
 typedef union PA_SC_BINNER_PERF_CNTL_2                           regPA_SC_BINNER_PERF_CNTL_2;
@@ -1156,9 +1150,7 @@ typedef union PA_SC_ENHANCE                                      regPA_SC_ENHANC
 typedef union PA_SC_ENHANCE_1                                    regPA_SC_ENHANCE_1;
 typedef union PA_SC_ENHANCE_2                                    regPA_SC_ENHANCE_2;
 typedef union PA_SC_ENHANCE_3                                    regPA_SC_ENHANCE_3;
-#if   CHIP_HDR_STRIX1
 typedef union PA_SC_ENHANCE_4                                    regPA_SC_ENHANCE_4;
-#endif
 typedef union PA_SC_ENHANCE_INTERNAL                             regPA_SC_ENHANCE_INTERNAL;
 typedef union PA_SC_FIFO_DEPTH_CNTL                              regPA_SC_FIFO_DEPTH_CNTL;
 typedef union PA_SC_FIFO_SIZE                                    regPA_SC_FIFO_SIZE;
@@ -1172,10 +1164,8 @@ typedef union PA_SC_HP3D_TRAP_SCREEN_HV_LOCK                     regPA_SC_HP3D_T
 typedef union PA_SC_HP3D_TRAP_SCREEN_OCCURRENCE                  regPA_SC_HP3D_TRAP_SCREEN_OCCURRENCE;
 typedef union PA_SC_HP3D_TRAP_SCREEN_V                           regPA_SC_HP3D_TRAP_SCREEN_V;
 typedef union PA_SC_IF_FIFO_SIZE                                 regPA_SC_IF_FIFO_SIZE;
-#if   CHIP_HDR_STRIX1
 typedef union PA_SC_LIGHT_SHAFT_EVENT_CONFIG_0                   regPA_SC_LIGHT_SHAFT_EVENT_CONFIG_0;
 typedef union PA_SC_LIGHT_SHAFT_EVENT_CONFIG_1                   regPA_SC_LIGHT_SHAFT_EVENT_CONFIG_1;
-#endif
 typedef union PA_SC_LINE_CNTL                                    regPA_SC_LINE_CNTL;
 typedef union PA_SC_LINE_STIPPLE                                 regPA_SC_LINE_STIPPLE;
 typedef union PA_SC_LINE_STIPPLE_STATE                           regPA_SC_LINE_STIPPLE_STATE;

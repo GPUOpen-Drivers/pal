@@ -45,8 +45,8 @@ class ComputeCmdBuffer final : public Pal::ComputeCmdBuffer
 public:
     ComputeCmdBuffer(const Device& device, const CmdBufferCreateInfo& createInfo);
 
-    static Result WritePreambleCommands(const CmdUtil& cmdUtil, CmdStream* pCmdStream);
-    static Result WritePostambleCommands(
+    static void WritePreambleCommands(const CmdUtil& cmdUtil, CmdStream* pCmdStream);
+    static void WritePostambleCommands(
         const CmdUtil&     cmdUtil,
         GfxCmdBuffer*const pCmdBuffer,
         CmdStream*         pCmdStream);
@@ -187,8 +187,8 @@ public:
 protected:
     virtual ~ComputeCmdBuffer() {}
 
-    virtual Result AddPreamble() override;
-    virtual Result AddPostamble() override;
+    virtual void AddPreamble() override;
+    virtual void AddPostamble() override;
 
     virtual void ResetState() override;
 

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +58,27 @@ function(swd_add_to_target TARGET PREFIX)
     endif()
 #endif
 
+#if SWD_BUILD_STRIX && SWD_BUILD_STRIX_HALO
+    swd_bp(${PREFIX}_SWD_BUILD_STRIX_HALO OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_STRIX")
+    if(${PREFIX}_SWD_BUILD_STRIX_HALO)
+        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX_HALO=1)
+    endif()
+#endif
+
+#if SWD_BUILD_MI400
+    swd_bp(${PREFIX}_SWD_BUILD_MI400 OFF)
+    if(${PREFIX}_SWD_BUILD_MI400)
+        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_MI400=1)
+    endif()
+#endif
+
     target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)
     set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
+#if SWD_BUILD_MI400
+    if(${PREFIX}_SWD_BUILD_MI400)
+        target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_mi400SwWarDetection.h)
+        set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_mi400SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
+    endif()
+#endif
 
 endfunction()

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@
 #endif
 #if ADDR_GFX11_BUILD
 #define FAMILY_NV3     0x91
-#if ADDR_STRIX1_BUILD
+#if ADDR_STRIX1_BUILD|| ADDR_STRIX_HALO_BUILD
 #define FAMILY_STX     0x96
 #endif
 #if ADDR_PHOENIX_BUILD
@@ -123,6 +123,9 @@
 #if ADDR_STRIX1_BUILD
 #define AMDGPU_STRIX1_RANGE     0x01, 0x40
 #endif
+#if ADDR_STRIX_HALO_BUILD
+#define AMDGPU_STRIX_HALO_RANGE 0xC0, 0xFF
+#endif
 #if ADDR_PHOENIX_BUILD
 #if ADDR_PHOENIX1_BUILD
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80
@@ -185,6 +188,9 @@
 #endif
 #if ADDR_STRIX1_BUILD
 #define ASICREV_IS_STRIX1(r)           ASICREV_IS(r, STRIX1)
+#endif
+#if ADDR_STRIX_HALO_BUILD
+#define ASICREV_IS_STRIX_HALO(r)       ASICREV_IS(r, STRIX_HALO)
 #endif
 #if ADDR_PHOENIX_BUILD
 #if ADDR_PHOENIX1_BUILD

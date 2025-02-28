@@ -312,9 +312,9 @@ Result Device::ProfilingClockMode(
             SetClockModeInput clockModeInput = {};
             clockModeInput.clockMode = enable ? ModeMap[profilerMode] : DeviceClockMode::Default;
 
-            result = SetClockMode(clockModeInput, nullptr);
-
             GPUPROFILER_INFO("Setting ClockMode:%d", clockModeInput.clockMode);
+
+            result = SetClockMode(clockModeInput, nullptr);
 
             // If the user sets the NeverChangeClockMode setting we'll get ErrorUnavailable. We shouldn't treat this as
             // an actual error so that profiling can continue. It would be better to check the setting directly but it's

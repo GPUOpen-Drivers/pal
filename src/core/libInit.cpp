@@ -87,22 +87,23 @@ constexpr uint32 GfxEngineGfx9 = CIASICIDGFXENGINE_ARCTICISLAND;
 // Identification table for all GPUs that are supported
 constexpr GpuInfo GpuInfoLookupTable[] =
 {
-    { AsicRevision::Navi10,     NullGpuId::Navi10,     GfxIpLevel::GfxIp10_1, FAMILY_NV, NV_NAVI10_P_A2,      PRID_NV_NAVI10_00,       GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310,      "NAVI10:gfx1010" },
-    { AsicRevision::Navi12,     NullGpuId::Navi12,     GfxIpLevel::GfxIp10_1, FAMILY_NV, NV_NAVI12_P_A0,      PRID_NV_NAVI12_00,       GfxEngineGfx9, DEVICE_ID_NV_NAVI12_P_7360,      "NAVI12:gfx1011" },
-    { AsicRevision::Navi14,     NullGpuId::Navi14,     GfxIpLevel::GfxIp10_1, FAMILY_NV, NV_NAVI14_M_A0,      PRID_NV_NAVI14_00,       GfxEngineGfx9, DEVICE_ID_NV_NAVI14_M_7340,      "NAVI14:gfx1012" },
-    { AsicRevision::Navi21,     NullGpuId::Navi21,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI21_P_A0,      PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI21:gfx1030" },
-    { AsicRevision::Navi22,     NullGpuId::Navi22,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI22_P_A0,      PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI22:gfx1031" },
-    { AsicRevision::Navi23,     NullGpuId::Navi23,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI23_P_A0,      PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI23:gfx1032" },
-    { AsicRevision::Navi24,     NullGpuId::Navi24,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI24_P_A0,      PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI24:gfx1034" },
-    { AsicRevision::Rembrandt,  NullGpuId::Rembrandt,  GfxIpLevel::GfxIp10_3, FAMILY_RMB, REMBRANDT_B0,        PRID_RMB_00,       GfxEngineGfx9, DEVICE_ID_RMB_1681,         "REMBRANDT:gfx1035" },
-    { AsicRevision::Raphael,    NullGpuId::Raphael,    GfxIpLevel::GfxIp10_3, FAMILY_RPL, RAPHAEL_A0,          PRID_RPL_00,       GfxEngineGfx9, DEVICE_ID_RPL_164E,         "RAPHAEL:gfx1036" },
-    { AsicRevision::Navi31,   NullGpuId::Navi31,   GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI31_P_A0, PRID_NV3_NAVI31_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI31_P_73BF, "NAVI31:gfx1100" },
-    { AsicRevision::Navi32,   NullGpuId::Navi32,   GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI32_P_A0, PRID_NV3_NAVI32_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI32_P_73DF, "NAVI32:gfx1101" },
-    { AsicRevision::Navi33,   NullGpuId::Navi33,   GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI33_P_A0, PRID_NV3_NAVI33_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI33_P_73F0, "NAVI33:gfx1102" },
-    { AsicRevision::Phoenix1, NullGpuId::Phoenix1, GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX1_A0, PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX1_15BF,         "PHOENIX1:gfx1103" },
-    { AsicRevision::Phoenix2, NullGpuId::Phoenix2, GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX2_A0, PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX2_15C8,         "PHOENIX2:gfx1103" },
-#if PAL_BUILD_STRIX1
-    { AsicRevision::Strix1,    NullGpuId::Strix1,    GfxIpLevel::GfxIp11_5, FAMILY_STX, STRIX1_P_B0,     PRID_STX_STRIX1_00,     GfxEngineGfx9, DEVICE_ID_STX1_150E, "STRIX1:gfx1150" },
+    { AsicRevision::Navi10,     NullGpuId::Navi10,     GfxIpLevel::GfxIp10_1, FAMILY_NV,  NV_NAVI10_P, PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI10:gfx1010" },
+    { AsicRevision::Navi12,     NullGpuId::Navi12,     GfxIpLevel::GfxIp10_1, FAMILY_NV,  NV_NAVI12_P, PRID_NV_NAVI12_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI12_P_7360, "NAVI12:gfx1011" },
+    { AsicRevision::Navi14,     NullGpuId::Navi14,     GfxIpLevel::GfxIp10_1, FAMILY_NV,  NV_NAVI14_M, PRID_NV_NAVI14_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI14_M_7340, "NAVI14:gfx1012" },
+    { AsicRevision::Navi21,     NullGpuId::Navi21,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI21_P, PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI21:gfx1030" },
+    { AsicRevision::Navi22,     NullGpuId::Navi22,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI22_P, PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI22:gfx1031" },
+    { AsicRevision::Navi23,     NullGpuId::Navi23,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI23_P, PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI23:gfx1032" },
+    { AsicRevision::Navi24,     NullGpuId::Navi24,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI24_P, PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI24:gfx1034" },
+    { AsicRevision::Rembrandt,  NullGpuId::Rembrandt,  GfxIpLevel::GfxIp10_3, FAMILY_RMB, REMBRANDT_P, PRID_RMB_00,        GfxEngineGfx9, DEVICE_ID_RMB_1681,          "REMBRANDT:gfx1035" },
+    { AsicRevision::Raphael,    NullGpuId::Raphael,    GfxIpLevel::GfxIp10_3, FAMILY_RPL, RAPHAEL_P,   PRID_RPL_00,        GfxEngineGfx9, DEVICE_ID_RPL_164E,          "RAPHAEL:gfx1036" },
+    { AsicRevision::Navi31,     NullGpuId::Navi31,     GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI31_P,    PRID_NV3_NAVI31_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI31_P_73BF, "NAVI31:gfx1100" },
+    { AsicRevision::Navi32,     NullGpuId::Navi32,     GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI32_P,    PRID_NV3_NAVI32_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI32_P_73DF, "NAVI32:gfx1101" },
+    { AsicRevision::Navi33,     NullGpuId::Navi33,     GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI33_P,    PRID_NV3_NAVI33_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI33_P_73F0, "NAVI33:gfx1102" },
+    { AsicRevision::Phoenix1,   NullGpuId::Phoenix1,   GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX1_P,  PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX1_15BF,         "PHOENIX1:gfx1103" },
+    { AsicRevision::Phoenix2,   NullGpuId::Phoenix2,   GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX2_P,  PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX2_15C8,         "PHOENIX2:gfx1103" },
+    { AsicRevision::Strix1,     NullGpuId::Strix1,     GfxIpLevel::GfxIp11_5, FAMILY_STX, STRIX1_P,    PRID_STX_STRIX1_00, GfxEngineGfx9, DEVICE_ID_STX1_150E,         "STRIX1:gfx1150" },
+#if PAL_BUILD_STRIX_HALO
+    { AsicRevision::StrixHalo,  NullGpuId::StrixHalo, GfxIpLevel::GfxIp11_5, FAMILY_STX, STRIX_HALO_P, PRID_STX_STRIX_HALO_00, GfxEngineGfx9, DEVICE_ID_STXH_1586, "STRIX_HALO:gfx1151" },
 #endif
 };
 

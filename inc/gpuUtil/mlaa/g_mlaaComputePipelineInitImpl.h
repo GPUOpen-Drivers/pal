@@ -100,7 +100,7 @@ Pal::Result CreateMlaaComputePipelines(
     case Pal::IpTriple({ 10, 1, 0 }):
     case Pal::IpTriple({ 10, 1, 1 }):
     case Pal::IpTriple({ 10, 1, 2 }):
-        pTable = mlaaComputeBinaryTableNavi10;
+        pTable = mlaaComputeBinaryTable10_1_0;
         break;
 
     case Pal::IpTriple({ 10, 3, 0 }):
@@ -109,26 +109,29 @@ Pal::Result CreateMlaaComputePipelines(
     case Pal::IpTriple({ 10, 3, 4 }):
     case Pal::IpTriple({ 10, 3, 5 }):
     case Pal::IpTriple({ 10, 3, 6 }):
-        pTable = mlaaComputeBinaryTableNavi21;
+        pTable = mlaaComputeBinaryTable10_3_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 0 }):
     case Pal::IpTriple({ 11, 0, 1 }):
-        pTable = mlaaComputeBinaryTableNavi31;
+        pTable = mlaaComputeBinaryTable11_0_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 2 }):
-        pTable = mlaaComputeBinaryTableNavi33;
+        pTable = mlaaComputeBinaryTable11_0_2;
         break;
 
     case Pal::IpTriple({ 11, 0, 3 }):
-        pTable = mlaaComputeBinaryTablePhoenix1;
+        pTable = mlaaComputeBinaryTable11_0_3;
         break;
 
-#if PAL_BUILD_STRIX1
     case Pal::IpTriple({ 11, 5, 0 }):
-    case Pal::IpTriple({ 11, 5, 65535 }):
-        pTable = mlaaComputeBinaryTableStrix1;
+        pTable = mlaaComputeBinaryTable11_5_0;
+        break;
+
+#if  PAL_BUILD_STRIX_HALO
+    case Pal::IpTriple({ 11, 5, 1 }):
+        pTable = mlaaComputeBinaryTable11_5_1;
         break;
 #endif
 

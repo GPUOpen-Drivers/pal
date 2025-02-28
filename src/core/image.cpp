@@ -1366,7 +1366,6 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::AstcHdr12x12_Float:
             ret = ADDR_FMT_ASTC_12x12;
             break;
-
         default:
             ret = ADDR_FMT_INVALID;
             break;

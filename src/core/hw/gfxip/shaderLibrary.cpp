@@ -170,11 +170,7 @@ Result ShaderLibrary::GetAggregateFunctionStats(
     {
         ShaderLibStats currLibStats = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-        result = GetShaderFunctionStats(Util::StringView<char>(pFunctionInfo[i].pSymbolName), &currLibStats);
-#else
         result = GetShaderFunctionStats(pFunctionInfo[i].symbolName, &currLibStats);
-#endif
 
         if (result != Result::Success)
         {

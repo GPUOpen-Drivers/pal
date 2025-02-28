@@ -212,12 +212,8 @@ union ImageCreateFlags
         uint32 sharedWithMesa          :  1; ///< Indicate this Image was opened from a Mesa shared Image
         uint32 enable256KBSwizzleModes :  1; ///< Enable 256 KiB swizzle modes
         uint32 hasModifier             :  1; ///< Set if the image uses drm format modifier.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 813
         uint32 disableDccStateTracking :  1; ///< Disable a PAL optimization which is commonly broken by app bugs.
                                              ///  Setting this flag may increase DCC decompress overhead.
-#else
-        uint32 reserved813             :  1; ///< Reserved for future use.
-#endif
 #if PAL_CLIENT_EXAMPLE
         uint32 useFixedSwizzleMode     :  1; ///< If set, require the fixed swizzle mode provided.
                                              ///  Fails creation on incompatible swizzles.
@@ -403,7 +399,7 @@ inline constexpr bool operator==(const ImageCreateInfo& lhs, const ImageCreateIn
     }
 #endif
 
-    if (same && (lhs.viewFormatCount > 0))
+    if (same && (lhs.viewFormatCount > 0) && (lhs.viewFormatCount != AllCompatibleFormats))
     {
         same = (memcmp(lhs.pViewFormats, rhs.pViewFormats, lhs.viewFormatCount * sizeof(SwizzledFormat)) == 0);
     }
@@ -431,12 +427,8 @@ struct PresentableImageCreateInfo
 #else
             uint32 placeholder0     :  1; ///< Placeholder.
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 811
             uint32 enable256KBSwizzleModes :  1; ///< Enable 256 KiB swizzle modes.
-#else
-            uint32 placeholder1            :  1; ///< Placeholder.
-#endif
-            uint32 reserved     : 25;   ///< Reserved for future use.
+            uint32 reserved                : 25; ///< Reserved for future use.
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< Presentable image creation flags.
@@ -625,6 +617,8 @@ enum SwizzleMode : uint32
     SwizzleMode64Kb3D,
     SwizzleMode256Kb2D,
     SwizzleMode256Kb3D,
+    SwizzleMode64Kb2Dz,
+    SwizzleMode256Kb2Dz,
     SwizzleModeCount,
 };
 

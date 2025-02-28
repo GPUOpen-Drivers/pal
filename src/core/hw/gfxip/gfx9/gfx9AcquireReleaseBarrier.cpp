@@ -53,10 +53,18 @@ union ReleaseEvents
 };
 
 // Cache coherency masks that may read data through L0 (V$ and K$)/L1 caches.
-static constexpr uint32 CacheCoherShaderReadMask = CoherShaderRead | CoherSampleRate | CacheCoherencyBltSrc;
+static constexpr uint32 CacheCoherGl0ReadMask = CoherShaderRead | CoherSampleRate | CacheCoherencyBltSrc;
 
 // Cache coherency masks that may read or write data through L0 (V$ and K$)/L1 caches.
-static constexpr uint32 CacheCoherShaderAccessMask = CacheCoherencyBlt | CoherShader | CoherSampleRate | CoherStreamOut;
+static constexpr uint32 CacheCoherGl0AccessMask = CacheCoherencyBlt | CoherShader | CoherSampleRate | CoherStreamOut;
+
+// Mask of all GPU memory access may go through GL2 cache.
+static constexpr uint32 CacheCoherGl2AccessMask = CacheCoherGl0AccessMask | CacheCoherRbAccessMask | CoherCp          |
+                                                  CoherIndirectArgs       | CoherIndexData         | CoherQueueAtomic |
+                                                  CoherTimestamp;
+
+// Mask of all GPU memory access bypasses GL2 cache, e.g. through mall directly.
+static constexpr uint32 CacheCoherBypassGl2AccessMask = CoherCpu | CoherMemory | CoherPresent;
 
 // None cache sync operations
 static constexpr CacheSyncOps NullCacheSyncOps = {};
@@ -82,16 +90,6 @@ bool BarrierMgr::EnableReleaseMemWaitCpDma() const
 const RsrcProcMgr& BarrierMgr::RsrcProcMgr() const
 {
     return static_cast<const Gfx9::RsrcProcMgr&>(m_pGfxDevice->RsrcProcMgr());
-}
-
-// =====================================================================================================================
-CmdStream* BarrierMgr::GetCmdStream(
-    GfxCmdBuffer* pCmdBuf)
-{
-    const auto cmdStreamEngine = pCmdBuf->IsGraphicsSupported() ? CmdBufferEngineSupport::Graphics
-                                                                : CmdBufferEngineSupport::Compute;
-
-    return static_cast<CmdStream*>(pCmdBuf->GetCmdStreamByEngine(cmdStreamEngine));
 }
 
 // =====================================================================================================================
@@ -151,11 +149,7 @@ void BarrierMgr::OptimizeStageMask(
         // If no dstStageMask flag after removing PFP flags, force waiting at ME.
         if (*pDstStageMask == 0)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
             *pDstStageMask = PipelineStagePostPrefetch;
-#else
-            *pDstStageMask = PipelineStageBlt;
-#endif
         }
     }
 }
@@ -189,8 +183,7 @@ bool BarrierMgr::OptimizeAccessMask(
 
         *pSrcAccessMask &= ~CacheCoherencyBlt;
 
-        *pSrcAccessMask |= (stateFlags.cpWriteCachesDirty         ? CoherCp     : 0) |
-                           (stateFlags.cpMemoryWriteL2CacheStale  ? CoherMemory : 0);
+        *pSrcAccessMask |= (stateFlags.cpWriteCachesDirty ? CoherCp : 0);
 
         if (isBltCopySrcOnly)
         {
@@ -318,7 +311,7 @@ CacheSyncOps BarrierMgr::GetCacheSyncOps(
     // metadata, need invalidate L0/L1/M$ caches when about to be shader accessed. Strictly speaking, no need invalidate
     // L0/L1 for transition to shader write only case; for simple, make the same logic as transition to shader read case
     // as it doesn't increase packet and cost of inv L0/L1 is light.
-    const uint32 dstCacheInvMask = mayHaveMetadata ? CacheCoherShaderAccessMask : CacheCoherShaderReadMask;
+    const uint32 dstCacheInvMask = mayHaveMetadata ? CacheCoherGl0AccessMask : CacheCoherGl0ReadMask;
 
     // Optimization: can skip shader source caches (L0/L1/M$) invalidation if previously read through shader source
     //               caches and about to access through shader source caches again. Don't apply the optimization on
@@ -336,37 +329,34 @@ CacheSyncOps BarrierMgr::GetCacheSyncOps(
     //    enables/mask. Similarly transition to clone CopyDst doesn't read and inv GL0/GL1.
     //  - For ShaderWrite -> clone CopySrc, will always inv GL0/GL1 regardless of clone CopySrc or common CopySrc.
     //  - For clone CopyDst -> ShadeRead, always inv GL0/GL1 regardless of clone CopyDst or common CopyDst.
-    const bool noSkipCacheInv = (pImage != nullptr) && pImage->IsCloneable()                 &&
-                                ((TestAnyFlagSet(orgSrcAccessMask, CoherCopySrc)             &&
-                                  TestAnyFlagSet(dstAccessMask, CacheCoherShaderReadMask))   ||
-                                 (TestAnyFlagSet(orgSrcAccessMask, CacheCoherShaderReadMask) &&
+    const bool noSkipCacheInv = (pImage != nullptr) && pImage->IsCloneable()              &&
+                                ((TestAnyFlagSet(orgSrcAccessMask, CoherCopySrc)          &&
+                                  TestAnyFlagSet(dstAccessMask, CacheCoherGl0ReadMask))   ||
+                                 (TestAnyFlagSet(orgSrcAccessMask, CacheCoherGl0ReadMask) &&
                                   TestAnyFlagSet(dstAccessMask, CoherCopySrc)));
     const bool canSkipCacheInv = (barrierType != BarrierType::Global)                             &&
                                  (noSkipCacheInv == false)                                        &&
                                  (TestAnyFlagSet(orgSrcAccessMask, CacheCoherWriteMask) == false) &&
-                                 TestAnyFlagSet(orgSrcAccessMask, CacheCoherShaderReadMask);
+                                 TestAnyFlagSet(orgSrcAccessMask, CacheCoherGl0ReadMask);
 
     if (TestAnyFlagSet(dstAccessMask, dstCacheInvMask) && (canSkipCacheInv == false))
     {
         cacheOps.glxFlags |= SyncGlkInv | SyncGlvInv | SyncGl1Inv | SyncGlmInv;
     }
 
-    if (TestAnyFlagSet(dstAccessMask, CoherCpu | CoherMemory | CoherPresent))
+    // dstAccessMask == 0 is for split barrier, assume the worst case.
+    if (TestAnyFlagSet(srcAccessMask, CacheCoherBypassGl2AccessMask) &&
+        ((dstAccessMask == 0) || TestAnyFlagSet(dstAccessMask, CacheCoherGl2AccessMask)))
     {
-        // Split Release/Acquire is built around GL2 being the LLC where data is either released to or acquired from.
-        // The Cpu, Memory, and Present usages are special because they do not go through GL2. Therefore, when acquiring
-        // the Cpu, Memory, or Present usages we must WB GL2 so all prior writes are visible to those usages that will
-        // read directly from memory.
+        cacheOps.glxFlags |= SyncGl2Inv;
+        // Always flush GL2 cache in case invGl2 discards valid data in GL2 cache.
         cacheOps.glxFlags |= SyncGl2Wb;
     }
-
-    if (TestAnyFlagSet(srcAccessMask, CoherCpu | CoherMemory))
+    // srcAccessMask == 0 is for split barrier, assume the worst case.
+    else if (TestAnyFlagSet(dstAccessMask, CacheCoherBypassGl2AccessMask) &&
+             ((srcAccessMask == 0) || TestAnyFlagSet(srcAccessMask, CacheCoherGl2AccessMask)))
     {
-        // Split Release/Acquire is built around GL2 being the LLC where data is either released to or acquired from.
-        // The Cpu and Memory usages are special because they do not go through GL2. Therefore, when releasing the
-        // Cpu or Memory usage, where memory may have been updated directly, we must INV GL2 to ensure those updates
-        // will be properly fetched into GL2 for the next GPU usage that is acquired.
-        cacheOps.glxFlags |= SyncGl2Inv;
+        cacheOps.glxFlags |= SyncGl2Wb;
     }
 
     // Use CACHE_FLUSH_AND_INV_TS to sync RB cache. There is no way to INV the CB metadata caches during acquire.
@@ -546,7 +536,7 @@ AcquirePoint BarrierMgr::GetAcquirePoint(
     // the other is from CsIndirectArgs->Cs(ShaderRead); we should NOT skip PFP_SYNC_ME in this case although we see
     // srcStageMask -> dstSrcStageMask = Cs|IndirectArgs -> Cs|IndirectArgs.
     constexpr uint32 AcqPfpStages       = PipelineStagePfpMask;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+
     // In DX12 conformance test, a buffer is bound as color target, cleared, and then bound as stream out
     // bufferFilledSizeLocation, where CmdLoadBufferFilledSizes() will be called to set this buffer with
     // STRMOUT_BUFFER_FILLED_SIZE (e.g. from control buffer for NGG-SO) via CP ME.
@@ -558,12 +548,6 @@ AcquirePoint BarrierMgr::GetAcquirePoint(
                                           PipelineStageGs           | PipelineStageCs;
     constexpr uint32 AcqPreDepthStages  = PipelineStageSampleRate   | PipelineStageDsTarget | PipelineStagePs |
                                           PipelineStageColorTarget;
-#else
-    constexpr uint32 AcqMeStages        = PipelineStageBlt | PipelineStageStreamOut | PipelineStageVs |
-                                          PipelineStageHs  | PipelineStageDs        | PipelineStageGs |
-                                          PipelineStageCs;
-    constexpr uint32 AcqPreDepthStages  = PipelineStageDsTarget | PipelineStagePs | PipelineStageColorTarget;
-#endif
 
     // Convert global dstStageMask to HW acquire point.
     AcquirePoint acqPoint = (dstStageMask & AcqPfpStages)      ? AcquirePointPfp      :
@@ -749,11 +733,7 @@ static void GetBltStageAccessInfo(
         //
         // No need worry additional overhead in post-InitMaskRam-barrier since pre-InitMaskRam-barrier can clear
         // all outstanding blt active flags before InitMaskRam.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
         *pStageMask  = PipelineStagePostPrefetch;
-#else
-        *pStageMask  = PipelineStageBlt;
-#endif
         *pAccessMask = CoherShader;
         break;
 
@@ -836,14 +816,9 @@ void BarrierMgr::OptimizeReadOnlyBarrier(
 
         optSrcStageMask &= ~(pCmdBuf->AnyBltActive() ? 0UL : PipelineStageBlt);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
         // Remove TopOfPipe, FetchIndirectArgs and PipelineStagePostPrefetch as they don't cause stall.
         // PipelineStageFetchIndices needs stall VS.
         optSrcStageMask &= ~(PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs | PipelineStagePostPrefetch);
-#else
-        // Remove TopOfPipe and FetchIndirectArgs as they don't cause stall. PipelineStageFetchIndices needs stall VS.
-        optSrcStageMask &= ~(PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs);
-#endif
 
         *pSrcStageMask = optSrcStageMask;
 
@@ -1187,7 +1162,6 @@ bool BarrierMgr::AcqRelInitMaskRam(
                                                  subresRange,
                                                  imgBarrier.newLayout);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
     const ColorLayoutToState layoutToState = gfx9Image.LayoutToColorCompressionState();
 
     if (gfx9Image.HasDisplayDccData() &&
@@ -1196,7 +1170,6 @@ bool BarrierMgr::AcqRelInitMaskRam(
         RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
         usedCompute = true;
     }
-#endif
 
     return usedCompute;
 }
@@ -1279,12 +1252,10 @@ void BarrierMgr::AcqRelColorTransition(
                                         imgBarrier.pQuadSamplePattern,
                                         imgBarrier.subresRange);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
             if (gfx9Image.HasDisplayDccData())
             {
                 RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
             }
-#endif
         }
         else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
         {
@@ -1371,7 +1342,7 @@ ReleaseToken BarrierMgr::IssueReleaseSync(
     else
     {
         const EngineType engineType   = pCmdBuf->GetEngineType();
-        CmdStream* const pCmdStream   = GetCmdStream(pCmdBuf);
+        CmdStream* const pCmdStream   = static_cast<CmdStream*>(pCmdBuf->GetMainCmdStream());
         uint32*          pCmdSpace    = pCmdStream->ReserveCommands();
         SyncGlxFlags     syncGlxFlags = cacheOps.glxFlags;
 
@@ -1641,7 +1612,7 @@ void BarrierMgr::IssueAcquireSync(
     ) const
 {
     const EngineType engineType   = pCmdBuf->GetEngineType();
-    CmdStream* const pCmdStream   = GetCmdStream(pCmdBuf);
+    CmdStream* const pCmdStream   = static_cast<CmdStream*>(pCmdBuf->GetMainCmdStream());
     uint32*          pCmdSpace    = pCmdStream->ReserveCommands();
     AcquirePoint     acquirePoint = GetAcquirePoint(dstStageMask, engineType);
 
@@ -2456,7 +2427,7 @@ ReleaseToken BarrierMgr::ReleaseInternal(
     if (transitionList.Capacity() >= releaseInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        CmdStream*           pCmdStream = GetCmdStream(pCmdBuf);
+        CmdStream*           pCmdStream = static_cast<CmdStream*>(pCmdBuf->GetMainCmdStream());
         AcqRelTransitionInfo transInfo  = { .pList = &transitionList };
         AcqRelImageSyncInfo  syncInfo   = GetAcqRelLayoutTransitionBltInfo(pCmdBuf, pCmdStream, releaseInfo,
                                                                            &transInfo, pBarrierOps);
@@ -2545,7 +2516,7 @@ void BarrierMgr::AcquireInternal(
     if (transitionList.Capacity() >= acquireInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        CmdStream*           pCmdStream = GetCmdStream(pCmdBuf);
+        CmdStream*           pCmdStream = static_cast<CmdStream*>(pCmdBuf->GetMainCmdStream());
         AcqRelTransitionInfo transInfo  = { .pList = &transitionList };
         AcqRelImageSyncInfo  syncInfo   = GetAcqRelLayoutTransitionBltInfo(pCmdBuf, pCmdStream, acquireInfo,
                                                                            &transInfo, pBarrierOps);
@@ -2622,7 +2593,7 @@ ReleaseToken BarrierMgr::Release(
         writeDataInfo.dstSel     = dst_sel__pfp_write_data__memory;
         writeDataInfo.dstAddr    = fenceAddr;
 
-        CmdStream* const pCmdStream = GetCmdStream(pGfxCmdBuf);
+        CmdStream* const pCmdStream = static_cast<CmdStream*>(pGfxCmdBuf->GetMainCmdStream());
         uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
         pCmdSpace += CmdUtil::BuildWriteData(writeDataInfo, (sizeof(data) / sizeof(uint32)), &data[0], pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
@@ -2678,7 +2649,7 @@ void BarrierMgr::AcquireEvent(
     if (gpuEventCount > 0)
     {
         const EngineType engineType = pCmdBuf->GetEngineType();
-        auto* const      pCmdStream = GetCmdStream(pCmdBuf);
+        auto* const      pCmdStream = static_cast<CmdStream*>(pCmdBuf->GetMainCmdStream());
         uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
 
         for (uint32 i = 0; i < gpuEventCount; i++)
@@ -2759,7 +2730,7 @@ void BarrierMgr::ReleaseThenAcquire(
     if (transitionList.Capacity() >= barrierInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        CmdStream*           pCmdStream = GetCmdStream(pCmdBuf);
+        CmdStream*           pCmdStream = static_cast<CmdStream*>(pCmdBuf->GetMainCmdStream());
         AcqRelTransitionInfo transInfo  = { .pList = &transitionList };
         AcqRelImageSyncInfo  syncInfo   = GetAcqRelLayoutTransitionBltInfo(pCmdBuf, pCmdStream, barrierInfo,
                                                                            &transInfo, pBarrierOps);

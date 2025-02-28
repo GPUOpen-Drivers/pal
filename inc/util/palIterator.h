@@ -143,7 +143,7 @@ public:
     static_assert(std::is_unsigned<T>::value, "Must use unsigned ints for WideBitIter");
 
     /// Constructs a WideBitIter from the bits in the given value.
-    WideBitIter(T (&val)[N]) : m_index(0) { memcpy(&m_val, val, sizeof(m_val)); }
+    WideBitIter(const T (&val)[N]) : m_index(0) { memcpy(&m_val, val, sizeof(m_val)); }
 
     /// Gets the current bit value.
     uint32 Get()

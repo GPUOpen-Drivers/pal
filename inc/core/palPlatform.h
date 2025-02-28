@@ -426,14 +426,12 @@ public:
     ///          startup, nullptr will be returned.
     virtual GpuUtil::TraceSession* GetTraceSession() = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
     /// Indicate frame count increment to frame trace controller.
     /// Client driver is responsible for calling this method once per frame.
     ///
     /// @param [in] pQueue The queue on which a new frame has been detected
     virtual void UpdateFrameTraceController(
         IQueue *pQueue) = 0;
-#endif
 #endif
 
     /// Gets the GPU ID for a given pal device index.

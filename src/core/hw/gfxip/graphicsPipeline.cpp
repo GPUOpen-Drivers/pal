@@ -74,12 +74,10 @@ Result GraphicsPipeline::Init(
     {
         result = Result::ErrorInvalidValue;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     else if (createInfo.numShaderLibraries > 0)
     {
         result = InitFromLibraries(createInfo, internalInfo);
     }
-#endif
     else if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
         void*  pipelineBinary     = PAL_MALLOC(createInfo.pipelineBinarySize, m_pDevice->GetPlatform(), AllocInternal);
@@ -162,7 +160,7 @@ void GraphicsPipeline::InitFlags(
     m_flags.dccDecompress     = internalInfo.flags.dccDecompress;
     m_flags.resolveFixedFunc  = internalInfo.flags.resolveFixedFunc;
     m_flags.isPartialPipeline = internalInfo.flags.isPartialPipeline;
-    m_binningOverride = createInfo.rsState.binningOverride;
+    m_binningOverride         = createInfo.rsState.binningOverride;
 
     m_flags.lateAllocVsLimit = createInfo.useLateAllocVsLimit;
     m_lateAllocVsLimit       = createInfo.lateAllocVsLimit;
@@ -188,7 +186,6 @@ Result GraphicsPipeline::InitFromLibraries(
     const GraphicsPipelineCreateInfo&         createInfo,
     const GraphicsPipelineInternalCreateInfo& internalInfo)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     Result result = Result::Success;
     InitFlags(createInfo, internalInfo);
 
@@ -291,9 +288,6 @@ Result GraphicsPipeline::InitFromLibraries(
     }
 
     return result;
-#else
-    return Result::ErrorUnavailable;
-#endif
 }
 
 // =====================================================================================================================
@@ -376,7 +370,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
 // =====================================================================================================================
 // Gets the code object pointer according to shader type.
 const void* GraphicsPipeline::GetCodeObjectWithShaderType(
@@ -412,7 +405,6 @@ const void* GraphicsPipeline::GetCodeObjectWithShaderType(
 
     return pBinary;
 }
-#endif
 
 // =====================================================================================================================
 // Query this pipeline's Bound GPU Memory.

@@ -252,7 +252,8 @@ PerfExperiment::PerfExperiment(
     m_spmSampleInterval(0),
     m_pDfSpmCounters(nullptr),
     m_numDfSpmCounters(0),
-    m_neverStopCounters(false)
+    m_neverStopCounters(false),
+    m_isGfx11F32(pDevice->IsGfx11F32())
 {
     memset(m_sqtt,              0, sizeof(m_sqtt));
     memset(m_pMuxselRams,       0, sizeof(m_pMuxselRams));
@@ -1990,29 +1991,13 @@ Result PerfExperiment::GetSpmTraceLayout(
         pLayout->sampleOffset  = SampleLineSizeInBytes;
         pLayout->sampleStride  = SampleLineSizeInBytes * m_spmSampleLines;
         pLayout->maxNumSamples = m_spmMaxSamples;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
-        pLayout->wptrOffset        = pLayout->offset + pLayout->wrPtrOffset;
-        pLayout->wptrGranularity   = pLayout->wrPtrGranularity;
-        pLayout->sampleSizeInBytes = pLayout->sampleStride;
-
-        for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
-        {
-            pLayout->segmentSizeInBytes[idx] = m_numMuxselLines[idx] * SampleLineSizeInBytes;
-        }
-#endif
-
-        pLayout->numCounters = m_numSpmCounters;
+        pLayout->numCounters   = m_numSpmCounters;
 
         for (uint32 idx = 0; idx < m_numSpmCounters; ++idx)
         {
             const SpmCounterMapping& mapping = m_pSpmCounters[idx];
             SpmCounterData*const     pOut    = pLayout->counterData + idx;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
-            pOut->segment  = mapping.segment;
-            pOut->offset   = mapping.offsetLo / sizeof(uint16); // In units of counters!
-#endif
             pOut->gpuBlock = mapping.general.block;
             pOut->instance = mapping.general.globalInstance;
             pOut->eventId  = mapping.general.eventId;
@@ -2254,6 +2239,22 @@ void PerfExperiment::IssueEnd(
             // If SPM is enabled but we didn't call WriteSampleGlobalCounters we still need to disable these manually.
             pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
             pCmdSpace = WriteEnableCfgRegisters(false, false, pCmdStream, pCmdSpace);
+
+            if (m_isGfx11F32)
+            {
+                constexpr uint32 SpmMasterFsmSample = 0x4;
+                constexpr uint32 SpmStatus = SpmMasterFsmSample << Gfx11::RLC_SPM_STATUS__FSM_MASTER_STATE__SHIFT;
+
+                // Wait for last sample, should get the stop in next immediately following the sample
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                       mem_space__me_wait_reg_mem__register_space,
+                                                       function__me_wait_reg_mem__equal_to_the_reference_value,
+                                                       engine_sel__me_wait_reg_mem__micro_engine,
+                                                       Gfx11::mmRLC_SPM_STATUS,
+                                                       SpmStatus,
+                                                       Gfx11::RLC_SPM_STATUS__FSM_MASTER_STATE_MASK,
+                                                       pCmdSpace);
+            }
 
             // The docs don't say we need to stop SPM, transitioning directly from start to disabled seems legal.
             // We stop the SPM counters anyway for parity with the global counter path and because it looks good.
@@ -2684,10 +2685,8 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
         instance = instanceIndex.u32All;
     }
 
-#if PAL_BUILD_GFX115
     // Gfx11.5 has one less bit in its INSTANCE_INDEX, that's why there's a ".most" and a ".gfx115".
     PAL_ASSERT(instance < (1u << 7));
-#endif
 
     grbmGfxIndex.most.INSTANCE_INDEX = instance;
 
@@ -4194,6 +4193,10 @@ bool PerfExperiment::IsSqWgpLevelEvent(
     else if (eventId == SQ_PERF_SEL_IFETCH_LEVEL__GFX110)
     {
         isLevelEvent = true;
+#if PAL_BUILD_STRIX_HALO
+        // Strix Halo does not support SQ_PERF_SEL_IFETCH_LEVEL
+        PAL_ASSERT(IsStrixHalo(*m_pDevice) == false);
+#endif
     }
     else if ((eventId >= SQ_PERF_SEL_USER_LEVEL0__GFX11) &&
              (eventId <= SQ_PERF_SEL_USER_LEVEL15__GFX11))

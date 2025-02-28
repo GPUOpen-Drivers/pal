@@ -460,30 +460,6 @@ extern Result GetFileNamesInDir(
     Util::Span<Util::StringView<char>>  fileNames,
     Util::Span<char>                    buffer);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 829
-/// Lists the contents of the specified directory in an array of strings
-///
-/// @param [in]     pDirPath    String specifying the directory
-/// @param [in,out] pFileCount  Should never be null. If either ppFileNames or pBuffer is null, pFileCount will output
-///                             the number of files found within the directory. If both ppFileNames and pBuffer are
-///                             non-null, pFileCount will specify the maximum number of file names to be written into
-///                             ppFileNames.
-/// @param [in,out] ppFileNames If non-null and pBuffer is nun-null, ppFileNames will specify an array where pointers
-///                             the file names will be written.
-/// @param [in,out] pBufferSize Should never be null. If either ppFileNames or pBuffer is null, pBufferSize will output
-///                             the minimum buffer size (in bytes) necessary to store all file names found. If both
-///                             ppFileNames and pBuffer are null, pBufferSize will specify the maximum number of bytes
-///                             to be written into pBuffer.
-/// @param [in,out] pBuffer     If non-null and pFileNames is non-null, pBuffer will point to memory where the file
-///                             names can be stored.
-extern Result ListDir(
-    const char*  pDirName,
-    uint32*      pFileCount,
-    const char** ppFileNames,
-    size_t*      pBufferSize,
-    const void*  pBuffer);
-#endif
-
 /// Non-recursively delete the least-recently-accesssed files from a directory until the directory reaches size in bytes.
 ///
 /// @param [in] pPathName   string specifying the absolute path to the directory you want to remove files from
@@ -511,11 +487,6 @@ Result RemoveFilesOfDirOlderThan(
 Result RemoveFilesOfDirOlderThan(
     const char* pPathName,
     uint64      thresholdSeconds);
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 814
-// Provide a wrapper using the older name of this function for backwards-compatibility.
-inline Result RemoveFilesOfDir(const char* pPathName, uint64 threshold)
-{ return RemoveFilesOfDirOlderThan(pPathName, threshold); }
 #endif
 
 /// Get status of a directory at the specified path.

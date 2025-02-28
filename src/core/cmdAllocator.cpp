@@ -1092,9 +1092,11 @@ void CmdAllocator::ReuseLinearAllocator(
 // Updates the histogram for the given queue type. This can only be called when logCmdBufCommitSizes is true.
 void CmdAllocator::LogCommit(
     EngineType engineType,
+    bool       isConstantEngine,
     uint32     numDwords)
 {
-    PAL_ASSERT(engineType != EngineTypeTimer);
+    PAL_ASSERT((engineType != EngineTypeTimer) &&
+               ((isConstantEngine == false) || (engineType == EngineTypeUniversal)));
     PAL_ASSERT(m_pDevice->Settings().logCmdBufCommitSizes);
 
     if (m_pChunkLock != nullptr)
@@ -1103,8 +1105,8 @@ void CmdAllocator::LogCommit(
     }
 
     // Put CE chunks after all the canonical engine types.
-    const uint32 histIdx = engineType;
-    const uint32 binIdx  = Pow2Align(numDwords, HistogramStep) / HistogramStep;
+    const uint32 histIdx = isConstantEngine ?  EngineTypeCount : engineType;
+    const uint32 binIdx  = Min(Pow2Align(numDwords, HistogramStep) / HistogramStep, m_numHistogramBins - 1);
 
     m_pHistograms[histIdx][binIdx]++;
 
@@ -1140,11 +1142,11 @@ void CmdAllocator::PrintCommitLog() const
         const char* headers[HistogramCount] =
         {
             "Universal DE",
-            "Universal CE",
             "Compute",
             "DMA",
-            "VideoEncode",
-            "VideoDecode",
+            "Timer",
+
+            "Universal CE",
         };
 
         for (uint32 histIdx = 0; (histIdx < HistogramCount) && (result == Result::Success); ++histIdx)

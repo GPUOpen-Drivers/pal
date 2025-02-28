@@ -57,11 +57,7 @@ union LibraryCreateFlags
 /// structure to IDevice::CreateShaderLibrary().
 struct ShaderLibraryFunctionInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-    const char*            pSymbolName; ///< ELF Symbol name for the associated function.  Must not be null.
-#else
     Util::StringView<char> symbolName;  ///< ELF Symbol name for the associated function.
-#endif
     gpusize                gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is computed by PAL during
                                         ///  library creation.
 };
@@ -91,17 +87,6 @@ struct ShaderLibraryCreateInfo
                                     ///  The code-object ELF contains pre-compiled shaders, register values, and
                                     ///  additional metadata.
     size_t       codeObjectSize;    ///< Size of code object in bytes.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-    /// List of functions for PAL to compute virtual addresses for during library creation.  These GPU addresses can
-    /// then be passed as shader arguments to a later dispatch operation to allow a compute pipeline's shaders to jump
-    /// to the corresponding function(s).  This behaves similarly to a function pointer, but on the GPU.  PAL will
-    /// guarantee that these GPU virtual addresses remain valid for the lifetime of the @ref IShaderLibrary object and
-    /// that the backing GPU memory will remain resident.
-    ShaderLibraryFunctionInfo*  pFuncList;
-    uint32                      funcCount;  ///< Number of entries in the pFuncList array.  Must be zero if pFuncList
-                                            ///  is nullptr.
-#endif
 };
 
 /// Reports properties of a compiled library.
@@ -213,11 +198,7 @@ public:
     ///          +ErrorUnavailable if the shader ISA code was not fetched successfully.
 
     virtual Result GetShaderFunctionCode(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
         Util::StringView<char> shaderExportName,
-#else
-        const char*            pShaderExportName,
-#endif
         size_t*                pSize,
         void*                  pBuffer) const = 0;
 
@@ -240,19 +221,6 @@ public:
     ///
     /// @returns A list of ShaderLibraryFunctionInfo.
     virtual const Util::Span<const ShaderLibraryFunctionInfo> GetShaderLibFunctionInfos() const = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-    /// Returns the function list owned by this shader library
-    ///
-    /// @returns A list of ShaderLibraryFunctionInfo if number of functions is not zero.
-    ///          Null is number of functions is zero.
-    const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const { return GetShaderLibFunctionInfos().Data(); }
-
-    /// Returns the function count owned by this shader library
-    ///
-    /// @returns function count
-    uint32 GetShaderLibFunctionCount() const { return static_cast<uint32>(GetShaderLibFunctionInfos().NumElements()); }
-#endif
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

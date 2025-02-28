@@ -217,7 +217,7 @@ void PAL_STDCALL Platform::GpuProfilerCb(
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:
     case Developer::CallbackType::ImageBarrier:
-        if (TranslateBarrierEventData(pCbData))
+        if (TranslateBarrierEventData(pCbData) && pPlatform->PlatformSettings().gpuProfilerConfig.enableBarrierComments)
         {
             Developer::BarrierData* pData      = static_cast<Developer::BarrierData*>(pCbData);
             CmdBufferDecorator*     pCmdBuffer = static_cast<CmdBufferDecorator*>(pData->pCmdBuffer);
@@ -234,11 +234,6 @@ void PAL_STDCALL Platform::GpuProfilerCb(
     case Developer::CallbackType::BindPipeline:
         TranslateBindPipelineData(pCbData);
         break;
-#if PAL_WORKGRAPHS_SUPPORT
-    case Developer::CallbackType::BindWorkGraph:
-        TranslateBindWorkGraphData(pCbData);
-        break;
-#endif
 #if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
         TranslateDrawDispatchValidationData(pCbData);

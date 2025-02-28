@@ -125,17 +125,10 @@ AddrSwizzleMode AddrMgr2::GetAddrSwizzleMode(
         ADDR_SW_64KB_S_X,  // SwizzleMode64KbSX
         ADDR_SW_64KB_D_X,  // SwizzleMode64KbDX
         ADDR_SW_64KB_R_X,  // SwizzleMode64KbRX
-#if ADDR_GFX11_BUILD
         ADDR_SW_256KB_Z_X, // SwizzleMode256KbVarZX
         ADDR_SW_256KB_S_X, // SwizzleMode256KbVarSX
         ADDR_SW_256KB_D_X, // SwizzleMode256KbVarDX
         ADDR_SW_256KB_R_X, // SwizzleMode256KbVarRX
-#else
-        ADDR_SW_VAR_Z_X,   // SwizzleMode256KbVarZX
-        ADDR_SW_MAX_TYPE,  // SwizzleMode256KbVarSX
-        ADDR_SW_MAX_TYPE,  // SwizzleMode256KbVarDX
-        ADDR_SW_VAR_R_X,   // SwizzleMode256KbVarRX
-#endif
         ADDR_SW_MAX_TYPE,  // SwizzleMode256B2D
         ADDR_SW_MAX_TYPE,  // SwizzleMode4Kb2D
         ADDR_SW_MAX_TYPE,  // SwizzleMode4Kb3D
@@ -143,6 +136,8 @@ AddrSwizzleMode AddrMgr2::GetAddrSwizzleMode(
         ADDR_SW_MAX_TYPE,  // SwizzleMode64Kb3D
         ADDR_SW_MAX_TYPE,  // SwizzleMode256Kb2D
         ADDR_SW_MAX_TYPE,  // SwizzleMode256Kb3D
+        ADDR_SW_MAX_TYPE,  // SwizzleMode64Kb2Dz
+        ADDR_SW_MAX_TYPE,  // SwizzleMode256Kb2Dz
     };
 
     static_assert(ArrayLen(AddrSwizzles) == SwizzleModeCount);
@@ -466,10 +461,8 @@ void AddrMgr2::InitTilingCaps(
         }
         else
         {
-#if ADDR_GFX11_BUILD
             pBlockSettings->gfx11.thin256KB  = 1;
             pBlockSettings->gfx11.thick256KB = 1;
-#endif
             // Explicitly disable thin/thick 256 KiB modes on GFX11 if the client setting is not enabled
         }
     }
@@ -497,10 +490,8 @@ void AddrMgr2::InitTilingCaps(
         pBlockSettings->macroThick4KB    = 1;
         pBlockSettings->macroThin64KB    = 1;
         pBlockSettings->macroThick64KB   = 1;
-#if ADDR_GFX11_BUILD
         pBlockSettings->gfx11.thin256KB  = 1;
         pBlockSettings->gfx11.thick256KB = 1;
-#endif
     }
     else if (createInfo.flags.prt)
     {
@@ -512,10 +503,8 @@ void AddrMgr2::InitTilingCaps(
 
         if (IsGfx11(*m_pDevice))
         {
-#if ADDR_GFX11_BUILD
             pBlockSettings->gfx11.thin256KB  = 1;
             pBlockSettings->gfx11.thick256KB = 1;
-#endif
         }
     }
     else if ((surfaceFlags.display == 0)                                       &&
@@ -580,9 +569,7 @@ void AddrMgr2::InitTilingCaps(
         pBlockSettings->linear           = 1;
         pBlockSettings->micro            = 1;
         pBlockSettings->macroThin4KB     = 1;
-#if ADDR_GFX11_BUILD
         pBlockSettings->gfx11.thin256KB  = 1;
-#endif
     }
 
     // GFX10 and newer products have addressing changes that allow YUV+DCC to be a possibility.
@@ -793,12 +780,10 @@ ADDR_E_RETURNCODE AddrMgr2::Gfx11ChooseSwizzleMode(
         ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThin64KBSwModeMask : ~Gfx11Blk64KBSwModeMask) : ~0;
     allowedSwModeSet.value &= forbiddenBlock.macroThick64KB ?
         ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThick64KBSwModeMask : ~0) : ~0;
-#if ADDR_GFX11_BUILD
     allowedSwModeSet.value &= forbiddenBlock.gfx11.thin256KB ?
         ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThin256KBSwModeMask : ~Gfx11Blk256KBSwModeMask) : ~0;
     allowedSwModeSet.value &= forbiddenBlock.gfx11.thick256KB ?
         ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThick256KBSwModeMask : ~0) : ~0;
-#endif
 
     ADDR2_SWTYPE_SET preferredSwSet = pIn->preferredSwSet;
     if (preferredSwSet.value != 0)
@@ -889,19 +874,15 @@ ADDR_E_RETURNCODE AddrMgr2::Gfx11ChooseSwizzleMode(
                 swMode[AddrBlockThick4KB]   = ADDR_SW_4KB_S_X;
                 swMode[AddrBlockThin64KB]   = ADDR_SW_64KB_R_X;
                 swMode[AddrBlockThick64KB]  = ADDR_SW_64KB_S_X;
-#if ADDR_GFX11_BUILD
                 swMode[AddrBlockThin256KB]  = ADDR_SW_256KB_R_X;
                 swMode[AddrBlockThick256KB] = ADDR_SW_256KB_S_X;
-#endif
             }
             else
             {
                 swMode[AddrBlockMicro]     = ADDR_SW_256B_D;
                 swMode[AddrBlockThin4KB]   = ADDR_SW_4KB_D_X;
                 swMode[AddrBlockThin64KB]  = ADDR_SW_64KB_D_X;
-#if ADDR_GFX11_BUILD
                 swMode[AddrBlockThin256KB] = ADDR_SW_256KB_D_X;
-#endif
             }
 
             uint64 padSize[AddrBlockMaxTiledType] = {};
@@ -946,14 +927,12 @@ ADDR_E_RETURNCODE AddrMgr2::Gfx11ChooseSwizzleMode(
                 // smaller-block type again in coming loop
                 switch (minSizeBlk)
                 {
-#if ADDR_GFX11_BUILD
                 case AddrBlockThick256KB:
                     allowedBlockSet.gfx11.thin256KB = 0;
                     break;
                 case AddrBlockThin256KB:
                     allowedBlockSet.macroThick64KB  = 0;
                     break;
-#endif
                 case AddrBlockThick64KB:
                     allowedBlockSet.macroThin64KB   = 0;
                     break;
@@ -1034,7 +1013,6 @@ ADDR_E_RETURNCODE AddrMgr2::Gfx11ChooseSwizzleMode(
                 PAL_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
                 allowedSwModeSet.value &= Gfx11Rsrc3dThick64KBSwModeMask;
                 break;
-#if ADDR_GFX11_BUILD
             case AddrBlockThin256KB:
                 allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
                     Gfx11Rsrc3dThin256KBSwModeMask : Gfx11Blk256KBSwModeMask;
@@ -1044,7 +1022,6 @@ ADDR_E_RETURNCODE AddrMgr2::Gfx11ChooseSwizzleMode(
                 PAL_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
                 allowedSwModeSet.value &= Gfx11Rsrc3dThick256KBSwModeMask;
                 break;
-#endif
             default:
                 PAL_ASSERT_ALWAYS();
                 allowedSwModeSet.value = 0;
@@ -1773,7 +1750,6 @@ uint32 AddrMgr2::GetBlockSize(
         blockSize = 65536;
         break;
 
-#if ADDR_GFX11_BUILD
     case ADDR_SW_256KB_Z_X:  // reused enum from ADDR_SW_VAR_Z_X
     case ADDR_SW_256KB_R_X:  // reused enum from ADDR_SW_VAR_R_X
         if (IsGfx11(*m_pDevice))
@@ -1792,7 +1768,6 @@ uint32 AddrMgr2::GetBlockSize(
     case ADDR_SW_256KB_D_X:
         blockSize = 262144;
         break;
-#endif
 
     default:
         break;

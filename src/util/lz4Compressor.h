@@ -26,9 +26,6 @@
 #pragma once
 
 #include "palUtil.h"
-#include "palThread.h"
-#include "palMutex.h"
-#include "palSysMemory.h"
 
 namespace Util
 {
@@ -41,7 +38,7 @@ class Lz4Compressor
 {
 public:
     Lz4Compressor(bool useHighCompression = false);
-    virtual ~Lz4Compressor() = default;
+    virtual ~Lz4Compressor();
 
     // Provides the maximum size that LZ4 compression may output in a "worst case" (uncompressible) scenario.
     // Use this to determine the size of the buffer to send to Compress().
@@ -78,7 +75,8 @@ public:
         ThreadLocalData()
             : m_pState(nullptr)
             , m_pStateHC(nullptr)
-        {}
+        {
+        }
         ~ThreadLocalData();
 
         void* m_pState;

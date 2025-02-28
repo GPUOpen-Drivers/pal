@@ -78,8 +78,7 @@ struct GpuMemoryInternalCreateInfo
             uint32 gpuReadOnly        :  1; // Indicates the memory is read-only on the GPU
             uint32 dfSpmTraceBuffer   :  1; // GPU memory will be used for a DF SPM trace buffer.
             uint32 appRequested       :  1; // GPU memory is Pal internal, but app requested
-            uint32 placeholder        :  1;
-            uint32 reserved           : 12;
+            uint32 reserved           : 13;
         };
         uint32 u32All;
     } flags;
@@ -167,7 +166,7 @@ union GpuMemoryFlags
         uint32 kmdShareUmdSysMem        :  1; // GPU memory is shared with KMD
         uint32 deferCpuVaReservation    :  1; // GPU memory can be locked for read on CPU, but will not reserve CPU VA.
         uint32 placeholder1             :  1; // Placeholder.
-        uint32 placeholder3             :  2;
+        uint32 placeholder3             :  1;
 #if PAL_AMDGPU_BUILD
         uint32 initializeToZero         :  1; // If set, PAL will request that the host OS zero-initializes
                                               // the allocation upon creation, currently, only GpuHeapLocal and
@@ -177,7 +176,7 @@ union GpuMemoryFlags
 #else
         uint32 placeholder2             :  2; // Placeholder.
 #endif
-        uint32 reserved                 : 13;
+        uint32 reserved                 : 14;
     };
     uint64  u64All;
 };

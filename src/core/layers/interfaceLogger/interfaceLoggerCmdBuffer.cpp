@@ -966,7 +966,7 @@ ReleaseToken CmdBuffer::CmdRelease(
             imageBarriers[i]        = releaseInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
         }
-        nextReleaseInfo.pImageBarriers = &imageBarriers[0];
+        nextReleaseInfo.pImageBarriers = imageBarriers.Data();
 
         const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdRelease);
 
@@ -1021,7 +1021,7 @@ void CmdBuffer::CmdAcquire(
             imageBarriers[i]        = acquireInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
         }
-        nextAcquireInfo.pImageBarriers = &imageBarriers[0];
+        nextAcquireInfo.pImageBarriers = imageBarriers.Data();
 
         const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdAcquire);
 
@@ -1073,7 +1073,7 @@ void CmdBuffer::CmdReleaseEvent(
             imageBarriers[i]        = releaseInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
         }
-        nextReleaseInfo.pImageBarriers = &imageBarriers[0];
+        nextReleaseInfo.pImageBarriers = imageBarriers.Data();
 
         const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdReleaseEvent);
 
@@ -1117,7 +1117,7 @@ void CmdBuffer::CmdAcquireEvent(
             imageBarriers[i]        = acquireInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
         }
-        nextAcquireInfo.pImageBarriers = &imageBarriers[0];
+        nextAcquireInfo.pImageBarriers = imageBarriers.Data();
 
         for (uint32 i = 0; i < gpuEventCount; i++)
         {
@@ -1169,7 +1169,7 @@ void CmdBuffer::CmdReleaseThenAcquire(
             imageBarriers[i]        = barrierInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(barrierInfo.pImageBarriers[i].pImage);
         }
-        nextBarrierInfo.pImageBarriers = &imageBarriers[0];
+        nextBarrierInfo.pImageBarriers = imageBarriers.Data();
 
         const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdReleaseThenAcquire);
 
@@ -1655,7 +1655,6 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -1677,7 +1676,6 @@ void CmdBuffer::CmdCloneImageData(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateMemory(

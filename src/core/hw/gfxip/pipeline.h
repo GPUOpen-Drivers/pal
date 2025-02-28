@@ -151,11 +151,9 @@ public:
         uint32*  pSize,
         void*    pBuffer) const override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     virtual const void* GetCodeObjectWithShaderType(
         ShaderType shaderType,
         size_t*    pSize) const override;
-#endif
 
     virtual Result GetPerformanceData(
         Util::Abi::HardwareStage hardwareStage,

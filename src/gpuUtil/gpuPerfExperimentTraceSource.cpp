@@ -51,11 +51,6 @@ constexpr uint32 DefaultSeMask                  = 0;
 constexpr bool   DefaultEnableInstructionTokens = false;
 
 constexpr uint32 InstrumentationSpecVersion     = 1;
-#if (PAL_BUILD_BRANCH >= 2410)
-constexpr uint32 InstrumentationApiVersion      = 5;
-#else
-constexpr uint32 InstrumentationApiVersion      = 3;
-#endif
 
 // =====================================================================================================================
 // Extracts Client API information from a PAL Platform and converts it into a GpaSession-friendly format.
@@ -165,7 +160,7 @@ void GpuPerfExperimentTraceSource::OnTraceAccepted(
                                 apiMinorVersion,
                                 apiType,
                                 InstrumentationSpecVersion,
-                                InstrumentationApiVersion
+                                m_pPlatform->GetClientInstrApiVer()
                             );
 
     if (m_pGpaSession != nullptr)
@@ -526,7 +521,7 @@ void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
                         .shaderEngine               = traceInfo.shaderEngine,
                         .sqttVersion                = traceInfo.sqttVersion,
                         .instrumentationVersionSpec = InstrumentationSpecVersion,
-                        .instrumentationVersionApi  = InstrumentationApiVersion,
+                        .instrumentationVersionApi  = m_pPlatform->GetClientInstrApiVer(),
                         .wgpIndex                   = traceInfo.computeUnit,
                         .traceBufferSize            = traceInfo.bufferSize,
                         .instructionTimingEnabled   = m_sqttTraceConfig.enableInstructionTokens &&

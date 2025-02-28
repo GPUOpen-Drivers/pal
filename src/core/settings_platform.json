@@ -73,6 +73,32 @@
       ]
     }
   ],
+  "Constants": [
+    {
+      "Name": "VulkanSettingsFileName",
+      "Values": {
+        "Value": "amdVulkanSettings.cfg"
+      },
+      "Type": "string",
+      "Description": "Settings file name for Vulkan drivers."
+    },
+    {
+      "Name": "DefaultSettingsFileName",
+      "Values": {
+        "Value": "amdPalSettings.cfg"
+      },
+      "Type": "string",
+      "Description": "Settings file name for most drivers."
+    },
+    {
+      "Name": "ConfigDirEnvVar",
+      "Values": {
+        "Value": "AMD_CONFIG_DIR"
+      },
+      "Type": "string",
+      "Description": "The env variable name for the settings config."
+    }
+  ],
   "Settings": [
     {
       "Name": "DbgPrintInfoMode",
@@ -1108,6 +1134,15 @@
           },
           "Type": "bool",
           "Description": "NOPs the EndSample calls for GPUProfiler to leave the counters running and skip readout. All other GPUProfiler activity occurs but data output will be incorrect."
+        },
+        {
+          "Name": "EnableBarrierComments",
+          "Flags": {},
+          "Defaults": {
+            "Default": true
+          },
+          "Type": "bool",
+          "Description": "Include the barrier comments in per-draw granularity which require much string manipulation in the driver and can be noise in logs"
         }
       ],
       "Description": "Configuration options for the PAL GPU Profiler layer."

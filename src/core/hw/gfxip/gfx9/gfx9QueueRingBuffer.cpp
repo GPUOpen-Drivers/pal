@@ -345,7 +345,7 @@ uint32 Gfx9QueueRingBuffer::WriteIndirectBuffer(
 // =====================================================================================================================
 uint32 Gfx9QueueRingBuffer::GetEndSubmitSize()
 {
-    return (PM4_ME_RELEASE_MEM_SIZEDW__CORE + PM4_PFP_NOP_SIZEDW__CORE + NopPayloadSizeInDwords) * sizeof(uint32);
+    return (PM4_ME_RELEASE_MEM_SIZEDW__CORE + PM4_PFP_NOP_SIZEDW__CORE + NopPayloadSizeInDwords);
 }
 
 // =====================================================================================================================

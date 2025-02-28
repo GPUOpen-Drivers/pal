@@ -860,9 +860,9 @@ void MetaDataAddrEquation::Upload(
 
     if (pCmdBuffer->GetEngineType() != EngineTypeDma)
     {
-        const auto*  pGfxDevice    = static_cast<const Device*>(pDevice->GetGfxDevice());
-        auto*        pGfxCmdBuffer = static_cast<GfxCmdBuffer*>(pCmdBuffer);
-        auto*        pCmdStream    = pGfxCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
+        const auto*     pGfxDevice    = static_cast<const Device*>(pDevice->GetGfxDevice());
+        auto*           pGfxCmdBuffer = static_cast<GfxCmdBuffer*>(pCmdBuffer);
+        Pal::CmdStream* pCmdStream    = pGfxCmdBuffer->GetMainCmdStream();
 
         PAL_ASSERT(pCmdStream != nullptr);
 

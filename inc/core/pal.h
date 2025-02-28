@@ -148,17 +148,19 @@ enum QueueTypeSupport : uint32
 };
 
 // Many command buffers break down into multiple command streams targeting internal sub-engines. For example, Universal
-// command buffers build a primary stream (DE) but may also build a second stream for the constant engine (CE).
+// command buffers build a primary stream (DE) but may also build a second stream for async compute engine (ACE).
 enum class SubEngineType : uint32
 {
-    Primary        = 0, // Subqueue that is the queue itself, rather than an ancilliary queue.
+    Primary        = 0, // Subqueue that is the queue itself, rather than an ancillary queue.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 914
     AsyncCompute   = 1, // Auxiliary ACE subqueue, together with a primary subqueue forms a "ganged" submit.
+    ConstantEngine = 2, // CP constant update engine that runs in parallel with draw engine.
+                        // Internal usage only.
 #else
     ConstantEngine = 1, // CP constant update engine that runs in parallel with draw engine.
     AsyncCompute   = 2, // Auxiliary ACE subqueue, together with a primary subqueue forms a "ganged" submit.
     Pup            = 3, // Subqueue that is the queue itself but for PUP-style packets, rather than an
-                        // ancillaiary queue
+                        // ancillary queue
 #endif
     Count,
 };

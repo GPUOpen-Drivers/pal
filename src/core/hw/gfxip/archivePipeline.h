@@ -96,15 +96,6 @@ public:
                                      : LeadPipeline()->GetPerformanceData(hardwareStage, pSize, pBuffer);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
-    // Creates a new dynamic launch descriptor for this pipeline.
-    virtual Result CreateLaunchDescriptor(void* pCpuAddr, bool resolve) override
-    {
-        return m_pipelines.IsEmpty() ? Result::ErrorUnavailable
-                                     : LeadPipeline()->CreateLaunchDescriptor(pCpuAddr, resolve);
-    }
-#endif
-
     // Notifies PAL that this pipeline may make indirect function calls to any function contained within any of the
     // specified @ref IShaderLibrary objects.
     virtual Result LinkWithLibraries(const IShaderLibrary*const* ppLibraryList,

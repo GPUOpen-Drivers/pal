@@ -75,12 +75,13 @@ DepthStencilView::DepthStencilView(
         m_hTileUsage = m_pImage->GetHtile()->GetHtileUsage();
     }
 
+    PAL_ASSERT(createInfo.flags.imageVaLocked);
+
     m_flags.hiSPretests     = m_pImage->HasHiSPretestsMetaData();
     m_flags.depth           = (createInfo.flags.stencilOnlyView == 0) && hasDepth;
     m_flags.stencil         = (createInfo.flags.depthOnlyView == 0) && hasStencil;
     m_flags.readOnlyDepth   = createInfo.flags.readOnlyDepth;
     m_flags.readOnlyStencil = createInfo.flags.readOnlyStencil;
-    m_flags.viewVaLocked    = createInfo.flags.imageVaLocked;
     m_flags.vrsOnlyDepth    = m_pImage->Parent()->GetImageInfo().internalCreateInfo.flags.vrsOnlyDepth;
 
     //  we need to set both depthSubresource and stencilSubresource correctly when creating:
@@ -128,10 +129,7 @@ DepthStencilView::DepthStencilView(
 
     InitRegisters(*pDevice, createInfo, internalInfo);
 
-    if (IsVaLocked())
-    {
-        UpdateImageVa(&m_regs);
-    }
+    UpdateImageVa(&m_regs);
 }
 
 // =====================================================================================================================
@@ -400,11 +398,6 @@ uint32* DepthStencilView::WriteCommandsCommon(
     const DepthStencilCompressionState stencilState =
             ImageLayoutToDepthCompressionState(m_stencilLayoutToState, stencilLayout);
 
-    if ((m_flags.viewVaLocked == 0) && m_pImage->Parent()->GetBoundGpuMemory().IsBound())
-    {
-        UpdateImageVa(pRegs);
-    }
-
     if ((stencilLayout.usages == 0) &&
         ((depthLayout.usages & LayoutDepthStencilTarget) != 0))
     {
@@ -633,11 +626,7 @@ void DepthStencilView::SetGfx11StaticDbRenderControlFields(
             break;
         }
     }
-    else if (IsPhoenixFamily(palDevice)
-#if PAL_BUILD_STRIX
-             || IsStrixFamily(palDevice)
-#endif
-        )
+    else if (IsPhoenixFamily(palDevice) || IsStrixFamily(palDevice))
     {
         switch (numFragments)
         {
@@ -669,8 +658,7 @@ void DepthStencilView::InitRegisters(
     const GfxIpLevel       gfxLevel   = palDevice.ChipProperties().gfxLevel;
     const Gfx9PalSettings& settings   = device.Settings();
 
-    const MergedFlatFmtInfo*const pFmtInfo =
-        MergedChannelFlatFmtInfoTbl(gfxLevel, &device.GetPlatform()->PlatformSettings());
+    const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel);
 
     const SubResourceInfo*const pDepthSubResInfo     = pParentImg->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo   = pParentImg->SubresourceInfo(m_stencilSubresource);
@@ -803,9 +791,9 @@ uint32* DepthStencilView::WriteCommands(
                                                    &regs.dbRenderOverride2,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_SIZE_XY, regs.dbDepthSizeXy.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_Z_INFO,
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_STENCIL_INFO,
                                                    mmDB_STENCIL_WRITE_BASE,
-                                                   &regs.dbZInfo,
+                                                   &regs.dbStencilInfo,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_HTILE_SURFACE, regs.dbHtileSurface.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,

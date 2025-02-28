@@ -282,6 +282,11 @@ uint32 CmdUploadRing::PredictBatchSize(
             // UploadCommandStreams requires num streams to match and that the streams be address independent.
             uploadMoreCmdBuffers = false;
         }
+        else if (pCmdBuffer->IsPreemptable() != static_cast<const CmdBuffer*>(ppCmdBuffers[0])->IsPreemptable())
+        {
+            // Unable to transition preemption modes within a batch
+            uploadMoreCmdBuffers = false;
+        }
         else
         {
             // Our upload code guarantees that we can include this command buffer in our batch (chaining if necessary).
@@ -394,6 +399,11 @@ Result CmdUploadRing::UploadCmdBuffers(
             // The caller is required to only call this function if at least one command buffer can be uploaded. If
             // this triggers we shouldn't hang or crash but will waste CPU/GPU time and might deadlock in the caller.
             PAL_ASSERT(uploadedCmdBuffers > 0);
+        }
+        else if (pCmdBuffer->IsPreemptable() != static_cast<const CmdBuffer*>(ppCmdBuffers[0])->IsPreemptable())
+        {
+            // Unable to transition preemption modes within a batch
+            uploadMoreCmdBuffers = false;
         }
         else
         {
@@ -563,7 +573,7 @@ Result CmdUploadRing::UploadCmdBuffers(
 
         for (uint32 idx = 0; idx < m_createInfo.numCmdStreams; ++idx)
         {
-            // In theory all command buffers could have empty streams of the same type (e.g., no CE commands). In that
+            // In theory all command buffers could have empty streams of the same type. In that
             // case we can just leave a hole in the stream array.
             if (streamState[idx].launchBytes > 0)
             {

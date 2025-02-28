@@ -130,9 +130,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdScaledCopyImage,                   (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdGenerateMipmaps,                   (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy,          (CmdBuild | BarrierLog)            },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     { InterfaceFunc::CmdBufferCmdCloneImageData,                    (CmdBuild | BarrierLog)            },
-#endif
     { InterfaceFunc::CmdBufferCmdUpdateMemory,                      (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker,  (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdFillMemory,                        (CmdBuild | BarrierLog)            },

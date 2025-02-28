@@ -68,33 +68,42 @@ Result CmdStream::Begin(
     CmdStreamBeginFlags     flags,
     VirtualLinearAllocator* pMemAllocator)
 {
-    // We can't enable PM4 optimization without an allocator because we need to dynamically allocate a Pm4Optimizer.
-    flags.optimizeCommands &= (pMemAllocator != nullptr);
-
-    if (flags.prefetchCommands != 0)
+    // Note that we don't support command optimization or command prefetch for CE.
+    if (m_subEngineType == SubEngineType::ConstantEngine)
     {
-        // The prefetchCommands flag was already set according to the client's command buffer build info.
-        // However, we really should force prefetching off if the command data is in local memory because:
-        // 1. Local memory is fast enough that cold reads are no problem. Prefetching the whole command chunk
-        //    ahead of time might evict things from the L2 cache that we need right now, hurting performance.
-        // 2. We try to use the uncached MTYPE when allocating local memory for command data. This avoids any
-        //    L2 cache pollution but also makes prefetching completely useless because it only prefetches to L2.
-        if (m_pCmdAllocator->LocalCommandData())
-        {
-            flags.prefetchCommands = 0;
-        }
-        else
-        {
-            const Gfx9PalSettings& settings = GetGfx9Settings(*m_device.Parent());
-            const PrefetchMethod   method   = (GetEngineType() == EngineTypeCompute)
-                                                    ? settings.commandPrefetchMethodAce
-                                                    : settings.commandPrefetchMethodGfx;
+        flags.optimizeCommands = 0;
+        flags.prefetchCommands = 0;
+    }
+    else
+    {
+        // We can't enable PM4 optimization without an allocator because we need to dynamically allocate a Pm4Optimizer.
+        flags.optimizeCommands &= (pMemAllocator != nullptr);
 
-            // We also should force off prefetching if the per-engine setting says it's disabled. Note that we
-            // only support CP DMA command prefetching.
-            PAL_ASSERT(method != PrefetchPrimeUtcL2);
+        if (flags.prefetchCommands != 0)
+        {
+            // The prefetchCommands flag was already set according to the client's command buffer build info.
+            // However, we really should force prefetching off if the command data is in local memory because:
+            // 1. Local memory is fast enough that cold reads are no problem. Prefetching the whole command chunk
+            //    ahead of time might evict things from the L2 cache that we need right now, hurting performance.
+            // 2. We try to use the uncached MTYPE when allocating local memory for command data. This avoids any
+            //    L2 cache pollution but also makes prefetching completely useless because it only prefetches to L2.
+            if (m_pCmdAllocator->LocalCommandData())
+            {
+                flags.prefetchCommands = 0;
+            }
+            else
+            {
+                const Gfx9PalSettings& settings = GetGfx9Settings(*m_device.Parent());
+                const PrefetchMethod   method   = (GetEngineType() == EngineTypeCompute)
+                                                        ? settings.commandPrefetchMethodAce
+                                                        : settings.commandPrefetchMethodGfx;
 
-            flags.prefetchCommands = (method == PrefetchCpDma);
+                // We also should force off prefetching if the per-engine setting says it's disabled. Note that we
+                // only support CP DMA command prefetching.
+                PAL_ASSERT(method != PrefetchPrimeUtcL2);
+
+                flags.prefetchCommands = (method == PrefetchCpDma);
+            }
         }
     }
 
@@ -223,6 +232,23 @@ void CmdStream::CleanupTempObjects()
     {
         PAL_SAFE_DELETE(m_pPm4Optimizer, m_pMemAllocator);
     }
+}
+
+// =====================================================================================================================
+// Helper which updates state in the pm4optimizer and checks if the register is redundant or not. Useful for cases where
+// callers want to form their own packets.
+bool CmdStream::MustKeepSetShReg(
+    uint32 userDataAddr,
+    uint32 userDataValue)
+{
+    bool mustKeep = true;
+
+    if (m_flags.optimizeCommands)
+    {
+        mustKeep = m_pPm4Optimizer->MustKeepSetShReg(userDataAddr, userDataValue);
+    }
+
+    return mustKeep;
 }
 
 // =====================================================================================================================
@@ -531,8 +557,7 @@ uint32* CmdStream::WriteSetOneShReg<ShaderCompute>(
     uint32*       pCmdSpace);
 
 // =====================================================================================================================
-// Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
-// Returns a pointer to the next unused DWORD in pCmdSpace.
+// Wrapper for the Pm4OptImmediate templated method.
 uint32* CmdStream::WriteSetOneShRegIndex(
     uint32                          regAddr,
     uint32                          regData,
@@ -540,7 +565,30 @@ uint32* CmdStream::WriteSetOneShRegIndex(
     PFP_SET_SH_REG_INDEX_index_enum index,
     uint32*                         pCmdSpace)
 {
-    if ((m_flags.optimizeCommands == 0) || m_pPm4Optimizer->MustKeepSetShReg(regAddr, regData))
+    if (m_flags.optimizeCommands == 0)
+    {
+        pCmdSpace = WriteSetOneShRegIndex<false>(regAddr, regData, shaderType, index, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetOneShRegIndex<true>(regAddr, regData, shaderType, index, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool Pm4OptImmediate>
+uint32* CmdStream::WriteSetOneShRegIndex(
+    uint32                          regAddr,
+    uint32                          regData,
+    Pm4ShaderType                   shaderType,
+    PFP_SET_SH_REG_INDEX_index_enum index,
+    uint32*                         pCmdSpace)
+{
+    if ((Pm4OptImmediate == false) || m_pPm4Optimizer->MustKeepSetShReg(regAddr, regData))
     {
         const size_t totalDwords = m_cmdUtil.BuildSetOneShRegIndex(regAddr, shaderType, index, pCmdSpace);
 
@@ -551,9 +599,23 @@ uint32* CmdStream::WriteSetOneShRegIndex(
     return pCmdSpace;
 }
 
+template
+uint32* CmdStream::WriteSetOneShRegIndex<true>(
+    uint32                          regAddr,
+    uint32                          regData,
+    Pm4ShaderType                   shaderType,
+    PFP_SET_SH_REG_INDEX_index_enum index,
+    uint32*                         pCmdSpace);
+template
+uint32* CmdStream::WriteSetOneShRegIndex<false>(
+    uint32                          regAddr,
+    uint32                          regData,
+    Pm4ShaderType                   shaderType,
+    PFP_SET_SH_REG_INDEX_index_enum index,
+    uint32*                         pCmdSpace);
+
 // =====================================================================================================================
-// Builds a PM4 packet to set the given registers unless the PM4 optimizer indicates that it is redundant.
-// Returns a pointer to the next unused DWORD in pCmdSpace.
+// Wrapper for the Pm4OptImmediate templated version.
 uint32* CmdStream::WriteSetSeqShRegs(
     uint32        startRegAddr,
     uint32        endRegAddr,
@@ -562,6 +624,29 @@ uint32* CmdStream::WriteSetSeqShRegs(
     uint32*       pCmdSpace)
 {
     if (m_flags.optimizeCommands == 1)
+    {
+        pCmdSpace = WriteSetSeqShRegs<true>(startRegAddr, endRegAddr, shaderType, pData, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetSeqShRegs<false>(startRegAddr, endRegAddr, shaderType, pData, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given registers unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool Pm4OptImmediate>
+uint32* CmdStream::WriteSetSeqShRegs(
+    uint32        startRegAddr,
+    uint32        endRegAddr,
+    Pm4ShaderType shaderType,
+    const void*   pData,
+    uint32*       pCmdSpace)
+{
+    if (Pm4OptImmediate)
     {
         PM4_ME_SET_SH_REG setData;
         m_cmdUtil.BuildSetSeqShRegs(startRegAddr, endRegAddr, shaderType, &setData);
@@ -582,6 +667,21 @@ uint32* CmdStream::WriteSetSeqShRegs(
 
     return pCmdSpace;
 }
+
+template
+uint32* CmdStream::WriteSetSeqShRegs<true>(
+    uint32        startRegAddr,
+    uint32        endRegAddr,
+    Pm4ShaderType shaderType,
+    const void*   pData,
+    uint32*       pCmdSpace);
+template
+uint32* CmdStream::WriteSetSeqShRegs<false>(
+    uint32        startRegAddr,
+    uint32        endRegAddr,
+    Pm4ShaderType shaderType,
+    const void*   pData,
+    uint32*       pCmdSpace);
 
 // =====================================================================================================================
 // Builds a PM4 packet to set the given registers to 0 unless the PM4 optimizer indicates that it is redundant.
@@ -764,6 +864,47 @@ uint32* CmdStream::WriteSetShRegPairs<ShaderCompute>(
     uint32*             pCmdSpace);
 
 // =====================================================================================================================
+// Write an array of constant SH RegisterValuePair values to HW.
+template <Pm4ShaderType ShaderType, bool Pm4OptEnabled>
+uint32* CmdStream::WriteSetConstShRegPairs(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace)
+{
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+    PAL_DEBUG_BUILD_ONLY_ASSERT((numRegs % 2) == 0);
+
+    if (Pm4OptEnabled)
+    {
+        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetShRegPairs<ShaderType>(pRegPairs, numRegs, pCmdSpace);
+    }
+    else
+    {
+        constexpr RegisterRangeType RegType = (ShaderType == ShaderGraphics) ? RegRangeGfxSh : RegRangeCsSh;
+        const size_t pktSize = m_cmdUtil.BuildSetRegPairsPackedHeader<RegType>(numRegs, pCmdSpace);
+
+        memcpy(&(pCmdSpace[CmdUtil::SetRegPairsPackedHeaderSizeInDwords]),
+               pRegPairs,
+               sizeof(PackedRegisterPair) * (numRegs / 2));
+
+        pCmdSpace += pktSize;
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetConstShRegPairs<ShaderGraphics, true>(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace);
+template
+uint32* CmdStream::WriteSetConstShRegPairs<ShaderGraphics, false>(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace);
+
+// =====================================================================================================================
 // Builds a PM4 packet to set the given packed register pairs unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <bool Pm4OptEnabled>
@@ -772,7 +913,7 @@ uint32* CmdStream::WriteSetContextRegPairs(
     uint32              numRegs,
     uint32*             pCmdSpace)
 {
-    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
 
     if (Pm4OptEnabled)
     {
@@ -798,7 +939,64 @@ uint32* CmdStream::WriteSetContextRegPairs<false>(
     uint32*             pCmdSpace);
 
 // =====================================================================================================================
-// Wrapper for the real WriteSetShRegPairs() for when the caller doesn't know if the immediate mode pm4 optimizer
+// Wrapper for the real WriteSetConstContextRegPairs() for when the caller doesn't know if the immediate mode
+// pm4 optimizer is enabled.
+uint32* CmdStream::WriteSetConstContextRegPairs(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace)
+{
+    if (m_flags.optimizeCommands)
+    {
+        pCmdSpace = WriteSetConstContextRegPairs<true>(pRegPairs, numRegs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetConstContextRegPairs<false>(pRegPairs, numRegs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given packed register pairs unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool Pm4OptEnabled>
+uint32* CmdStream::WriteSetConstContextRegPairs(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace)
+{
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+
+    // The caller MUST ensure we are programming an even number of regs! For odd counts, just replicate any reg once!
+    PAL_DEBUG_BUILD_ONLY_ASSERT((numRegs % 2 == 0));
+
+    if (Pm4OptEnabled)
+    {
+        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetContextRegPairs(pRegPairs, numRegs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace += CmdUtil::BuildSetConstContextRegPairsPacked(pRegPairs, numRegs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetConstContextRegPairs<true>(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace);
+template
+uint32* CmdStream::WriteSetConstContextRegPairs<false>(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace);
+
+// =====================================================================================================================
+// Wrapper for the real WriteSetContextRegPairs() for when the caller doesn't know if the immediate mode pm4 optimizer
 // is enabled.
 uint32* CmdStream::WriteSetContextRegPairs(
     PackedRegisterPair* pRegPairs,
@@ -816,6 +1014,94 @@ uint32* CmdStream::WriteSetContextRegPairs(
 
     return pCmdSpace;
 }
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given packed register pairs unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool Pm4OptEnabled>
+uint32* CmdStream::WriteSetContextRegPairs(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace)
+{
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+
+    if (Pm4OptEnabled)
+    {
+        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetContextRegPairs(pRegPairs, numRegPairs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace += CmdUtil::BuildSetRegPairs<RegRangeContext>(pRegPairs, numRegPairs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetContextRegPairs<true>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace);
+template
+uint32* CmdStream::WriteSetContextRegPairs<false>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace);
+
+// =====================================================================================================================
+// Wrapper for the real WriteSetContextRegPairs() for when the caller doesn't know if the immediate mode pm4 optimizer
+// is enabled.
+uint32* CmdStream::WriteSetContextRegPairs(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace)
+{
+    if (m_flags.optimizeCommands)
+    {
+        pCmdSpace = WriteSetContextRegPairs<true>(pRegPairs, numRegPairs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetContextRegPairs<false>(pRegPairs, numRegPairs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Write an array of constant SH RegisterValuePair values to HW.
+template <Pm4ShaderType ShaderType, bool Pm4OptEnabled>
+uint32* CmdStream::WriteSetShRegPairs(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace)
+{
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+
+    if (Pm4OptEnabled)
+    {
+        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetShRegPairs<ShaderType>(pRegPairs, numRegPairs, pCmdSpace);
+    }
+    else
+    {
+        constexpr RegisterRangeType RegType = (ShaderType == ShaderGraphics) ? RegRangeGfxSh : RegRangeCsSh;
+        pCmdSpace += CmdUtil::BuildSetRegPairs<RegType>(pRegPairs, numRegPairs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderGraphics, true>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace);
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderGraphics, false>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace);
 
 // =====================================================================================================================
 // Helper function for writing user-SGPRs mapped to user-data entries for a graphics or compute shader stage.
@@ -1023,6 +1309,27 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs(
     return pCmdSpace;
 }
 
+template
+uint32* CmdStream::WriteUserDataEntriesToSgprs<true, ShaderGraphics, true>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries& entries,
+    uint32* pCmdSpace);
+template
+uint32* CmdStream::WriteUserDataEntriesToSgprs<true, ShaderGraphics, false>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries& entries,
+    uint32* pCmdSpace);
+template
+uint32* CmdStream::WriteUserDataEntriesToSgprs<false, ShaderGraphics, true>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries& entries,
+    uint32* pCmdSpace);
+template
+uint32* CmdStream::WriteUserDataEntriesToSgprs<false, ShaderGraphics, false>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries& entries,
+    uint32* pCmdSpace);
+
 // =====================================================================================================================
 // Builds a PM4 packet to load a single group of consecutive context registers from an indirect video memory offset.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
@@ -1210,15 +1517,45 @@ uint32* CmdStream::WriteSetBase(
 }
 
 // =====================================================================================================================
-// If immediate mode optimizations are active, tell the optimizer to invalidate its copy of this particular SH register.
+// Non-templated wrapper for the templated NotifyIndirectShRegWrite call.
 void CmdStream::NotifyIndirectShRegWrite(
-    uint32 regAddr)
+    uint32 regAddr,
+    uint32 numRegsToInvalidate)
 {
     if (m_flags.optimizeCommands == 1)
     {
-        m_pPm4Optimizer->SetShRegInvalid(regAddr);
+        NotifyIndirectShRegWrite<true>(regAddr, numRegsToInvalidate);
+    }
+    else
+    {
+        NotifyIndirectShRegWrite<false>(regAddr, numRegsToInvalidate);
     }
 }
+
+// =====================================================================================================================
+// If immediate mode optimizations are active, tell the optimizer to invalidate its copy of this particular SH register.
+template <bool Pm4OptEnabled>
+void CmdStream::NotifyIndirectShRegWrite(
+    uint32 regAddr,
+    uint32 numRegsToInvalidate)
+{
+    if (Pm4OptEnabled)
+    {
+        for (uint32 x = 0; x < numRegsToInvalidate; x++)
+        {
+            m_pPm4Optimizer->SetShRegInvalid(regAddr + x);
+        }
+    }
+}
+
+template
+void CmdStream::NotifyIndirectShRegWrite<true>(
+    uint32 regAddr,
+    uint32 numRegsToInvalidate);
+template
+void CmdStream::NotifyIndirectShRegWrite<false>(
+    uint32 regAddr,
+    uint32 numRegsToInvalidate);
 
 // =====================================================================================================================
 size_t CmdStream::BuildCondIndirectBuffer(
@@ -1443,17 +1780,6 @@ void CmdStream::IssueHotRegisterReport(
     }
 }
 #endif
-
-// =====================================================================================================================
-// Allows the caller to temporarily disable the PM4 optimizer if some PM4 must be written.
-void CmdStream::TempSetPm4OptimizerMode(
-    bool isEnabled)
-{
-    if (m_pPm4Optimizer != nullptr)
-    {
-        m_pPm4Optimizer->TempSetPm4OptimizerMode(isEnabled);
-    }
-}
 
 // =====================================================================================================================
 // Writes PERF_COUNTER_WINDOW pm4 packet and tracks state to protect from accidentally missing a window configuration

@@ -74,7 +74,7 @@ public:
         size_t           requiredCapacity,
         Allocator*const  pAllocator)
         :
-        m_capacity(defaultCapacity),
+        m_capacity(requiredCapacity),
         m_pBuffer(reinterpret_cast<Item*>(m_localBuffer)),
         m_pAllocator(pAllocator)
     {
@@ -82,13 +82,16 @@ public:
         {
             // Create dynamically allocated array, by allocating memory and constructing its objects.
             // On failure, to avoid subtle bugs from misuse, AutoBuffer will be in a zombie state with zero capacity.
-            m_pBuffer  = PAL_NEW_ARRAY(Item, requiredCapacity, pAllocator, AllocInternalTemp);
-            m_capacity = (m_pBuffer == nullptr) ? 0 : requiredCapacity;
+            m_pBuffer = PAL_NEW_ARRAY(Item, requiredCapacity, pAllocator, AllocInternalTemp);
+            if (m_pBuffer == nullptr)
+            {
+                m_capacity = 0;
+            }
         }
         else if (!std::is_trivial<Item>::value)
         {
             // Explicitly construct all objects of non-trivial type in the local buffer.
-            for (uint32 idx = 0; idx < defaultCapacity; ++idx)
+            for (uint32 idx = 0; idx < m_capacity; ++idx)
             {
                 PAL_PLACEMENT_NEW(m_pBuffer + idx) Item();
             }
@@ -108,23 +111,23 @@ public:
         else if (!std::is_trivial<Item>::value)
         {
             // Explicitly destroy all objects of non-trivial type from the local buffer.
-            for (uint32 idx = 0; idx < defaultCapacity; ++idx)
+            for (uint32 idx = 0; idx < m_capacity; ++idx)
             {
                 m_pBuffer[idx].~Item();
             }
         }
     }
 
-    /// Getter for the current capacity of the buffer.
+    /// Getter for the capacity of the buffer.
     ///
     /// Clients can use this function to determine if the constuctor's allocation succeeded.
     ///
-    /// @returns Size of the array in bytes.  Should match the requiredCapacity parameter passed to the constructor
+    /// @returns Size of the array in bytes. Should match the requiredCapacity parameter passed to the constructor
     ///          unless a dynamic memory allocation failed.
-    size_t Capacity() const { return m_capacity; }
+    constexpr size_t Capacity() const noexcept { return m_capacity; }
 
-    /// Getter for the current size of this buffer, in bytes.
-    size_t SizeBytes() const { return (sizeof(Item) * m_capacity); }
+    /// Getter for the size of this buffer, in bytes.
+    constexpr size_t SizeBytes() const noexcept { return (sizeof(Item) * m_capacity); }
 
     /// Accessor for the nth element of this buffer.
     const Item& operator[](size_t n) const
@@ -143,7 +146,7 @@ public:
     ///@{
     /// Implicitly gets the current contents of the buffer as a Span.
     ///
-    /// @returns The contents of the buffer as a Span; same as Span<T>(Data(), Capacity()).
+    /// @returns The contents of the buffer as a Span; same as Span<T>(Data(), Size()).
     operator Span<Item>() { return Span<Item>(Data(), Capacity()); }
     operator Span<const Item>() const { return Span<const Item>(Data(), Capacity()); }
     ///@}
@@ -153,7 +156,7 @@ public:
     ///
     /// @returns Pointer to the underlying data storage for read & write access.
     ///          The returned pointer contains address of the first element.
-    Item* Data() { return m_pBuffer; }
+    constexpr Item* Data() noexcept { return m_pBuffer; }
 
     /// Returns pointer to the underlying buffer serving as data storage.
     /// The returned pointer defines always valid range [Data(), Data() + Capacity()),
@@ -161,18 +164,40 @@ public:
     ///
     /// @returns Pointer to the underlying data storage for read only access.
     ///          The returned pointer contains address of the first element.
-    const Item* Data() const { return m_pBuffer; }
+    constexpr const Item* Data() const noexcept { return m_pBuffer; }
+
+    ///@{
+    /// @internal Satisfies concept `range_expression`, using Item* as `iterator` and 64-bit size and difference types
+    ///
+    /// @note - These are a convenience intended to be used by c++ language features such as range-based-for-loops.
+    using value_type      = Item;
+    using reference       = Item&;
+    using const_reference = const Item&;
+    using iterator        = Item*;
+    using const_iterator  = const Item*;
+    using difference_type = ptrdiff_t;
+    using size_type       = size_t;
+
+    constexpr iterator           begin()  noexcept       { return Data(); }
+    constexpr iterator           end()    noexcept       { return Data() + Capacity(); }
+    constexpr const_iterator     begin()  const noexcept { return Data(); }
+    constexpr const_iterator     end()    const noexcept { return Data() + Capacity(); }
+    constexpr const_iterator     cbegin() const noexcept { return Data(); }
+    constexpr const_iterator     cend()   const noexcept { return Data() + Capacity(); }
+    [[nodiscard]] constexpr bool empty()  const noexcept { return Capacity() == 0; }
+    constexpr size_type          size()   const noexcept { return Capacity(); }
+    ///@}
 
 private:
     // This is a POD-type that exactly fits one Item value.
     using ValueStorage = typename std::aligned_storage<sizeof(Item), alignof(Item)>::type;
 
-    // Current capacity of this buffer (in Items).
+    // Capacity of this buffer (in Items).
     size_t m_capacity;
 
     // Buffer pointer this object uses to access the buffer's elements: if the required capacity exceeds the default
     // capacity, this points to a dynamic array of Items. Otherwise, this points to m_localBuffer.
-    Item*  m_pBuffer;
+    Item* m_pBuffer;
 
     // Static array providing storage for Items which we expect most objects of this type to end up using.
     ValueStorage m_localBuffer[defaultCapacity];

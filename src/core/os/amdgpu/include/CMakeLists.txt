@@ -25,23 +25,14 @@
 
 target_include_directories(pal PRIVATE
     2d
-    drm
+    ${PAL_SOURCE_DIR}/shared/amdgpu/include/drm
     drm_exts
 )
 target_sources(pal PRIVATE
     CMakeLists.txt
     # Sharable metadata format
     2d/amdgpu_shared.h
-    # Upstream DRM headers
-    drm/amdgpu_drm.h
-    drm/amdgpu.h
-    drm/drm_fourcc.h
-    drm/drm_mode.h
-    drm/drm_sarea.h
-    drm/drm.h
-    drm/xf86drm.h
-    drm/xf86drmMode.h
-    # Additional definitions not yet upstreamed.
+    # Additional DRM definitions not yet upstreamed.
     drm_exts/amdgpu_drm_exts.h
     # Window System Agent
     wsa/wsa.h

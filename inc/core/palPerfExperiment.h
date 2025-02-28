@@ -389,29 +389,9 @@ struct ThreadTraceLayout
     ThreadTraceSeLayout traces[1];   ///< ThreadTraceSeLayout repeated (traceCount - 1) times.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
-/// Represents all the segments in the spm trace sample. Global segment contains all the counter data for the blocks
-/// that are outside the shader engines.
-enum class SpmDataSegmentType : uint32
-{
-    Se0,
-    Se1,
-    Se2,
-    Se3,
-    Se4,
-    Se5,
-    Global,
-    Count
-};
-#endif
-
 /// Describes a single SPM counter instance.
 struct SpmCounterData
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
-    SpmDataSegmentType segment;  ///< Segment this counter belongs to (global, Se0, Se1 etc).
-    gpusize            offset;   ///< Offset within the sample to the counter data. In units of counters, not bytes!
-#endif
     GpuBlock gpuBlock; ///< The kind of GPU block this counter measured.
     uint32   instance; ///< Which specific global block instance this counter measured.
     uint32   eventId;  ///< The event that was measured by this counter.
@@ -449,16 +429,8 @@ struct SpmTraceLayout
                               ///  theoretical next sample would go. This value may wrap back to zero if the HW runs of
                               ///  space in the SPM ring buffer.
     uint32  wrPtrGranularity; ///< The WrPtr's granularity. Multiply WrPtr's value by this value to get a byte offset.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 810
     uint32  sampleOffset;     ///< Byte offset within the SPM trace data to the array of samples. The HW will write the
                               ///  first sample here but it will be overwritten if the ring wraps (see the top comment).
-#else
-    gpusize wptrOffset;        ///< Byte offset within the bound GPU memory to the HW's write pointer DWORD.
-    uint32  wptrGranularity;   ///< The wptr's granularity. Multiply wptr by this value to get a byte offset.
-    gpusize sampleOffset;      ///< Byte offset within the SPM trace data to the array of samples.
-    uint32  sampleSizeInBytes; ///< Size of all segments in one sample.
-    uint32  segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Count)]; ///< Individual segment sizes.
-#endif
     uint32  sampleStride;     ///< The distance between consecutive samples in bytes. May include empty padding.
     uint32  maxNumSamples;    ///< The maximum number of samples the HW can write before wrapping. The SPM ring buffer
                               ///  ends at sampleOffset + sampleStride * maxNumSamples.

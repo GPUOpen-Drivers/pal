@@ -102,7 +102,7 @@ struct ExternalQueueSemaphoreOpenInfo
 
     OsExternalHandle externalSemaphore; ///< External shared semaphore handle.
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 830) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 882)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 882
 #endif
 };
 

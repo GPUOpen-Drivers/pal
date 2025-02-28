@@ -906,9 +906,6 @@ void CmdBuffer::OutputSurfaceCapture()
                 "CmdDispatchIndirect",
                 "CmdDispatchOffset",
                 "CmdGenExecuteIndirectDispatch",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
-                "CmdDispatchDynamic",
-#endif
             };
             static_assert(ArrayLen(DrawNameStrs) == static_cast<uint32>(Developer::DrawDispatchType::Count));
 
@@ -3285,7 +3282,6 @@ void CmdBuffer::ReplayCmdColorSpaceConversionCopy(
                                                cscTable);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -3310,7 +3306,6 @@ void CmdBuffer::ReplayCmdCloneImageData(
 
     pTgtCmdBuffer->CmdCloneImageData(*pSrcImage, *pDstImage);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdCopyMemoryToImage(
@@ -5043,9 +5038,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdScaledCopyImage,
         &CmdBuffer::ReplayCmdGenerateMipmaps,
         &CmdBuffer::ReplayCmdColorSpaceConversionCopy,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
         &CmdBuffer::ReplayCmdCloneImageData,
-#endif
         &CmdBuffer::ReplayCmdCopyMemoryToImage,
         &CmdBuffer::ReplayCmdCopyImageToMemory,
         &CmdBuffer::ReplayCmdClearColorBuffer,

@@ -281,12 +281,12 @@ union Gfx10ReleaseMemGcrCntl
 // - set_sh_reg
 // - set_sh_reg_offset
 // - write_gds
-static PM4_ME_TYPE_3_HEADER Type3Header(
+PM4_ME_TYPE_3_HEADER CmdUtil::Type3Header(
     IT_OpCodeType  opCode,
     uint32         count,
-    bool           resetFilterCam = false,
-    Pm4ShaderType  shaderType     = ShaderGraphics,
-    Pm4Predicate   predicate      = PredDisable)
+    bool           resetFilterCam,
+    Pm4ShaderType  shaderType,
+    Pm4Predicate   predicate)
 {
     // PFP and ME headers are the same structure...  doesn't really matter which one we use.
     PM4_ME_TYPE_3_HEADER  header = {};
@@ -1704,17 +1704,17 @@ size_t CmdUtil::BuildDrawIndexIndirect(
 // =====================================================================================================================
 // Builds a PM4 packet which issues an indexed, indirect draw command into the given DE command stream. Returns the size
 // of the PM4 command assembled, in DWORDs.
-template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDrawIndexIndirectMulti(
-    gpusize      offset,        // Byte offset to the indirect args data.
-    uint32       baseVtxLoc,    // Register VS expects to read baseVtxLoc from.
-    uint32       startInstLoc,  // Register VS expects to read startInstLoc from.
-    uint32       drawIndexLoc,  // Register VS expects to read drawIndex from.
-    uint32       stride,        // Stride from one indirect args data structure to the next.
-    uint32       count,         // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
-    gpusize      countGpuAddr,  // GPU address containing the count.
-    Pm4Predicate predicate,
-    void*        pBuffer        // [out] Build the PM4 packet in this buffer.
+    gpusize      offset,               // Byte offset to the indirect args data.
+    uint32       baseVtxLoc,           // Register VS expects to read baseVtxLoc from.
+    uint32       startInstLoc,         // Register VS expects to read startInstLoc from.
+    uint32       drawIndexLoc,         // Register VS expects to read drawIndex from.
+    uint32       stride,               // Stride from one indirect args data structure to the next.
+    uint32       count,                // Num draw calls to loop through, or max draw calls if count is in GPU memory.
+    gpusize      countGpuAddr,         // GPU address containing the count.
+    Pm4Predicate predicate,            // Predicate.
+    bool         issueSqttMarkerEvent, // Issue SQTT Marker Event.
+    void*        pBuffer               // [out] Build the PM4 packet in this buffer.
     ) const
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
@@ -1741,7 +1741,7 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
         ordinal5.bitfields.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
     }
 #if (PAL_BUILD_BRANCH >= 2410)
-    if (IssueSqttMarkerEvent)
+    if (issueSqttMarkerEvent)
     {
         ordinal5.bitfields.thread_trace_marker_enable = 1;
     }
@@ -1763,43 +1763,20 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     return packetSize;
 }
 
-template
-size_t CmdUtil::BuildDrawIndexIndirectMulti<true>(
-    gpusize      offset,
-    uint32       baseVtxLoc,
-    uint32       startInstLoc,
-    uint32       drawIndexLoc,
-    uint32       stride,
-    uint32       count,
-    gpusize      countGpuAddr,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
-template
-size_t CmdUtil::BuildDrawIndexIndirectMulti<false>(
-    gpusize      offset,
-    uint32       baseVtxLoc,
-    uint32       startInstLoc,
-    uint32       drawIndexLoc,
-    uint32       stride,
-    uint32       count,
-    gpusize      countGpuAddr,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
-
 // =====================================================================================================================
 // Builds a PM4 packet which issues a draw indirect multi command into the given DE command stream. Returns the size of
 // the PM4 command assembled, in DWORDs.
-template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDrawIndirectMulti(
-    gpusize      offset,       // Byte offset to the indirect args data.
-    uint32       baseVtxLoc,   // Register VS expects to read baseVtxLoc from.
-    uint32       startInstLoc, // Register VS expects to read startInstLoc from.
-    uint32       drawIndexLoc, // Register VS expects to read drawIndex from.
-    uint32       stride,       // Stride from one indirect args data structure to the next.
-    uint32       count,        // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
-    gpusize      countGpuAddr, // GPU address containing the count.
-    Pm4Predicate predicate,
-    void*        pBuffer       // [out] Build the PM4 packet in this buffer.
+    gpusize      offset,               // Byte offset to the indirect args data.
+    uint32       baseVtxLoc,           // Register VS expects to read baseVtxLoc from.
+    uint32       startInstLoc,         // Register VS expects to read startInstLoc from.
+    uint32       drawIndexLoc,         // Register VS expects to read drawIndex from.
+    uint32       stride,               // Stride from one indirect args data structure to the next.
+    uint32       count,                // Num draw calls to loop through, or max draw calls if count in GPU memory.
+    gpusize      countGpuAddr,         // GPU address containing the count.
+    Pm4Predicate predicate,            // Predicate.
+    bool         issueSqttMarkerEvent, // Issue SQTT Marker Event.
+    void*        pBuffer               // [out] Build the PM4 packet in this buffer.
     ) const
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
@@ -1826,7 +1803,7 @@ size_t CmdUtil::BuildDrawIndirectMulti(
         ordinal5.bitfields.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
     }
 #if (PAL_BUILD_BRANCH >= 2410)
-    if (IssueSqttMarkerEvent)
+    if (issueSqttMarkerEvent)
     {
         ordinal5.bitfields.thread_trace_marker_enable = 1;
     }
@@ -1847,29 +1824,6 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
-
-template
-size_t CmdUtil::BuildDrawIndirectMulti<true>(
-    gpusize      offset,
-    uint32       baseVtxLoc,
-    uint32       startInstLoc,
-    uint32       drawIndexLoc,
-    uint32       stride,
-    uint32       count,
-    gpusize      countGpuAddr,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
-template
-size_t CmdUtil::BuildDrawIndirectMulti<false>(
-    gpusize      offset,
-    uint32       baseVtxLoc,
-    uint32       startInstLoc,
-    uint32       drawIndexLoc,
-    uint32       stride,
-    uint32       count,
-    gpusize      countGpuAddr,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
 
 // =====================================================================================================================
 // Builds a DISPATCH_TASK_STATE_INIT packet for any engine (ME or MEC) which provides the virtual address with which
@@ -1910,7 +1864,6 @@ size_t CmdUtil::BuildTaskStateInit(
 // Builds a DISPATCH_TASKMESH_GFX packet for ME & PFP engines, which consumes data produced by the CS shader and CS
 // dispatches that are launched by DISPATCH_TASKMESH_DIRECT_ACE or DISPATCH_TASKMESH_INDIRECT_MULTI_ACE packets by ACE.
 // The ME issues multiple sub-draws with the data fetched.
-template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDispatchTaskMeshGfx(
     uint32       tgDimOffset,            // First of 3 user-SGPRs where the thread group dimensions (x, y, z) are
                                          // written.
@@ -1918,6 +1871,7 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
     Pm4Predicate predicate,              // Predication enable control.
     bool         usesLegacyMsFastLaunch, // Use legacy MS fast launch.
     bool         linearDispatch,         // Use linear dispatch.
+    bool         issueSqttMarkerEvent,   // Issue SQTT marker event.
     void*        pBuffer                 // [out] Build the PM4 packet in this buffer.
     ) const
 {
@@ -1940,7 +1894,7 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
                                                 tgDimOffset - PERSISTENT_SPACE_START : 0;
     packet.ordinal2.bitfields.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
 #if (PAL_BUILD_BRANCH >= 2410)
-    if (IssueSqttMarkerEvent)
+    if (issueSqttMarkerEvent)
     {
         packet.ordinal3.bitfields.thread_trace_marker_enable = 1;
     }
@@ -1963,23 +1917,6 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
     memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
-
-template
-size_t CmdUtil::BuildDispatchTaskMeshGfx<true>(
-    uint32       tgDimOffset,
-    uint32       ringEntryLoc,
-    Pm4Predicate predicate,
-    bool         usesLegacyMsFastLaunch,
-    bool         linearDispatch,
-    void*        pBuffer) const;
-template
-size_t CmdUtil::BuildDispatchTaskMeshGfx<false>(
-    uint32       tgDimOffset,
-    uint32       ringEntryLoc,
-    Pm4Predicate predicate,
-    bool         usesLegacyMsFastLaunch,
-    bool         linearDispatch,
-    void*        pBuffer) const;
 
 // =====================================================================================================================
 // Builds a PM4_ME_DISPATCH_MESH_DIRECT packet for the PFP & ME engines.
@@ -2011,7 +1948,6 @@ size_t CmdUtil::BuildDispatchMeshDirect(
 
 // =====================================================================================================================
 // Builds a PM4_ME_DISPATCH_MESH_INDIRECT_MULTI packet for the PFP & ME engines.
-template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     gpusize      dataOffset,             // Byte offset of the indirect buffer.
     uint32       xyzOffset,              // First of three consecutive user-SGPRs specifying the dimension.
@@ -2022,6 +1958,7 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     gpusize      countGpuAddr,           // GPU address containing the count.
     Pm4Predicate predicate,              // Predication enable control.
     bool         usesLegacyMsFastLaunch, // Use legacy MS fast launch.
+    bool         issueSqttMarkerEvent,   // Issue SQTT Marker Event.
     void*        pBuffer                 // [out] Build the PM4 packet in this buffer.
     ) const
 {
@@ -2046,7 +1983,7 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     packet.ordinal2.data_offset           = LowPart(dataOffset);
     packet.ordinal3.bitfields.xyz_dim_loc = (xyzOffset != UserDataNotMapped) ? xyzOffset - PERSISTENT_SPACE_START : 0;
 #if (PAL_BUILD_BRANCH >= 2410)
-    if (IssueSqttMarkerEvent)
+    if (issueSqttMarkerEvent)
     {
         packet.ordinal4.bitfields.thread_trace_marker_enable = 1;
     }
@@ -2087,43 +2024,20 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     return PacketSize;
 }
 
-template
-size_t CmdUtil::BuildDispatchMeshIndirectMulti<true>(
-    gpusize      dataOffset,
-    uint32       xyzOffset,
-    uint32       drawIndexOffset,
-    uint32       count,
-    uint32       stride,
-    gpusize      countGpuAddr,
-    Pm4Predicate predicate,
-    bool         usesLegacyMsFastLaunch,
-    void*        pBuffer) const;
-template
-size_t CmdUtil::BuildDispatchMeshIndirectMulti<false>(
-    gpusize      dataOffset,
-    uint32       xyzOffset,
-    uint32       drawIndexOffset,
-    uint32       count,
-    uint32       stride,
-    gpusize      countGpuAddr,
-    Pm4Predicate predicate,
-    bool         usesLegacyMsFastLaunch,
-    void*        pBuffer) const;
-
 // =====================================================================================================================
 // Builds a PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_ACE packet for the compute engine.
-template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
-    gpusize      dataOffset,       // Byte offset of the indirect buffer.
-    uint32       ringEntryLoc,     // Offset of user-SGPR where the CP writes the ring entry WPTR.
-    uint32       xyzDimLoc,        // First of three consecutive user-SGPR for the compute dispatch dimensions.
-    uint32       dispatchIndexLoc, // User-SGPR offset where the dispatch index is written.
-    uint32       count,            // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
-    uint32       stride,           // Stride from one indirect args data structure to the next.
-    gpusize      countGpuAddr,     // GPU address containing the count.
-    bool         isWave32,         // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader.
-    Pm4Predicate predicate,        // Predication enable control.
-    void*        pBuffer          // [out] Build the PM4 packet in this buffer.
+    gpusize      dataOffset,           // Byte offset of the indirect buffer.
+    uint32       ringEntryLoc,         // Offset of user-SGPR where the CP writes the ring entry WPTR.
+    uint32       xyzDimLoc,            // First of three consecutive user-SGPR for the compute dispatch dimensions.
+    uint32       dispatchIndexLoc,     // User-SGPR offset where the dispatch index is written.
+    uint32       count,                // Num draw calls to loop through, or max draw calls if count is in GPU memory.
+    uint32       stride,               // Stride from one indirect args data structure to the next.
+    gpusize      countGpuAddr,         // GPU address containing the count.
+    bool         isWave32,             // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader.
+    Pm4Predicate predicate,            // Predication enable control.
+    bool         issueSqttMarkerEvent, // Issue SQTT Marker Event.
+    void*        pBuffer               // [out] Build the PM4 packet in this buffer.
     ) const
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
@@ -2146,7 +2060,7 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
     packet.ordinal3.data_addr_hi             = HighPart(dataOffset);
     packet.ordinal4.bitfields.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
 #if (PAL_BUILD_BRANCH >= 2410)
-    if (IssueSqttMarkerEvent)
+    if (issueSqttMarkerEvent)
     {
         packet.ordinal5.bitfields.thread_trace_marker_enable = 1;
     }
@@ -2192,31 +2106,6 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
     memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
-
-template
-size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce<true>(
-    gpusize      dataOffset,
-    uint32       ringEntryLoc,
-    uint32       xyzDimLoc,
-    uint32       dispatchIndexLoc,
-    uint32       count,
-    uint32       stride,
-    gpusize      countGpuAddr,
-    bool         isWave32,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
-template
-size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce<false>(
-    gpusize      dataOffset,
-    uint32       ringEntryLoc,
-    uint32       xyzDimLoc,
-    uint32       dispatchIndexLoc,
-    uint32       count,
-    uint32       stride,
-    gpusize      countGpuAddr,
-    bool         isWave32,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
 
 // =====================================================================================================================
 // Builds a PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE packet for the compute engine, which directly starts the task/mesh
@@ -2746,6 +2635,33 @@ size_t CmdUtil::BuildIndirectBuffer(
 }
 
 // =====================================================================================================================
+// Builds a PM4 constant engine command to load the specified amount of data from GPU memory into CE RAM. Returns the
+// size of the PM4 command built, in DWORDs.
+size_t CmdUtil::BuildLoadConstRam(
+    gpusize srcGpuAddr,
+    uint32  ramByteOffset,
+    uint32  dwordSize,     // Amount of data to load, in DWORDs. Must be a multiple of 8
+    void*   pBuffer)       // [out] Build the PM4 packet in this buffer.
+{
+    PAL_ASSERT(IsPow2Aligned(srcGpuAddr, 32));
+    PAL_ASSERT(IsPow2Aligned(ramByteOffset, 32));
+    PAL_ASSERT(IsPow2Aligned(dwordSize, 8));
+
+    constexpr uint32 PacketSize = PM4_CE_LOAD_CONST_RAM_SIZEDW__GFX10;
+    PM4_CE_LOAD_CONST_RAM packet = {};
+
+    packet.ordinal1.header.u32All              = (Type3Header(IT_LOAD_CONST_RAM, PacketSize)).u32All;
+    packet.ordinal2.addr_lo                    = LowPart(srcGpuAddr);
+    packet.ordinal3.addr_hi                    = HighPart(srcGpuAddr);
+    packet.ordinal4.bitfields.gfx10.num_dw     = dwordSize;
+    packet.ordinal5.bitfields.gfx10.start_addr = ramByteOffset;
+
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
+    return PacketSize;
+}
+
+// =====================================================================================================================
 // Builds a NOP command as long as the specified number of DWORDs. Returns the size of the PM4 command built, in DWORDs
 size_t CmdUtil::BuildNop(
     size_t numDwords,
@@ -2779,8 +2695,7 @@ size_t CmdUtil::BuildNop(
 // PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildNumInstances(
     uint32 instanceCount,
-    void* pBuffer        // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*  pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = PM4_PFP_NUM_INSTANCES_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_NUM_INSTANCES*>(pBuffer);
@@ -3762,12 +3677,25 @@ uint32* CmdUtil::FillPackedRegPairsHeaderAndCount(
     // following checks must be updated when fixed length support is either made generic or expanded.
     const uint32 maxFixedLengthRange = (m_chipProps.pfpUcodeVersion >= MinExpandedPackedFixLengthPfpVersion)
                                        ? MaxNumPackedFixLengthRegsExpanded : MaxNumPackedFixLengthRegs;
-    const bool  isFixedLength        = isShReg && (roundedNumRegs >= MinNumPackedFixLengthRegs)
-                                               && (roundedNumRegs <= maxFixedLengthRange);
 
-    const IT_OpCodeType packetOpcode = isFixedLength ? IT_SET_SH_REG_PAIRS_PACKED_N__GFX11 :
-                                       isShReg       ? IT_SET_SH_REG_PAIRS_PACKED__GFX11   :
-                                                       IT_SET_CONTEXT_REG_PAIRS_PACKED__GFX11;
+    bool          isFixedLength;
+    IT_OpCodeType packetOpcode;
+
+    if (ShaderType == ShaderGraphics)
+    {
+        isFixedLength = isShReg && (roundedNumRegs >= MinNumPackedFixLengthRegs)
+                                && (roundedNumRegs <= maxFixedLengthRange);
+
+        packetOpcode = isFixedLength ? IT_SET_SH_REG_PAIRS_PACKED_N__GFX11 :
+                       isShReg       ? IT_SET_SH_REG_PAIRS_PACKED__GFX11   :
+                                       IT_SET_CONTEXT_REG_PAIRS_PACKED__GFX11;
+    }
+    else
+    {
+        PAL_ASSERT(isShReg); // Compute doesn't support context.
+        isFixedLength = (roundedNumRegs >= MinNumPackedFixLengthRegs) && (roundedNumRegs <= maxFixedLengthRange);
+        packetOpcode = isFixedLength ? IT_SET_SH_REG_PAIRS_PACKED_N__GFX11 : IT_SET_SH_REG_PAIRS_PACKED__GFX11;
+    }
 
     *pPacket = (Type3Header(packetOpcode,
                             uint32(*pPacketSize),
@@ -3781,121 +3709,58 @@ uint32* CmdUtil::FillPackedRegPairsHeaderAndCount(
 }
 
 // =====================================================================================================================
-// Builds a PM4 packet which sets a sequence of context/SH registers as ([offset1 << 16 | offset0], val0, val1) groups,
-// skipping those not set in the associated mask. *The mask must be nonzero*. It is expected this function is only used
-// when PM4 optimization is enabled. Returns the size of the PM4 command assembled, in DWORDs.
-template <Pm4ShaderType ShaderType, size_t N>
-size_t CmdUtil::BuildSetMaskedPackedRegPairs(
-    const PackedRegisterPair* pRegPairs,
-    uint32                    (&validMask)[N],
-    bool                      isShReg,
-    void*                     pBuffer          // [out] Build the PM4 packet in this buffer.
+// Builds the fixed portion of the SET_CONTEXT/SH/SH_REG_PAIRS_PACKED_(N) packets.
+// Caller is responsible for inserting the payload (PackedRegisterPair array sized to ceil(numReg / 2)).
+// Caller must also ensure that numRegs is even! If an odd number of regs is desired any register set can be replicated
+// to make the count even.
+template <RegisterRangeType RegType>
+size_t CmdUtil::BuildSetRegPairsPackedHeader(
+    uint32 numRegs,
+    void*  pBuffer
     ) const
 {
-    WideBitIter<uint32, N> validIter(validMask);
-    const uint32 numRegs = validIter.Size();
+    static_assert((RegType == RegRangeContext) || (RegType == RegRangeGfxSh) || (RegType == RegRangeCsSh));
+    static_assert(sizeof(PackedRegisterPair) == (3 * sizeof(uint32)));
 
-    PAL_ASSERT(numRegs > 0);
+    constexpr Pm4ShaderType ShaderType = (RegType == RegRangeCsSh) ? ShaderCompute : ShaderGraphics;
 
-    size_t packetSize = 0;
-    if (numRegs >= 2)
-    {
-        uint32* pPacket = static_cast<uint32*>(pBuffer);
-        pPacket = FillPackedRegPairsHeaderAndCount<ShaderType>(numRegs, isShReg, &packetSize, pPacket);
+    PAL_DEBUG_BUILD_ONLY_ASSERT((numRegs > 0) && (numRegs % 2 == 0));
 
-        uint32 i = 0;
-        while (validIter.IsValid())
-        {
-            const uint32 index = validIter.Get();
+    // See PM4_PFP_SET_CONTEXT_REG_PAIRS_PACKED, PM4_PFP_SET_SH_REG_PAIRS_PACKED and
+    // PM4_PFP_SET_SH_REG_PAIRS_PACKED_N definitions. 2 DWs + 3 DWs per pair of regs.
+    const uint32 numPackedRegPairsDwords = ((numRegs / 2) * 3);
+    const uint32 packetSize              = SetRegPairsPackedHeaderSizeInDwords + numPackedRegPairsDwords;
 
-            const uint32 pairIndex = index / 2;
-            const auto&  regPair   = pRegPairs[pairIndex];
+    const uint32 maxFixedLengthRange = (m_chipProps.pfpUcodeVersion >= MinExpandedPackedFixLengthPfpVersion) ?
+                                       MaxNumPackedFixLengthRegsExpanded : MaxNumPackedFixLengthRegs;
 
-            const uint16 offset = ((index % 2) == 0) ? regPair.offset0 : regPair.offset1;
-            const uint32 value  = ((index % 2) == 0) ? regPair.value0  : regPair.value1;
+    const IT_OpCodeType opCode = ((RegType == RegRangeContext) ?
+                                 IT_SET_CONTEXT_REG_PAIRS_PACKED__GFX11 :
+                                 (numRegs <= maxFixedLengthRange ?
+                                     IT_SET_SH_REG_PAIRS_PACKED_N__GFX11 :
+                                     IT_SET_SH_REG_PAIRS_PACKED__GFX11));
 
-            PackedRegisterPair* pPacketPair = &reinterpret_cast<PackedRegisterPair*>(pPacket)[i / 2];
+     uint32* pPacket = static_cast<uint32*>(pBuffer);
 
-            if ((i % 2) == 0)
-            {
-                pPacketPair->offset0 = offset;
-                pPacketPair->value0  = value;
-            }
-            else
-            {
-                pPacketPair->offset1 = offset;
-                pPacketPair->value1  = value;
-            }
-
-            i++;
-            validIter.Next();
-        }
-
-        // We have one extra we have to handle.
-        // We have been advised that if we have an odd number of registers to write, we should reuse the first one
-        // to avoid corrupting random registers.
-        if ((i % 2) != 0)
-        {
-            uint32     index = 0;
-            const bool found = WideBitMaskScanForward(&index, validMask);
-            PAL_ASSERT(found);
-
-            const uint32 pairIndex = index / 2;
-            const auto&  regPair   = pRegPairs[pairIndex];
-
-            const uint16 offset = regPair.offset0;
-            const uint32 value  = regPair.value0;
-
-            PackedRegisterPair* pPacketPair = &reinterpret_cast<PackedRegisterPair*>(pPacket)[i / 2];
-
-            pPacketPair->offset1 = offset;
-            pPacketPair->value1  = value;
-
-            i++;
-        }
-
-        // Ensure the odd case is handled.
-        PAL_ASSERT(i == Pow2Align(numRegs, 2));
-    }
-    else
-    {
-        // We only have a single register to write, use the normal SET_*_REG packet.
-        uint32     index = 0;
-        const bool found = WideBitMaskScanForward(&index, validMask);
-        PAL_ASSERT(found);
-
-        const uint32 pairIndex = index / 2;
-        const auto&  regPair   = pRegPairs[pairIndex];
-
-        const uint16 offset = ((index % 2) == 0) ? regPair.offset0 : regPair.offset1;
-        const uint32 value  = ((index % 2) == 0) ? regPair.value0  : regPair.value1;
-
-        uint32* pPacket = static_cast<uint32*>(pBuffer);
-        packetSize = isShReg ? BuildSetOneShReg(offset + PERSISTENT_SPACE_START, ShaderType, pPacket)
-                             : BuildSetOneContextReg(offset + CONTEXT_SPACE_START, pPacket);
-
-        static_assert(ContextRegSizeDwords == ShRegSizeDwords, "Context and Sh packet sizes do not match!");
-
-        pPacket[ShRegSizeDwords] = value;
-    }
+    // Must reset CAM filter as this is handled entirely in ucode.
+    pPacket[0] = Type3Header(opCode, packetSize, true, ShaderType).u32All;
+    pPacket[1] = numRegs;
 
     return packetSize;
 }
 
 template
-size_t CmdUtil::BuildSetMaskedPackedRegPairs<ShaderGraphics, Gfx11NumRegPairSupportedStagesGfx>(
-    const PackedRegisterPair* pRegPairs,
-    uint32                    (&validMask)[Gfx11NumRegPairSupportedStagesGfx],
-    bool                      isShReg,
-    void*                     pBuffer
-    ) const;
+size_t CmdUtil::BuildSetRegPairsPackedHeader<RegRangeContext>(
+    uint32 numRegs,
+    void*  pBuffer) const;
 template
-size_t CmdUtil::BuildSetMaskedPackedRegPairs<ShaderCompute, Gfx11NumRegPairSupportedStagesCs>(
-    const PackedRegisterPair* pRegPairs,
-    uint32                    (&validMask)[Gfx11NumRegPairSupportedStagesCs],
-    bool                      isShReg,
-    void*                     pBuffer
-    ) const;
+size_t CmdUtil::BuildSetRegPairsPackedHeader<RegRangeGfxSh>(
+    uint32 numRegs,
+    void*  pBuffer) const;
+template
+size_t CmdUtil::BuildSetRegPairsPackedHeader<RegRangeCsSh>(
+    uint32 numRegs,
+    void*  pBuffer) const;
 
 // =====================================================================================================================
 // Builds a PM4 packet which sets a sequence of context/SH registers as ([offset1 << 16 | offset0], val0, val1) groups.
@@ -4000,6 +3865,102 @@ size_t CmdUtil::BuildSetContextRegPairsPacked(
 {
     return BuildSetPackedRegPairs<ShaderGraphics>(pRegPairs, numRegs, false, pBuffer);
 }
+
+// =====================================================================================================================
+// Builds a PM4 packet which sets a sequence of context regs using the optimized SET_CONTEXT_REG_PAIRS_PACKED packet.
+// Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildSetConstContextRegPairsPacked(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    void*                     pBuffer)
+{
+    PAL_DEBUG_BUILD_ONLY_ASSERT(numRegs > 0);
+    PAL_ASSERT((numRegs % 2 == 0));
+
+    static_assert(sizeof(PackedRegisterPair) == (3 * sizeof(uint32)));
+
+    // See PM4_PFP_SET_CONTEXT_REG_PAIRS_PACKED definition. 2 DWs + 3 DWs per pair of regs.
+    const uint32 numPackedRegPairsDwords = ((numRegs / 2) * 3);
+    const uint32 packetSize              = SetRegPairsPackedHeaderSizeInDwords + numPackedRegPairsDwords;
+
+    uint32* pPacket = static_cast<uint32*>(pBuffer);
+    *pPacket = Type3Header(IT_SET_CONTEXT_REG_PAIRS_PACKED__GFX11,
+                           packetSize,
+                           true).u32All; // Required as this is handled entirely in ucode.
+
+    *(pPacket + 1) = numRegs;
+
+    memcpy((pPacket + 2), pRegPairs, numPackedRegPairsDwords * sizeof(uint32));
+
+    return packetSize;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet which sets N pairs of context regs. Returns the size of the PM4 command assembled, in DWORDs.
+// The caller is responsible for copying the payload of N reg offset/value pairs into the packet at offset
+// CmdUtil::SetRegPairsFixedPortionSizeDwords.
+template <RegisterRangeType RegType>
+size_t CmdUtil::BuildSetRegPairsHeader(
+    uint32 numRegPairs,
+    void*  pBuffer)
+{
+    static_assert((RegType == RegRangeContext) || (RegType == RegRangeGfxSh) || (RegType == RegRangeCsSh));
+
+    // See the PM4_PFP_SET_CONTEXT_REG_PAIRS and PM4_PFP_SET_SH_REG_PAIRS structs for reference.
+    // Both structs include one RegisterValuePair.
+    const uint32 packetSize = 1 + (2 * numRegPairs);
+
+    uint32* pBuf = static_cast<uint32*>(pBuffer);
+
+    static constexpr IT_OpCodeType OpCode     = (RegType == RegRangeContext) ?
+                                                IT_SET_CONTEXT_REG_PAIRS__GFX11 : IT_SET_SH_REG_PAIRS__GFX11;
+    static constexpr Pm4ShaderType ShaderType = (RegType == RegRangeCsSh) ? ShaderCompute : ShaderGraphics;
+
+    // We must reset the CAM for this packet as it is handled entirely in ucode.
+    *pBuf = Type3Header(OpCode, packetSize, true, ShaderType).u32All;
+
+    return packetSize;
+}
+
+template
+size_t CmdUtil::BuildSetRegPairsHeader<RegRangeContext>(
+    uint32 numRegPairs,
+    void*  pBuffer);
+template
+size_t CmdUtil::BuildSetRegPairsHeader<RegRangeGfxSh>(
+    uint32 numRegPairs,
+    void*  pBuffer);
+
+// =====================================================================================================================
+// Builds a PM4 packet which sets N pairs of context regs. Returns the size of the PM4 command assembled, in DWORDs.
+template <RegisterRangeType RegType>
+size_t CmdUtil::BuildSetRegPairs(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    void*                    pBuffer)
+{
+    const size_t pktSizeInDws = CmdUtil::BuildSetRegPairsHeader<RegType>(numRegPairs, pBuffer);
+
+    uint32* pBuf = static_cast<uint32*>(pBuffer);
+
+    const size_t memCpySizeInBytes = (pktSizeInDws - CmdUtil::SetRegPairsFixedPortionSizeDwords) * sizeof(uint32);
+    memcpy(&pBuf[CmdUtil::SetRegPairsFixedPortionSizeDwords], pRegPairs, memCpySizeInBytes);
+
+    PAL_DEBUG_BUILD_ONLY_ASSERT(memCpySizeInBytes == (sizeof(RegisterValuePair) * numRegPairs));
+
+    return pktSizeInDws;
+}
+
+template
+size_t CmdUtil::BuildSetRegPairs<RegRangeContext>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    void*                    pBuffer);
+template
+size_t CmdUtil::BuildSetRegPairs<RegRangeGfxSh>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    void*                    pBuffer);
 
 // =====================================================================================================================
 // Builds a PM4 packet which sets a sequence of Graphics SH registers starting with startRegAddr and ending with
@@ -5062,7 +5023,7 @@ void CmdUtil::CheckShadowedShRegs(
         {
             if (shaderType == ShaderGraphics)
             {
-                pRange = m_device.GetRegisterRange(RegRangeSh, &numEntries);
+                pRange = m_device.GetRegisterRange(RegRangeGfxSh, &numEntries);
 
                 PAL_ASSERT(AreRegistersInRangeList((startRegAddr - PERSISTENT_SPACE_START),
                                                    (endRegAddr - PERSISTENT_SPACE_START),

@@ -231,11 +231,9 @@ public:
         const ColorSpaceConversionRegion* pRegions,
         TexFilter                         filter,
         const ColorSpaceConversionTable&  cscTable) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     virtual void CmdCloneImageData(
         const IImage& srcImage,
         const IImage& dstImage) override;
-#endif
     virtual void CmdUpdateMemory(
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset,

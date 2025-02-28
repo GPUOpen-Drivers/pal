@@ -156,7 +156,7 @@ Result WindowSystem::WaitForExplicitSyncRelease(
 
         // Underneath it's drmSyncobjTimelineWait(). release.timeline is a recently sent release sync point for this image,
         // DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT waits also for an underlying fence materialization if it's still NULL.
-        Result ret = m_device.WaitSemaphoreValue(
+        ret = m_device.WaitSemaphoreValue(
             reinterpret_cast<amdgpu_semaphore_handle>(pImageExplicitSyncData->release.syncObjHandle),
             pImageExplicitSyncData->release.timeline,
             DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,

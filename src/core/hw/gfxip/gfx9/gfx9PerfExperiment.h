@@ -200,7 +200,6 @@ struct GlobalSelectState
     GenericBlockSelect* pGeneric[GpuBlockCount];   // The set of generic registers for each block type and instance.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 810
 enum class SpmDataSegmentType : uint32
 {
     Se0,
@@ -212,7 +211,6 @@ enum class SpmDataSegmentType : uint32
     Global,
     Count
 };
-#endif
 
 // A single 16-bit muxsel value.
 union MuxselEncoding
@@ -444,6 +442,8 @@ private:
 
     // A big struct that lists every block's PERFCOUNTER#_SELECT registers.
     GlobalSelectState m_select;
+
+    bool m_isGfx11F32;
 
     // If this is true we can never set CP_PERFMON_CNTL's PERFMON_STATE and SPM_PERFMON_STATE to STOP_COUNTING.
     // If global or SPM counters are active we must always leave them running until we set DISABLE_AND_RESET.

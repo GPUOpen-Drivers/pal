@@ -83,11 +83,7 @@ enum class PipelineBindPoint : uint32
 };
 
 /// Fully specifies a type of graphics primitive and vertex ordering for geometry.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 848
 enum class PrimitiveTopology : uint8
-#else
-enum class PrimitiveTopology : uint32
-#endif
 {
     PointList        = 0x0,
     LineList         = 0x1,
@@ -111,11 +107,7 @@ enum class PrimitiveTopology : uint32
 };
 
 /// Specifies how triangle primitives should be rasterized.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
 enum class FillMode : uint8
-#else
-enum class FillMode : uint32
-#endif
 {
     Points    = 0x0,
     Wireframe = 0x1,
@@ -124,11 +116,7 @@ enum class FillMode : uint32
 };
 
 /// Specifies the triangle face direction that should result in culled primitives.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
 enum class CullMode : uint8
-#else
-enum class CullMode : uint32
-#endif
 {
     _None         = 0x0,  ///< All triangles are rasterized.
     Front         = 0x1,  ///< Front facing triangles are culled.
@@ -143,11 +131,7 @@ enum class CullMode : uint32
 };
 
 /// Specifies vertex winding order corresponding to a front facing triangle.  @see CullMode.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
 enum class FaceOrientation : uint8
-#else
-enum class FaceOrientation : uint32
-#endif
 {
     Ccw = 0x0,  ///< Counter-clockwise vertex winding primitives are front facing.
     Cw  = 0x1   ///< Clockwise vertex winding primitives are front facing.
@@ -155,11 +139,7 @@ enum class FaceOrientation : uint32
 
 /// Specifies which vertex of a primitive is the _provoking vertex_.  This impacts which vertex's "flat" VS outputs
 /// are passed to the PS (i.e., flat shading).
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
 enum class ProvokingVertex : uint8
-#else
-enum class ProvokingVertex : uint32
-#endif
 {
     First = 0x0,
     Last  = 0x1
@@ -260,7 +240,6 @@ enum PipelineStageFlag : uint32
 {
     PipelineStageTopOfPipe         = 0x00000001,
     PipelineStageFetchIndirectArgs = 0x00000002,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
     PipelineStagePostPrefetch      = 0x00000004,
     PipelineStageFetchIndices      = 0x00000008,
     PipelineStageStreamOut         = 0x00000010,
@@ -278,23 +257,6 @@ enum PipelineStageFlag : uint32
     PipelineStageBottomOfPipe      = 0x00010000,
     PipelineStageDsTarget          = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget,
     PipelineStageAllStages         = 0x0001FFFF
-#else
-    PipelineStageFetchIndices      = 0x00000004,
-    PipelineStageStreamOut         = 0x00000008,
-    PipelineStageVs                = 0x00000010,
-    PipelineStageHs                = 0x00000020,
-    PipelineStageDs                = 0x00000040,
-    PipelineStageGs                = 0x00000080,
-    PipelineStagePs                = 0x00000100,
-    PipelineStageEarlyDsTarget     = 0x00000200,
-    PipelineStageLateDsTarget      = 0x00000400,
-    PipelineStageColorTarget       = 0x00000800,
-    PipelineStageCs                = 0x00001000,
-    PipelineStageBlt               = 0x00002000,
-    PipelineStageBottomOfPipe      = 0x00004000,
-    PipelineStageDsTarget          = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget,
-    PipelineStageAllStages         = 0x00007FFF
-#endif
 };
 
 /// Bitmask values that can be ORed together to specify all potential usages of an image at a point in time.  Such a
@@ -691,23 +653,6 @@ struct DynamicGraphicsShaderInfo
 /// Specifies dynamic states of a graphics pipeline
 struct DynamicGraphicsState
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-    DepthClampMode depthClampMode;               ///< Depth clamping behavior.
-    DepthRange     depthRange;                   ///< Specifies Z dimensions of screen space (i.e., post viewport
-                                                 ///  transform: 0 to 1 or -1 to 1).
-    LogicOp        logicOp;                      ///< Logic operation to perform.
-    uint32         colorWriteMask;               ///< Color target write mask.
-    uint32         switchWinding           :  1; ///< Whether to reverse vertex ordering for tessellation.
-    uint32         depthClipNearEnable     :  1; ///< Enable clipping based on Near Z coordinate.
-    uint32         depthClipFarEnable      :  1; ///< Enable clipping based on Far Z coordinate.
-    uint32         alphaToCoverageEnable   :  1; ///< Enable alpha to coverage.
-    uint32         perpLineEndCapsEnable   :  1; ///< Forces the use of perpendicular line end caps as opposed to
-                                                 ///  axis-aligned line end caps during line rasterization.
-    uint32         rasterizerDiscardEnable :  1; ///< Whether to kill all rasterized pixels.
-    uint32         dualSourceBlendEnable   :  1; ///< Enable dual source blend
-    uint32         vertexBufferCount       :  6; ///< Number of vertex buffer slots which are accessed by this pipeline
-    uint32         reserved                : 19; ///< Reserved for future use.
-#else
     uint32             colorWriteMask;               ///< Color target write mask. 4b / RT (8 count)
     struct
     {
@@ -727,7 +672,6 @@ struct DynamicGraphicsState
         uint32         reserved1                  : 7; ///< Reserved
         uint32         reserved                   : 5; ///< Reserved for future use.
     };
-#endif
 
     union
     {
@@ -744,41 +688,13 @@ struct DynamicGraphicsState
             uint32 rasterizerDiscardEnable :  1;  ///< Whether to enable dynamic state rasterizerDiscardEnable.
             uint32 dualSourceBlendEnable   :  1;  ///< Whether to enable dynamic state dualSourceBlendEnable
             uint32 vertexBufferCount       :  1;  ///< Whether to enable dynamic state vertexBufferCount.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-            uint32 reserved                : 21;  ///< Reserved for future use.
-#else
             uint32 reserved1               :  1;  ///< Reserved.
             uint32 reserved                : 20;  ///< Reserved for future use.
-#endif
         };
         uint32     u32All;
     } enable;
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-/// Specifies info on how graphics shaders should use resources.
-struct DynamicGraphicsShaderInfos
-{
-    DynamicGraphicsShaderInfo vs;  ///< Dynamic Vertex shader information.
-    DynamicGraphicsShaderInfo hs;  ///< Dynamic Hull shader information.
-    DynamicGraphicsShaderInfo ds;  ///< Dynamic Domain shader information.
-    DynamicGraphicsShaderInfo gs;  ///< Dynamic Geometry shader information.
-    DynamicGraphicsShaderInfo ts;  ///< Dynamic Task shader information.
-    DynamicGraphicsShaderInfo ms;  ///< Dynamic Mesh shader information.
-    DynamicGraphicsShaderInfo ps;  ///< Dynamic Pixel shader information.
-
-    DynamicGraphicsState      dynamicState; ///< Dynamic state of graphics pipeline.
-    union
-    {
-        struct
-        {
-            uint32 reserved0                  :  8; ///< Reserved.
-            uint32 reserved                   : 24; ///< Reserved for future use.
-        };
-        uint32 u32All;                   ///< Flags packed as 32-bit uint.
-    } flags;                             ///< BindPipeline flags.
-};
-#else
 /// Specifies info on how graphics shaders should use resources.
 struct DynamicGraphicsShaderInfos
 {
@@ -817,7 +733,6 @@ struct DynamicGraphicsShaderInfos
         uint8 u8All;
     } enable;
 };
-#endif
 
 /// Specifies parameters for binding a pipeline.
 /// @see ICmdBuffer::CmdBindPipeline
@@ -831,16 +746,13 @@ struct PipelineBindParams
                                          ///  internalPipelineHash to map the two.
     union
     {
-        DynamicComputeShaderInfo   cs;        ///< Dynamic Compute shader information.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-        DynamicGraphicsShaderInfos graphics;  ///< Dynamic Graphics shader information.
-#else
+        DynamicComputeShaderInfo   cs;   ///< Dynamic Compute shader information.
+
         struct
         {
             DynamicGraphicsShaderInfos gfxShaderInfo;
             DynamicGraphicsState       gfxDynState;
         };
-#endif
     };
 };
 
@@ -1728,7 +1640,6 @@ typedef void (PAL_STDCALL *CmdDispatchMeshIndirectMultiFunc)(
 /// @see ICmdBuffer::CmdSetInputAssemblyState
 struct InputAssemblyStateParams
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 848
     PrimitiveTopology topology;                     ///< Defines how vertices should be interpretted and rendered by
                                                     ///  the graphics pipeline.
     uint8             patchControlPoints;           ///< # of control points per patch. [0-32] valid. Should be set to
@@ -1742,28 +1653,12 @@ struct InputAssemblyStateParams
     uint32            primitiveRestartIndex;        ///< When primitiveRestartEnable is true, this is the index value
                                                     ///  that will restart a primitive.  When using a 16-bit index
                                                     ///  buffer, the upper 16 bits of this value will be ignored.
-#else
-    PrimitiveTopology topology;                     ///< Defines how vertices should be interpretted and rendered by
-                                                    ///  the graphics pipeline.
-    uint32            patchControlPoints;           ///< Number of control points per patch.  Should be set to 0 by
-                                                    ///  clients if topology is not PrimitiveTopology::Patch.
-    uint32            primitiveRestartIndex;        ///< When primitiveRestartEnable is true, this is the index value
-                                                    ///  that will restart a primitive.  When using a 16-bit index
-                                                    ///  buffer, the upper 16 bits of this value will be ignored.
-    bool              primitiveRestartEnable;       ///< Enables the index specified by primitiveRestartIndex to _cut_
-                                                    ///  a primitive (i.e., triangle strip) and begin a new primitive
-                                                    ///  with the next index.
-    bool              primitiveRestartMatchAllBits; ///< Specifies which bits from primitiveRestartIndex to use.
-                                                    ///  false - only check relevant bits based on index type
-                                                    ///  true  - check all 32 bits irrespective of index type
-#endif
 };
 
 /// Specifies parameters for controlling triangle rasterization.
 /// @see ICmdBuffer::CmdSetTriangleRasterState
 struct TriangleRasterStateParams
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
     struct
     {
         FillMode        frontFillMode   : 2; ///< Whether front-facing triangles should be rendered solid or wireframe.
@@ -1785,27 +1680,6 @@ struct TriangleRasterStateParams
         };
         uint8 u8All;                        ///< Flags packed as 8-bit uint.
     } flags;                                ///< Triangle raster state flags.
-#else
-    FillMode        frontFillMode;   ///< Specifies whether front-facing triangles should be rendered solid or wireframe.
-    FillMode        backFillMode;    ///< Specifies whether back-facing triangles should be rendered solid or wireframe.
-    CullMode        cullMode;        ///< Specifies which, if any, triangles should be culled based on whether they are
-                                     ///  front or back facing.
-    FaceOrientation frontFace;       ///< Specifies the vertex winding that results in a front-facing triangle.
-    ProvokingVertex provokingVertex; ///< Specifies whether the first or last vertex of a primitive is the provoking
-                                     ///  vertex as it affects flat shading.
-    union
-    {
-        struct
-        {
-            uint32 frontDepthBiasEnable : 1;  ///< Enable depth bias (i.e. polygon offset) for front-facing
-                                              ///  triangle-based primitives
-            uint32 backDepthBiasEnable  : 1;  ///< Enable depth bias (i.e. polygon offset) for back-facing
-                                              ///  triangle-based primitives
-            uint32 reserved             : 30; ///< Reserved for future use.
-        };
-        uint32 u32All;               ///< Flags packed as 32-bit uint.
-    } flags;                         ///< Triangle raster state flags.
-#endif
 };
 
 /// Specifies parameters for controlling point and line rasterization.
@@ -2143,11 +2017,9 @@ struct CmdBufInfo
     const Util::Event* pEarlyPresentEvent; ///< The 'early present' event object. This variable can be nullptr.
     uint64             frameIndex;         ///< The frame index of this command buffer. It is only required for the
                                            ///  DirectCapture feature
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
     uint32             vidPnSourceId;      ///< The display source id for the DirectCapture feature. Clients must set
                                            ///  a valid vidPnSourceId when privateFlip flag is set and pDirectCapMemory
                                            ///  is nullptr.
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 865
     uint64             frameId;            ///< Present frame index, incremented at each present
 #endif
@@ -2215,9 +2087,7 @@ struct CmdPostProcessFrameInfo
     CmdPostProcessDebugOverlayInfo      debugOverlay;
     FullScreenFrameMetadataControlFlags fullScreenFrameMetadataControlFlags;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
     Pal::ImageLayout srcImageLayout;
-#endif
 };
 
 /// External flags for ScaledCopyImage.
@@ -2242,12 +2112,8 @@ union ScaledCopyFlags
                                     ///  Cannot be set if @ref dstAsSrgb is set.
         uint32 scissorTest    : 1;  ///< If set, do scissor test using the specified scissor rectangle.
         uint32 coordsInFloat  : 1;  ///< If set, copy regions are represented in floating point type.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
         uint32 srcAsNorm      : 1;  ///< If set, an srgb source image will be treated as non-srgb format.
                                     ///  Cannot be set if @ref srcAsSrgb is set.
-#else
-        uint32 reserved817    : 1;  ///< reserved.
-#endif
         uint32 srcAsSrgb      : 1;  ///< If set, a non-srgb source image will be treated as srgb format.
                                     ///  Cannot be set if @ref srcAsNorm is set.
         uint32 reserved       : 23; ///< reserved for future usage.
@@ -3096,23 +2962,6 @@ public:
     {
         m_funcTable.pfnCmdDrawIndirectMulti(this, gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 839
-    void CmdDrawIndirectMulti(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr)
-    {
-        const GpuVirtAddrAndStride gpuVirtAddrAndStride =
-        {
-            .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
-            .stride      = stride
-        };
-        m_funcTable.pfnCmdDrawIndirectMulti(this, gpuVirtAddrAndStride,
-                                          maximumCount, countGpuAddr);
-    }
-#endif
 
     /// Issues instanced, indexed draw calls using the command buffer's currently bound graphics state.  The draw
     /// arguments come from GPU memory. This command will issue count draw calls, using the provided stride to find
@@ -3146,23 +2995,6 @@ public:
     {
         m_funcTable.pfnCmdDrawIndexedIndirectMulti(this, gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 839
-    void CmdDrawIndexedIndirectMulti(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr)
-    {
-        const GpuVirtAddrAndStride gpuVirtAddrAndStride =
-        {
-            .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
-            .stride      = stride
-        };
-        m_funcTable.pfnCmdDrawIndexedIndirectMulti(this, gpuVirtAddrAndStride,
-                                                 maximumCount, countGpuAddr);
-    }
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 909
     /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state.
@@ -3215,14 +3047,7 @@ public:
     {
         m_funcTable.pfnCmdDispatchIndirect(this, gpuVirtAddr);
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 838
-    void CmdDispatchIndirect(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset)
-    {
-        m_funcTable.pfnCmdDispatchIndirect(this, gpuMemory.Desc().gpuVirtAddr + offset);
-    }
-#endif
+
     /// Dispatches a compute workload of the given dimensions and offsets using the command buffer's currently bound
     /// compute state. This command allows targeting regions of thread groups without adding the offset computations in
     /// the shader.
@@ -3250,32 +3075,6 @@ public:
     {
         m_funcTable.pfnCmdDispatchOffset(this, offset, launchSize, logicalSize);
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
-    /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state
-    /// and dynamic pipeline state from GPU memory. The memory address provided contains the gpuVa of the pipeline
-    /// launch descriptor previously obtained by calling @ref IPipeline::CreateLaunchDescriptor on a pipeline
-    /// that supports dynamic dispatch (@see PipelineCreateFlags)
-    ///
-    /// The thread group size is defined in the compute shader.
-    ///
-    /// This function requires use of the following barrier flags on @ref gpuVa:
-    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
-    /// - CacheCoherency: @ref CoherIndirectArgs
-    ///
-    /// @warning Does not support HSA ABI pipelines.
-    ///
-    /// @note DynamicComputeShaderInfo.ldsBytesPerTg is not applicable to dynamic launch descriptors.
-    ///
-    /// @param [in] gpuVa GPU virtual address of memory containing pipeline launch descriptor address.
-    /// @param [in] size  Thread groups to dispatch. If any components are zero the dispatch will be discarded.
-    void CmdDispatchDynamic(
-        gpusize      gpuVa,
-        DispatchDims size)
-    {
-        PAL_NOT_IMPLEMENTED();
-    }
-#endif
 
     /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
     /// the currently bound graphics pipeline does not contain a mesh and/or task shader.
@@ -3318,23 +3117,6 @@ public:
     {
         m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 838
-    void CmdDispatchMeshIndirectMulti(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr)
-    {
-        const GpuVirtAddrAndStride gpuVirtAddrAndStride =
-        {
-            .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
-            .stride      = stride
-        };
-        m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuVirtAddrAndStride,
-                                                  maximumCount, countGpuAddr);
-    }
-#endif
 
     /// Copies multiple regions from one GPU memory allocation to another.
     ///
@@ -3732,7 +3514,6 @@ public:
         TexFilter                         filter,
         const ColorSpaceConversionTable&  cscTable) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     /// Clones data of one image object in another while preserving the image layout.
     ///
     /// The source and destination images must be created with identical creation parameters and must specify the
@@ -3750,7 +3531,6 @@ public:
     virtual void CmdCloneImageData(
         const IImage& srcImage,
         const IImage& dstImage) = 0;
-#endif
 
     /// Directly updates a range of GPU memory with a small amount of host data.
     ///
@@ -4483,17 +4263,7 @@ public:
         uint32      data,
         uint32      mask,
         CompareFunc compareFunc) = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 856
-    virtual void CmdWaitMemoryValue(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            data,
-        uint32            mask,
-        CompareFunc       compareFunc)
-    {
-        CmdWaitMemoryValue(gpuMemory.Desc().gpuVirtAddr + offset, data, mask, compareFunc);
-    }
-#endif
+
     /// Stalls a command buffer execution until an external device writes to the marker surface in the GPU bus
     /// addressable memory location.
     ///
@@ -4794,17 +4564,6 @@ public:
         gpusize                      gpuVirtAddr,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 838
-    void CmdExecuteIndirectCmds(
-        const IIndirectCmdGenerator& generator,
-        const IGpuMemory&            gpuMemory,
-        gpusize                      offset,
-        uint32                       maximumCount,
-        gpusize                      countGpuAddr)
-    {
-        CmdExecuteIndirectCmds(generator, gpuMemory.Desc().gpuVirtAddr+offset, maximumCount, countGpuAddr);
-    }
-#endif
 
     /// Updates one or more HiS pretests bound to the given stencil image within a range of mip levels.
     /// See @ref HiSPretests for a summary of HiS.
@@ -4979,12 +4738,7 @@ private:
     static constexpr uint32 HwPipePointToStage[] =
     {
             PipelineStageTopOfPipe,    // HwPipeTop              = 0x0
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
             PipelineStagePostPrefetch, // HwPipePostPrefetch     = 0x1
-#else
-            // This is just a hack for back-compat, internally we implement stageMask = 0 using an ME write.
-            0,                         // HwPipePostPrefetch     = 0x1
-#endif
             PipelineStageVs,           // HwPipePreRasterization = 0x2
             PipelineStagePs,           // HwPipePostPs           = 0x3
             PipelineStageLateDsTarget, // HwPipePreColorTarget   = 0x4

@@ -57,7 +57,7 @@ Pal::Result CreateTimeGraphComputePipelines(
     case Pal::IpTriple({ 10, 1, 0 }):
     case Pal::IpTriple({ 10, 1, 1 }):
     case Pal::IpTriple({ 10, 1, 2 }):
-        pTable = timeGraphComputeBinaryTableNavi10;
+        pTable = timeGraphComputeBinaryTable10_1_0;
         break;
 
     case Pal::IpTriple({ 10, 3, 0 }):
@@ -66,23 +66,26 @@ Pal::Result CreateTimeGraphComputePipelines(
     case Pal::IpTriple({ 10, 3, 4 }):
     case Pal::IpTriple({ 10, 3, 5 }):
     case Pal::IpTriple({ 10, 3, 6 }):
-        pTable = timeGraphComputeBinaryTableNavi21;
+        pTable = timeGraphComputeBinaryTable10_3_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 0 }):
     case Pal::IpTriple({ 11, 0, 1 }):
     case Pal::IpTriple({ 11, 0, 2 }):
-        pTable = timeGraphComputeBinaryTableNavi31;
+        pTable = timeGraphComputeBinaryTable11_0_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 3 }):
-        pTable = timeGraphComputeBinaryTablePhoenix1;
+        pTable = timeGraphComputeBinaryTable11_0_3;
         break;
 
-#if PAL_BUILD_STRIX1
     case Pal::IpTriple({ 11, 5, 0 }):
-    case Pal::IpTriple({ 11, 5, 65535 }):
-        pTable = timeGraphComputeBinaryTableStrix1;
+        pTable = timeGraphComputeBinaryTable11_5_0;
+        break;
+
+#if  PAL_BUILD_STRIX_HALO
+    case Pal::IpTriple({ 11, 5, 1 }):
+        pTable = timeGraphComputeBinaryTable11_5_1;
         break;
 #endif
 

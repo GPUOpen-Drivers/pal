@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -70,7 +70,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 54;
+constexpr uint32_t Gfx11NumWorkarounds = 55;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +81,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xffc00000,
+    0xff800000,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -161,7 +161,7 @@ union Gfx11SwWarDetection
 
         uint32_t textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      : 1;
 
-#if   SWD_BUILD_STRIX1
+#if    SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t shaderSpFalsePositiveVGPRWriteKillForDUALOpcodeInstructions_A_                                                                                                       : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -173,7 +173,7 @@ union Gfx11SwWarDetection
 
         uint32_t geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             : 1;
 
-#if   SWD_BUILD_PHX2|| SWD_BUILD_STRIX1
+#if     SWD_BUILD_PHX2|| SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t ppCbFDCCKeysWithFragComp_MSAASettingCauseHangsInCB_A_                                                                                                                : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -199,7 +199,7 @@ union Gfx11SwWarDetection
         uint32_t                                                                                                                                                                      : 1;
 #endif
 
-#if   SWD_BUILD_STRIX1
+#if    SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t textureTcpGfx11_5MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                         : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -207,13 +207,13 @@ union Gfx11SwWarDetection
 
         uint32_t textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                           : 1;
 
-#if   SWD_BUILD_STRIX1
+#if     SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t ppSc1ApexLegendsImageCorruptionInZPrePassMode_A_                                                                                                                     : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
 #endif
 
-#if   SWD_BUILD_STRIX1
+#if    SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t shaderSqSqgShaderHangDueToSQInstructionStore_IS_CacheDeadlock_A_                                                                                                     : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -221,7 +221,9 @@ union Gfx11SwWarDetection
 
         uint32_t shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_                                                                                                            : 1;
 
-        uint32_t reserved                                                                                                                                                             : 10;
+        uint32_t                                                                                                                                                                      : 1;
+
+        uint32_t reserved                                                                                                                                                             : 9;
     };
 
     uint32_t u32All[Gfx11StructDwords];
@@ -542,6 +544,34 @@ void DetectStrix1B0Workarounds(
 }
 #endif
 
+#if SWD_BUILD_STRIX_HALO
+// =====================================================================================================================
+void DetectStrixHaloA0Workarounds(
+    Gfx11SwWarDetection* pWorkarounds)
+{
+    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                  = 1;
+    pWorkarounds->controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                      = 1;
+    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
+    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
+    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
+    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
+    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                               = 1;
+    pWorkarounds->ppCbFDCCKeysWithFragComp_MSAASettingCauseHangsInCB_A_                                                                                                                = 1;
+    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                                = 1;
+    pWorkarounds->ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ = 1;
+    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 = 1;
+    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                   = 1;
+    pWorkarounds->ppSc1ApexLegendsImageCorruptionInZPrePassMode_A_                                                                                                                     = 1;
+    pWorkarounds->shaderSpFalsePositiveVGPRWriteKillForDUALOpcodeInstructions_A_                                                                                                       = 1;
+    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                  = 1;
+    pWorkarounds->shaderSqSqgShaderHangDueToSQInstructionStore_IS_CacheDeadlock_A_                                                                                                     = 1;
+    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   = 1;
+    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                            = 1;
+    pWorkarounds->textureTcpGfx11_5MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                         = 1;
+}
+#endif
+
 // =====================================================================================================================
 // Perform overrides to the workaround structure.
 static void Gfx11OverrideDefaults(
@@ -588,7 +618,6 @@ bool DetermineGfx11Target(
     {
         if (false)
         {
-            // Handle sanitization woes.
         }
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
         {
@@ -623,7 +652,6 @@ bool DetermineGfx11Target(
     {
         if (false)
         {
-            // Handle sanitization woes.
         }
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
         {
@@ -647,7 +675,6 @@ bool DetermineGfx11Target(
     {
         if (false)
         {
-            // Handle sanitization woes.
         }
 #if SWD_BUILD_STRIX1
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
@@ -664,6 +691,15 @@ bool DetermineGfx11Target(
             (*pMajor)    = 11;
             (*pMinor)    = 5;
             (*pStepping) = 0;
+            successful   = true;
+        }
+#endif
+#if SWD_BUILD_STRIX_HALO
+        else if ((0xC0 <= eRevId) && (eRevId < 0xE0))
+        {
+            (*pMajor)    = 11;
+            (*pMinor)    = 5;
+            (*pStepping) = 1;
             successful   = true;
         }
 #endif
@@ -751,6 +787,13 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
             successful = true;
         }
 #endif
+#if SWD_BUILD_STRIX_HALO
+        else if ((0xC0 <= eRevId) && (eRevId < 0xE0))
+        {
+            swd_internal::DetectStrixHaloA0Workarounds(pWorkarounds);
+            successful = true;
+        }
+#endif
     }
 #endif
 
@@ -807,6 +850,13 @@ bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     else if ((major == 11) && (minor == 5) && (stepping == 0))
     {
         swd_internal::DetectStrix1B0Workarounds(pWorkarounds);
+        successful = true;
+    }
+#endif
+#if SWD_BUILD_STRIX_HALO
+    else if ((major == 11) && (minor == 5) && (stepping == 1))
+    {
+        swd_internal::DetectStrixHaloA0Workarounds(pWorkarounds);
         successful = true;
     }
 #endif

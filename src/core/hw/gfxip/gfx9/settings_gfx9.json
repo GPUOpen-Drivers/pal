@@ -878,30 +878,6 @@
       "Name": "HtileEnable"
     },
     {
-      "Description": "Toggle between DB_Z_INFO.NUM_SAMPLES = 3 (legacy) and DB_Z_INFO.NUM_SAMPLES = coverage_samples (from MSAA state object)",
-      "Tags": [
-        "Depth/Stencil"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "UseLegacyDbZInfo"
-    },
-    {
-      "Description": "If set then RB+ is disabled if any color target has blending enabled.  GFX11 specific",
-      "Tags": [
-        "General"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "Gfx11DisableRbPlusWithBlending"
-    },
-    {
       "Description": "If set then implements this GFX11 workaround.  if(BLENDING && pipeline in 1xaa)  OVERRIDE_INTRINSIC_RATE_ENABLE = 1  OVERRIDE_INTRINSIC_RATE = 2 (4xaa) else  OVERRIDE_INTRINSIC_RATE_ENABLE = 0",
       "Tags": [
         "Hardware Workarounds"
@@ -3025,6 +3001,21 @@
       "Description": "Reduce RS64 CP overhead by writing a simplified EVENT_WRITE packet, EVENT_WRITE_ZPASS. GFX11 specific and overridden to true unless this setting is explicitly set to false."
     },
     {
+      "Name": "Gfx11F32UseLegacySetPathForPipelineDirty",
+      "Tags": [
+        "General",
+        "Performance",
+        "GFX11"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Flags": {},
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "Description": "For GFX11 F32 parts - chooses if we use legacy SET packets or SET_SH_REG_PAIR when the pipeline is dirty. In this case we often have long strings of sequential regs to write."
+    },
+    {
       "Description": "Sets Dcc max compressed block size to 256b. If false, 128b will be used. 256b is not supported by all parts.",
       "Tags": [
         "General"
@@ -3034,10 +3025,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "Name": "Dcc256bCompressedTex",
-      "OrBuildTypes": [
-        "PAL_BUILD_GFX115"
-      ]
+      "Name": "Dcc256bCompressedTex"
     },
     {
       "Description": "Perfcounter workaround which samples all counters in the running state if SQ counters are on.",

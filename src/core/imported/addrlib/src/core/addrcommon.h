@@ -313,13 +313,13 @@ static inline UINT_32 UnsetLeastBit(
 
 /**
 ****************************************************************************************************
-*   BitScanForward
+*   BitMaskScanForward
 *
 *   @brief
 *       Returns the index-position of the least-significant '1' bit. Must not be 0.
 ****************************************************************************************************
 */
-static inline UINT_32 BitScanForward(
+static inline UINT_32 BitMaskScanForward(
     UINT_32 mask) ///< [in] Bitmask to scan
 {
     ADDR_ASSERT(mask > 0);
@@ -342,13 +342,13 @@ static inline UINT_32 BitScanForward(
 
 /**
 ****************************************************************************************************
-*   BitScanReverse
+*   BitMaskScanReverse
 *
 *   @brief
 *       Returns the reverse-position of the most-significant '1' bit. Must not be 0.
 ****************************************************************************************************
 */
-static inline UINT_32 BitScanReverse(
+static inline UINT_32 BitMaskScanReverse(
     UINT_32 mask) ///< [in] Bitmask to scan
 {
     ADDR_ASSERT(mask > 0);
@@ -608,7 +608,7 @@ static inline UINT_32 NextPow2(
 static inline UINT_32 Log2(
     UINT_32 x)      ///< [in] the value should calculate log based 2
 {
-    return (x != 0) ? (31 ^ BitScanReverse(x)) : 0;
+    return (x != 0) ? (31 ^ BitMaskScanReverse(x)) : 0;
 }
 
 /**

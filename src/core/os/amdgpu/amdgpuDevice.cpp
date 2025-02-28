@@ -948,6 +948,8 @@ Result Device::InitGpuProperties()
 
     m_chipProperties.imageProperties.minPitchAlignPixel = 0;
 
+    m_chipProperties.gfxip.ceRamSize = m_gpuInfo.ce_ram_size;
+
     // The unit of amdgpu is KHz but PAL is Hz
     m_chipProperties.gpuCounterFrequency = m_gpuInfo.gpu_counter_freq * 1000;
 
@@ -1001,7 +1003,6 @@ Result Device::InitGpuProperties()
         }
     }
 
-    // ToDo: Retrieve ceram size of gfx engine from kmd, but the functionality is not supported yet.
     switch (m_chipProperties.gfxTriple.major)
     {
     case 10:
@@ -1232,6 +1233,8 @@ void Device::InitGfx9ChipProperties()
 
         pChipInfo->backendDisableMask = (~m_gpuInfo.enabled_rb_pipes_mask) & ((1 << pChipInfo->numTotalRbs) - 1);
     }
+
+    m_memoryProperties.flags.supportsMall = (m_chipProperties.gfxip.mallSizeInBytes > 0);
 
     auto* pUniversalEngProps = &m_engineProperties.perEngine[EngineTypeUniversal];
     pUniversalEngProps->contextSaveAreaSize               = 0;
@@ -1488,14 +1491,14 @@ Result Device::InitMemInfo()
     {
         m_memoryProperties.vaInitialEnd = m_memoryProperties.vaEnd;
         m_memoryProperties.vaUsableEnd  = m_memoryProperties.vaEnd;
-
+    {
         // kernel reserve 8MB at the begining of VA space and expose all others, up to 64GB, to libdrm_amdgpu.so.
         // There are two VAM instance in the libdrm_amdgpu.so, one for 4GB below and the other for the remains.
         // In order to simplify the scenario, the VAM in PAL will not use 4GB below so far, thus the available Va range
         // will stick to 4GB and above
         PAL_ASSERT(m_memoryProperties.vaStart <= _4GB);
-
         m_memoryProperties.vaStart = _4GB;
+    }
 
         // libdrm_amdgpu will only report the whole continuous VA space. So there is no excluded va ranges
         // between start and end. The reserved first 4GB is at the beginning of whole VA range which is already be
@@ -2224,11 +2227,8 @@ void Device::GetDisplayDccInfo(
         displayDcc.pipeAligned = 0;
         displayDcc.rbAligned   = 0;
 
-#if PAL_BUILD_GFX115
-#endif
         if (IsGfx9Hwl(*this))
         {
-#if PAL_BUILD_GFX115
             if (IsGfx115(*this))
             {
                 displayDcc.dcc_256_256_unconstrained = 1;
@@ -2236,9 +2236,7 @@ void Device::GetDisplayDccInfo(
                 displayDcc.dcc_128_128_unconstrained = 0;
                 displayDcc.dcc_256_64_64             = 1;
             }
-            else
-#endif
-            if (IsGfx103Plus(*this))
+            else if (IsGfx103Plus(*this))
             {
                 displayDcc.dcc_256_256_unconstrained = 0;
                 displayDcc.dcc_256_128_128           = 1;
@@ -2529,13 +2527,19 @@ Result Device::MapVirtualAddress(
     uint64           offset,
     uint64           size,
     uint64           virtualAddress,
-    MType            mtype
+    MType            mtype,
+    GpuMemMallPolicy mallPolicy
     ) const
 {
     Result result = Result::Success;
 
     constexpr uint64 operations = AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE | AMDGPU_VM_PAGE_EXECUTABLE;
-    const     uint64 mtypeFlag  = ConvertMType(mtype);
+
+    uint64 mtypeFlag  = ConvertMType(mtype);
+    if (MemoryProperties().flags.supportsMall && (mallPolicy == GpuMemMallPolicy::Never))
+    {
+        mtypeFlag |= AMDGPU_VM_PAGE_NOALLOC;
+    }
 
     // The operation flags and MTYPE flag should be mutually exclusive.
     PAL_ASSERT((operations & mtypeFlag) == 0);
@@ -2606,9 +2610,10 @@ Result Device::UnmapVirtualAddress(
 // =====================================================================================================================
 // Call amdgpu to setup PTEs for reserved PRT va space.
 Result Device::ReservePrtVaRange(
-    uint64  virtualAddress,
-    uint64  size,
-    MType   mtype
+    uint64           virtualAddress,
+    uint64           size,
+    MType            mtype,
+    GpuMemMallPolicy mallPolicy
     ) const
 {
     Result result = Result::ErrorUnavailable;
@@ -2621,7 +2626,11 @@ Result Device::ReservePrtVaRange(
         operations |= AMDGPU_VM_DELAY_UPDATE;
     }
 
-    const     uint64 mtypeFlag  = ConvertMType(mtype);
+    uint64 mtypeFlag  = ConvertMType(mtype);
+    if (MemoryProperties().flags.supportsMall && (mallPolicy == GpuMemMallPolicy::Never))
+    {
+        mtypeFlag |= AMDGPU_VM_PAGE_NOALLOC;
+    }
 
     // The operation flags and MTYPE flag should be mutually exclusive.
     PAL_ASSERT((operations & mtypeFlag) == 0);
@@ -2685,7 +2694,8 @@ Result Device::ReplacePrtVirtualAddress(
     uint64           offset,
     uint64           size,
     uint64           virtualAddress,
-    MType            mtype
+    MType            mtype,
+    GpuMemMallPolicy mallPolicy
     ) const
 {
     Result result = Result::ErrorUnavailable;
@@ -2693,7 +2703,11 @@ Result Device::ReplacePrtVirtualAddress(
     const uint64 operations = (hBuffer != nullptr) ?
                                 (AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE | AMDGPU_VM_PAGE_EXECUTABLE) :
                                 (AMDGPU_VM_PAGE_PRT);
-    const uint64 mtypeFlag  = ConvertMType(mtype);
+    uint64 mtypeFlag  = ConvertMType(mtype);
+    if (MemoryProperties().flags.supportsMall && (mallPolicy == GpuMemMallPolicy::Never))
+    {
+        mtypeFlag |= AMDGPU_VM_PAGE_NOALLOC;
+    }
 
     // The operation flags and MTYPE flag should be mutually exclusive.
     PAL_ASSERT((operations & mtypeFlag) == 0);
@@ -3671,7 +3685,7 @@ void Device::UpdateMetaData(
                 pUmdSharedMetadata->flags.htile_as_fmask_xor = 1;
                 pUmdSharedMetadata->gfx9.htile_offset        = sharedMetadataInfo.fmaskXor;
                 pUmdSharedMetadata->gfx9.fmask_swizzle_mode  = static_cast<AMDGPU_SWIZZLE_MODE>
-                    (sharedMetadataInfo.fmaskSwizzleMode);
+                    (sharedMetadataInfo.fmaskSwizzleMode.v2);
             }
 
             if (sharedMetadataInfo.flags.hasHtileLookupTable)

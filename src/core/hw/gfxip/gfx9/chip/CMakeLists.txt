@@ -27,6 +27,7 @@ target_sources(pal PRIVATE
     CMakeLists.txt
     gfx9_plus_merged_default.h
     gfx9_plus_merged_enum.h
+    gfx9_plus_merged_f32_ce_pm4_packets.h
     gfx9_plus_merged_f32_me_pm4_packets.h
     gfx9_plus_merged_f32_mec_pm4_packets.h
     gfx9_plus_merged_f32_pfp_pm4_packets.h

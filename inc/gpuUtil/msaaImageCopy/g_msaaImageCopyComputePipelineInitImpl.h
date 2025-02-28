@@ -104,7 +104,7 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
     case Pal::IpTriple({ 10, 1, 0 }):
     case Pal::IpTriple({ 10, 1, 1 }):
     case Pal::IpTriple({ 10, 1, 2 }):
-        pTable = msaaImageCopyComputeBinaryTableNavi10;
+        pTable = msaaImageCopyComputeBinaryTable10_1_0;
         break;
 
     case Pal::IpTriple({ 10, 3, 0 }):
@@ -113,23 +113,23 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
     case Pal::IpTriple({ 10, 3, 4 }):
     case Pal::IpTriple({ 10, 3, 5 }):
     case Pal::IpTriple({ 10, 3, 6 }):
-        pTable = msaaImageCopyComputeBinaryTableNavi21;
+        pTable = msaaImageCopyComputeBinaryTable10_3_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 0 }):
     case Pal::IpTriple({ 11, 0, 1 }):
     case Pal::IpTriple({ 11, 0, 2 }):
-        pTable = msaaImageCopyComputeBinaryTableNavi31;
+    case Pal::IpTriple({ 11, 5, 0 }):
+        pTable = msaaImageCopyComputeBinaryTable11_0_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 3 }):
-        pTable = msaaImageCopyComputeBinaryTablePhoenix1;
+        pTable = msaaImageCopyComputeBinaryTable11_0_3;
         break;
 
-#if PAL_BUILD_STRIX1
-    case Pal::IpTriple({ 11, 5, 0 }):
-    case Pal::IpTriple({ 11, 5, 65535 }):
-        pTable = msaaImageCopyComputeBinaryTableStrix1;
+#if  PAL_BUILD_STRIX_HALO
+    case Pal::IpTriple({ 11, 5, 1 }):
+        pTable = msaaImageCopyComputeBinaryTable11_5_1;
         break;
 #endif
 

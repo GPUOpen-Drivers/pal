@@ -56,11 +56,7 @@ struct KernelArgument;
 namespace Pal
 {
 struct GpuMemSubAllocInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 848
 enum class PrimitiveTopology : uint8;
-#else
-enum class PrimitiveTopology : uint32;
-#endif
 
 /// Specifies a shader type (i.e., what stage of the pipeline this shader was written for).
 enum class ShaderType : uint32
@@ -164,7 +160,6 @@ enum class LogicOp : uint32
 /// Disable means that every Threadgroup is issued to the next SE.
 enum class DispatchInterleaveSize : uint32
 {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
     Default,
     Disable,
 
@@ -174,16 +169,6 @@ enum class DispatchInterleaveSize : uint32
     _1D_512_Threads,
 
     Count,
-
-#else
-    Default               = 0x0,
-    Disable               = 0x1,
-    _128                  = 0x2,
-    _256                  = 0x3,
-    _512                  = 0x4,
-
-    Count
-#endif
 };
 
 /// Specifies whether to override binning setting for pipeline. Enum value of Default follows the PBB global setting.
@@ -234,11 +219,8 @@ union PipelineCreateFlags
     struct
     {
         uint32 clientInternal              :  1; ///< Internal pipeline not created by the application.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
-        uint32 supportDynamicDispatch      :  1; ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
-#endif
         uint32 reserved1                   :  1; ///< Reserved.
-        uint32 reserved                    : 29; ///< Reserved for future use.
+        uint32 reserved                    : 30; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -371,11 +353,7 @@ struct RasterizerState
     PsShadingRate forcedShadingRate;      ///< Forced PS shading rate
 #endif
     bool          dx10DiamondTestDisable; ///< Disable DX10 diamond test during line rasterization.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 804
-    EdgeRuleMode    edgeRule;
-#endif
-
+    EdgeRuleMode  edgeRule;
 };
 
 /// Specifies Per-MRT color target info in olor target state
@@ -414,11 +392,9 @@ struct GraphicsPipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     const IShaderLibrary** ppShaderLibraries;  ///< An array of graphics @ref IShaderLibrary object. pPipelineBinary
                                                ///  and ppShaderLibraries can't be valid at the same time.
     size_t              numShaderLibraries;    ///< Number of graphics shaderLibrary object in ppShaderLibraries.
-#endif
     bool                useLateAllocVsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
                                                ///  determining the limit.
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param
@@ -695,7 +671,6 @@ public:
         uint32*  pSize,
         void*    pBuffer) const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     /// Obtains the pointer of code object with ELF format according to the shader type. Returned ELF object is not
     /// guaranteed to be unique with different shader type, because a single code object can contain multiple shaders.
     ///
@@ -706,7 +681,7 @@ public:
     virtual const void* GetCodeObjectWithShaderType(
         ShaderType shaderType,
         size_t*    pSize) const = 0;
-#endif
+
     /// Obtains the shader pre and post compilation stats/params for the specified shader stage.
     ///
     /// @param [in]  shaderType The shader stage for which the stats are requested.
@@ -752,27 +727,6 @@ public:
         Util::Abi::HardwareStage hardwareStage,
         size_t*                  pSize,
         void*                    pBuffer) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
-    /// Creates a new dynamic launch descriptor for this pipeline.  These descriptors are only usable as input to
-    /// @ref ICmdBuffer::CmdDispatchDynamic().  Each launch descriptor acts as a GPU-side "handle" to a pipeline and
-    /// a set of shader libraries it is linked with. The size of the launch descriptor can be queried from
-    /// @ref DeviceProperties. A size of 0 reported in DeviceProperties indicates that this feature is not supported.
-    ///
-    /// Currently only supported on compute pipelines.
-    ///
-    /// @param [in, out] pOut     Launch descriptor to create or update. Must not be null.
-    /// @param [in]      resolve  The launch descriptor contains state from a previous link operation. Need to update
-    ///                           the descriptor during this operation.
-    ///
-    /// @returns Success if the operation was successful.  Other error codes may include:
-    ///          + ErrorUnavailable if called on a graphics pipeline or a pipeline that does not support dynamic
-    ///                             launch. @ref PipelineCreateFlags
-    ///          + ErrorInvalidPointer if pCpuAddr is null.
-    virtual Result CreateLaunchDescriptor(
-        void* pCpuAddr,
-        bool  resolve) { return Result::Unsupported; }
-#endif
 
     /// Notifies PAL that this pipeline may make indirect function calls to any function contained within any of the
     /// specified @ref IShaderLibrary objects.  This gives PAL a chance to perform any late linking steps required to

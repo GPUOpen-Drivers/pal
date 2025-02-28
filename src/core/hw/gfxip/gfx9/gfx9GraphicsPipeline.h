@@ -137,9 +137,6 @@ struct GfxPipelineRegs
         regGE_USER_VGPR_EN       geUserVgprEn;
         regVGT_GS_OUT_PRIM_TYPE  vgtGsOutPrimType;
     } uconfig;
-
-    static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
-    static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
 };
 
 // =====================================================================================================================
@@ -241,11 +238,13 @@ public:
     bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
     bool IsLineStippleTexEnabled() const { return m_chunkVsPs.SpiPsInputEna().bits.LINE_STIPPLE_TEX_ENA != 0; }
     bool AlphaToCoverageEanble() const { return m_flags.alphaToCoverageEnable; }
+    template <bool Pm4OptEnabled>
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
         uint32*                           pCmdSpace,
         const DynamicGraphicsShaderInfos& graphicsInfo) const;
 
+    template <bool Pm4OptEnabled>
     uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteConfigCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
@@ -338,12 +337,17 @@ private:
         const DynamicGraphicsShaderInfos& graphicsInfo,
         DynamicStageInfos*                pStageInfos) const;
 
+    template <bool Pm4OptEnabled>
     uint32* WriteDynamicRegisters(
         CmdStream*                        pCmdStream,
         uint32*                           pCmdSpace,
         const DynamicGraphicsShaderInfos& graphicsInfo) const;
+    template <bool Pm4OptEnabled>
     uint32* WriteContextCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    void AccumulateContextRegisters(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
+
+    static constexpr uint32 AccumulateContextRegistersMaxRegs = 14;
+    template <typename T>
+    void AccumulateContextRegisters(T* pRegPairs, uint32* pNumRegs) const;
 
     void UpdateRingSizes(
         const Util::PalAbi::CodeObjectMetadata& metadata);
@@ -378,7 +382,8 @@ private:
     virtual void CalculateOutputNumVertices() override;
 
     void SetupIaMultiVgtParam(
-        const Util::PalAbi::CodeObjectMetadata& metadata);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        uint32                                  numShaderEngines);
     void FixupIaMultiVgtParam(
         bool                   forceWdSwitchOnEop,
         regIA_MULTI_VGT_PARAM* pIaMultiVgtParam) const;
@@ -419,7 +424,9 @@ private:
             uint8 contextPairsPacketSupported : 1;
             uint8 shPairsPacketSupported      : 1;
             uint8 writeVgtGsOutPrimType       : 1;
-            uint8 reserved                    : 3;
+            uint8 supportsHwVs                : 1;
+            uint8 isGfx11F32                  : 1;
+            uint8 reserved                    : 1;
         };
         uint8 u8All;
     } m_flags;
@@ -434,6 +441,33 @@ private:
     PipelineChunkVsPs  m_chunkVsPs;
 
     GfxPipelineRegs m_regs;
+
+    void SetupRegPairs();
+
+    static constexpr uint32 Gfx11MaxNumShRegs = HsRegs::NumShReg     + // m_chunkHs.AccumulateShRegs
+                                                GsRegs::NumShReg     + // m_chunkGs.AccumulateShRegs
+                                                // m_chunkVsPs.AccumulateShRegs, GFX11/NGG only - no HWVS!
+                                                VsPsRegs::NumPsShReg;
+    static constexpr uint32 Gfx11MaxNumShPackedPairs = Pow2Align(Gfx11MaxNumShRegs, 2) / 2;
+    union
+    {
+        RegisterValuePair  m_gfx11F32ShRegPairs[Gfx11MaxNumShRegs];
+        PackedRegisterPair m_gfx11Rs64ShRegPairs[Gfx11MaxNumShPackedPairs];
+    };
+    uint32 m_numShRegPairsRegs;
+
+    static constexpr uint32 Gfx11MaxNumCtxRegisters = AccumulateContextRegistersMaxRegs             +
+                                                      HsRegs::NumContextReg                         +
+                                                      PipelineChunkGs::AccumulateContextRegsMaxRegs +
+                                                      PipelineChunkVsPs::AccumulateContextRegsMaxRegs;
+    static constexpr uint32 Gfx11MaxNumCtxPackedPairs = Pow2Align(Gfx11MaxNumCtxRegisters, 2) / 2;
+
+    union
+    {
+        RegisterValuePair  m_gfx11F32CtxRegPairs[Gfx11MaxNumCtxRegisters];
+        PackedRegisterPair m_gfx11Rs64CtxRegPairs[Gfx11MaxNumCtxPackedPairs];
+    };
+    uint32 m_numCtxRegPairsRegs;
 
     constexpr static uint32    MaxPreFetchRangeCount = 3;
     PrimeGpuCacheRange         m_prefetch[MaxPreFetchRangeCount];

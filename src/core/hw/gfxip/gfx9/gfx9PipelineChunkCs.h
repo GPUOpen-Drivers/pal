@@ -89,6 +89,7 @@ public:
         const RegisterVector&                   registers);
 
     void LateInit(
+        const Device&                           device,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         uint32                                  wavefrontSize,
         DispatchDims*                           pThreadsPerTg,
@@ -96,25 +97,12 @@ public:
         CodeObjectUploader*                     pUploader);
 
     void LateInit(
+        const Device&                           device,
         const RegisterVector&                   registers,
         uint32                                  wavefrontSize,
         DispatchDims*                           pThreadsPerTg,
         DispatchInterleaveSize                  interleaveSize,
         CodeObjectUploader*                     pUploader);
-
-    uint32* UpdateDynamicRegInfo(
-        CmdStream*                      pCmdStream,
-        uint32*                         pCmdSpace,
-        HwRegInfo::Dynamic*             pDynamcRegs,
-        const DynamicComputeShaderInfo& csInfo) const;
-
-    void AccumulateShCommandsDynamic(
-        PackedRegisterPair* pRegPairs,
-        uint32*             pNumRegs,
-        HwRegInfo::Dynamic  dynamicRegs) const;
-    void AccumulateShCommandsSetPath(
-        PackedRegisterPair* pRegPairs,
-        uint32*             pNumRegs) const;
 
     uint32* WriteShCommands(
         CmdStream*                      pCmdStream,
@@ -122,15 +110,6 @@ public:
         bool                            regPairsSupported,
         const DynamicComputeShaderInfo& csInfo,
         bool                            prefetch) const;
-
-    uint32* WriteShCommandsDynamic(
-        CmdStream*         pCmdStream,
-        uint32*            pCmdSpace,
-        HwRegInfo::Dynamic dynamicRegs) const;
-
-    uint32* WriteShCommandsSetPath(
-        CmdStream* pCmdStream,
-        uint32*    pCmdSpace) const;
 
     uint32* WriteShCommandsLdsSize(
         CmdStream* pCmdStream,
@@ -153,17 +132,41 @@ public:
         const AbiReader&       abiReader,
         const PipelineChunkGs& chunkGs);
 private:
+    void UpdateDynamicRegInfo(
+        HwRegInfo::Dynamic*             pDynamcRegs,
+        const DynamicComputeShaderInfo& csInfo) const;
+
+    void AccumulateShCommandsDynamic(
+        PackedRegisterPair* pRegPairs,
+        uint32*             pNumRegs,
+        HwRegInfo::Dynamic  dynamicRegs) const;
+
+    void AccumulateShCommandsSetPath(
+        PackedRegisterPair* pRegPairs,
+        uint32*             pNumRegs) const;
+
+    uint32* WriteShCommandsDynamic(
+        CmdStream*         pCmdStream,
+        uint32*            pCmdSpace,
+        HwRegInfo::Dynamic dynamicRegs) const;
+
+    uint32* WriteShCommandsSetPath(
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace) const;
+
     void InitRegisters(
+        const Device&                           device,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         DispatchInterleaveSize                  interleaveSize,
         uint32                                  wavefrontSize);
 
     void InitRegisters(
+        const Device&                           device,
         const RegisterVector&                   registers,
         DispatchInterleaveSize                  interleaveSize,
         uint32                                  wavefrontSize);
 
-    void DoLateInit(DispatchDims* pThreadsPerTg, CodeObjectUploader* pUploader);
+    void DoLateInit(const Device& device, DispatchDims* pThreadsPerTg, CodeObjectUploader* pUploader);
 
     void SetupSignatureFromMetadata(
         ComputeShaderSignature*                 pSignature,
@@ -173,7 +176,16 @@ private:
         ComputeShaderSignature* pSignature,
         const RegisterVector&   registers);
 
-    const Device& m_device;
+    struct
+    {
+        PrefetchMethod acePrefetchMethod :  2;
+        PrefetchMethod gfxPrefetchMethod :  2;
+        uint32         supportSpp        :  1;
+        uint32         isGfx11           :  1;
+        uint32         reserved1         :  2;
+        uint32         numCuPerSe        :  8;
+        uint32         maxWavesPerSe     : 16;
+    } m_flags;
 
     HwRegInfo m_regs;
     gpusize   m_prefetchAddr;

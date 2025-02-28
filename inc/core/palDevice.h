@@ -765,11 +765,9 @@ struct PalPublicSettings
     // Instead only allowing GpuHeapInvisible and GpuHeapLocal
     bool forceShaderRingToVMem;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 818
     /// If the client sets this to true they promise they've done exhaustive testing on every ASIC to prove that this
     /// application can use AC01 fast clears safely. This should never be forced to true unconditionally.
     bool ac01WaNotNeeded;
-#endif
 
     /// Toggles whether or not image copies will prefer using the graphics pipeline. This setting does not force all
     /// copies to use graphics or compute, it changes what method will be selected in cases where either could be used.
@@ -1030,14 +1028,6 @@ struct DeviceProperties
                 uint32 reserved914                     :  1;
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
-                /// If true, this engine does not support peer-to-peer copies that target memory in the invisible heap
-                /// on another GPU due to a hardware bug.
-                uint32 p2pCopyToInvisibleHeapIllegal   :  1;
-#else
-                uint32 reserved834                     :  1;
-#endif
-
                 /// Indicates whether the engine supports the command allocator tracks which chunk is idle.
                 uint32 supportsTrackBusyChunks         :  1;
 
@@ -1045,10 +1035,10 @@ struct DeviceProperties
                 uint32 supportsUnmappedPrtPageAccess   :  1;
 
                 /// This engine supports clear or copy with MSAA depth-stencil destination
-                uint32 supportsClearCopyMsaaDsDst : 1;
+                uint32 supportsClearCopyMsaaDsDst      :  1;
 
                 /// Reserved for future use.
-                uint32 reserved                        : 15;
+                uint32 reserved                        : 16;
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
@@ -1325,10 +1315,6 @@ struct DeviceProperties
         uint32 maxGsInvocations;            ///< Maximum number of GS prim instances, corresponding to geometry shader
                                             ///  invocation in glsl.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
-        uint32 dynamicLaunchDescSize; ///< Dynamic launch descriptor size. Zero indicates this feature is not
-                                      /// supported. @ref IPipeline::CreateLaunchDescriptor()
-#endif
         RayTracingIpLevel       rayTracingIp;       ///< HW RayTracing IP version
 
         uint32                  cpUcodeVersion;   ///< Command processor feature version.
@@ -1437,10 +1423,8 @@ struct DeviceProperties
                 uint64 support3dUavZRange                 :  1; ///< HW supports read-write ImageViewSrds of 3D images
                                                                 ///  with zRange specified.
                 uint64 supportCooperativeMatrix           :  1; ///< HW supports cooperative matrix
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
                 uint64 support1dDispatchInterleave        :  1; ///< Indicates support for 1D Dispatch Interleave.
                 uint64 placeholder12                      :  1;
-#endif
                 uint64 supportBFloat16                    :  1; ///< HW supports bf16 instructions.
                 uint64 supportFloat8                      :  1; ///< HW supports float 8-bit instructions.
                 uint64 supportInt4                        :  1; ///< HW supports integer 4-bit instructions.
@@ -1731,12 +1715,8 @@ union FullScreenFrameMetadataControlFlags
         uint32 expandDcc                 :  1; ///< KMD notifies UMD to expand DCC (Output only).
         uint32 enableTurboSyncForDwm     :  1; ///< Indicates DWM should turn on TurboSync(Output only).
         uint32 enableDwmFrameMetadata    :  1; ///< When cleared, no frame metadata should be sent for DWM(Output only).
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 820
         uint32 flipIntervalOverride      :  3; ///< KMD-UMD interface FLIP_INTERVAL_OVERRIDE, for KMD to request flip
                                                ///  interval override from UMD.
-#else
-        uint32 placeholder820            :  3; ///< Reserved for future interface versions
-#endif
         uint32 disableFreeMux            :  1; ///< KMD notifies UMD to disable FreeMux.
         uint32 maxFrameLatency           :  2; ///< KMD can notify UMD to override the frame latency of an app.
         uint32 reserved                  : 15; ///< Reserved for future use.
@@ -4622,23 +4602,6 @@ public:
     ///          This value will always be non-zero if the device has GfxIp support.
     virtual size_t GetMsaaStateSize() const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 855
-    virtual size_t GetMsaaStateSize(
-        const MsaaStateCreateInfo& createInfo,
-        Result*                    pResult
-        ) const
-    {
-        const size_t size = GetMsaaStateSize();
-
-        if (pResult != nullptr)
-        {
-            *pResult = (size > 0) ? Result::Success : Result::ErrorUnknown;
-        }
-
-        return size;
-    }
-#endif
-
     /// Creates an @ref IMsaaState object with the requested properties.
     ///
     /// @param [in]  createInfo      Properties of the MSAA state object to create.
@@ -4665,23 +4628,6 @@ public:
     ///          This value will always be non-zero if the device has GfxIp support.
     virtual size_t GetColorBlendStateSize() const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 855
-    virtual size_t GetColorBlendStateSize(
-        const ColorBlendStateCreateInfo& createInfo,
-        Result*                          pResult
-        ) const
-    {
-        const size_t size = GetColorBlendStateSize();
-
-        if (pResult != nullptr)
-        {
-            *pResult = (size > 0) ? Result::Success : Result::ErrorUnknown;
-        }
-
-        return size;
-    }
-#endif
-
     /// Creates an @ref IColorBlendState object with the requested properties.
     ///
     /// @param [in]  createInfo        Properties of the color blend state object to create.
@@ -4707,23 +4653,6 @@ public:
     /// @returns Size, in bytes, of system memory required for an @ref IDepthStencilState object.
     ///          This value will always be non-zero if the device has GfxIp support.
     virtual size_t GetDepthStencilStateSize() const = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 855
-    virtual size_t GetDepthStencilStateSize(
-        const DepthStencilStateCreateInfo& createInfo,
-        Result*                            pResult
-        ) const
-    {
-        const size_t size = GetDepthStencilStateSize();
-
-        if (pResult != nullptr)
-        {
-            *pResult = (size > 0) ? Result::Success : Result::ErrorUnknown;
-        }
-
-        return size;
-    }
-#endif
 
     /// Creates an @ref IDepthStencilState object with the requested properties.
     ///
@@ -5540,15 +5469,6 @@ public:
         gpusize           codeOffset,
         const IGpuMemory* pTrapHandlerMemory,
         gpusize           memoryOffset) const = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 843
-    inline Result SetHipTrapHandler(
-        const IGpuMemory* pTrapHandlerCode,
-        const IGpuMemory* pTrapHandlerMemory) const
-    {
-        return SetHipTrapHandler(pTrapHandlerCode, 0, pTrapHandlerMemory, 0);
-    }
-#endif
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

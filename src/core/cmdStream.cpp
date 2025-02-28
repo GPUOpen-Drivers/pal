@@ -63,8 +63,10 @@ CmdStream::CmdStream(
     m_engineType(engineType),
     m_cmdSpaceDwordPadding(0),
     m_reserveLimit(Device::CmdStreamReserveLimit),
+    m_maxReserveLimit(0),
     m_chunkDwordsAvailable(0),
     m_pReserveBuffer(nullptr),
+    m_pReserveBufferEnd(nullptr),
     m_nestedChunks(32, pDevice->GetPlatform()),
     m_status(Result::Success),
     m_totalChunkDwords(0)
@@ -98,10 +100,10 @@ CmdStream::CmdStream(
 
     if (m_pCmdAllocator != nullptr)
     {
-        // The reserve limit cannot be larger than the chunk size minus the padding space. Reserve limits up to 1024
+        // The reserve limit cannot be larger than the chunk size minus the padding space. Reserve limits up to ~950
         // DWORDs will always be OK; anything larger is at the mercy of the client's suballocation size.
-        PAL_ASSERT(m_reserveLimit <=
-            (m_pCmdAllocator->ChunkSize(m_cmdDataAllocType) / sizeof(uint32)) - m_cmdSpaceDwordPadding);
+        m_maxReserveLimit = (m_pCmdAllocator->ChunkSize(m_cmdDataAllocType) / sizeof(uint32)) - m_cmdSpaceDwordPadding;
+        PAL_ASSERT(m_reserveLimit <= MaxReserveLimit());
     }
 
     // Cannot init flags bitfield in the initializer list.
@@ -116,7 +118,6 @@ CmdStream::CmdStream(
     if ((engineInfo.flags.supportsMidCmdBufPreemption != 0) &&
         (m_cmdStreamUsage == CmdStreamUsage::Workload))
     {
-        // We may want to disable preemption even if the KMD has enabled it.
         m_flags.enablePreemption = (m_pDevice->Settings().cmdBufPreemptionMode == CmdBufPreemptModeEnable);
 
         m_flags.supportPreemption = m_flags.enablePreemption;
@@ -159,17 +160,33 @@ Result CmdStream::Begin(
 }
 
 // =====================================================================================================================
-// Returns a pointer to enough memory to store m_reserveLimit DWORDs of commands.
+// Returns a pointer to enough memory to store a default number of commands.
 uint32* CmdStream::ReserveCommands()
 {
+    return ReserveCommandsSized(ReserveLimit());
+}
+
+// =====================================================================================================================
+// Returns a pointer to enough memory to store a given number of commands.
+uint32* CmdStream::ReserveCommandsSized(
+    uint32 numDwords)
+{
+    // Why are we reserving constant engine space when we don't have a constant engine?
+    PAL_DEBUG_BUILD_ONLY_ASSERT((m_subEngineType != SubEngineType::ConstantEngine) ||
+                                m_pDevice->IsConstantEngineSupported(m_engineType));
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     // It's not legal to call ReserveCommands twice in a row.
     PAL_ASSERT(m_isReserved == false);
     m_isReserved = true;
+
+    // It's not legal to reserve more commands than the max reserve limit.
+    PAL_ASSERT(numDwords <= MaxReserveLimit());
 #endif
 
     // Preemptively allocate enough space to store all commands the caller could write.
-    m_pReserveBuffer = AllocCommandSpace(m_reserveLimit);
+    m_pReserveBuffer = AllocCommandSpace(numDwords);
+    m_pReserveBufferEnd = (m_pReserveBuffer + numDwords);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Debug builds can memset all command space before the caller has a chance to write packets to help expose holes
@@ -178,7 +195,7 @@ uint32* CmdStream::ReserveCommands()
     {
         memset(m_pReserveBuffer,
                m_pDevice->Settings().cmdStreamMemsetValue,
-               m_reserveLimit * sizeof(uint32));
+               numDwords * sizeof(uint32));
     }
 #endif
 
@@ -187,22 +204,34 @@ uint32* CmdStream::ReserveCommands()
 }
 
 // =====================================================================================================================
-// Returns a pointer to enough memory to store m_reserveLimit DWORDs of commands.
+// Returns a pointer to enough memory to store a default number of commands.
 uint32* CmdStream::ReserveCommandsInNewChunk()
+{
+    return ReserveCommandsSizedInNewChunk(ReserveLimit());
+}
+
+// =====================================================================================================================
+// Returns a pointer to enough memory to store a given number of commands.
+uint32* CmdStream::ReserveCommandsSizedInNewChunk(
+    uint32 numDwords)
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     // It's not legal to call ReserveCommands twice in a row.
     PAL_ASSERT(m_isReserved == false);
     m_isReserved = true;
+
+    // It's not legal to reserve more commands than the max reserve limit.
+    PAL_ASSERT(numDwords <= MaxReserveLimit());
 #endif
 
-    CmdStreamChunk* pChunk = GetNextChunk(m_reserveLimit);
+    CmdStreamChunk* pChunk = GetNextChunk(numDwords);
 
     // Record that the tail object in our chunk list has less space available than it did before.
-    m_chunkDwordsAvailable -= m_reserveLimit;
+    m_chunkDwordsAvailable -= numDwords;
 
     // Preemptively allocate enough space from a new chunk to store all commands the caller could write.
-    m_pReserveBuffer = pChunk->GetSpace(m_reserveLimit);
+    m_pReserveBuffer = pChunk->GetSpace(numDwords);
+    m_pReserveBufferEnd = (m_pReserveBuffer + numDwords);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Debug builds can memset all command space before the caller has a chance to write packets to help expose holes
@@ -211,7 +240,7 @@ uint32* CmdStream::ReserveCommandsInNewChunk()
     {
         memset(m_pReserveBuffer,
                m_pDevice->Settings().cmdStreamMemsetValue,
-               m_reserveLimit * sizeof(uint32));
+               numDwords * sizeof(uint32));
     }
 #endif
 
@@ -228,46 +257,65 @@ void CmdStream::CommitCommands(
     // It's not legal to call CommitCommands before ReserveCommands.
     PAL_ASSERT(m_isReserved);
     m_isReserved = false;
-#endif
 
-    const uint32 dwordsUsed = static_cast<uint32>(pEndOfBuffer - m_pReserveBuffer);
-    PAL_ASSERT(dwordsUsed <= m_reserveLimit);
+    // If this trips, the recorded commands went over the reserve limit and garbled the following memory.
+    PAL_ASSERT(pEndOfBuffer <= m_pReserveBufferEnd);
+#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // If commit size logging is enabled, make the appropriate call to the allocator to update its histogram.
     if (m_pDevice->Settings().logCmdBufCommitSizes)
     {
-        m_pCmdAllocator->LogCommit(m_engineType, dwordsUsed);
+        const uint32 dwordsUsed = static_cast<uint32>(pEndOfBuffer - m_pReserveBuffer);
+        m_pCmdAllocator->LogCommit(m_engineType, (m_subEngineType == SubEngineType::ConstantEngine), dwordsUsed);
     }
 #endif
 
     // We must have already done an AllocCommandSpace call so we just need to reclaim any unused space.
-    ReclaimCommandSpace(m_reserveLimit - dwordsUsed);
+    const uint32 dwordsRemaining = static_cast<uint32>(m_pReserveBufferEnd - pEndOfBuffer);
+    ReclaimCommandSpace(dwordsRemaining);
 
     // Technically this pointer is invalid now.
-    m_pReserveBuffer = nullptr;
+    m_pReserveBuffer    = nullptr;
+    m_pReserveBufferEnd = nullptr;
 }
 
 // =====================================================================================================================
 // Commits and reserves new command space if the space remaining since the last call to ReserveCommands() is
 // insufficient for the specified amount of command DWORDs to fit.  Otherwise, does nothing.  The amount of DWORDs
-// **must** be less than or equal to the reserve limit.
+// **must** be less than or equal to the suballoc size.
 uint32* CmdStream::ReReserveCommands(
     uint32* pCurrentBufferPos,
     uint32  numDwords)
 {
-    const uint32 dwordsUsed = uint32(pCurrentBufferPos - m_pReserveBuffer);
-    PAL_ASSERT(dwordsUsed <= m_reserveLimit);
-    PAL_ASSERT(numDwords <= m_reserveLimit);
+    PAL_ASSERT(pCurrentBufferPos <= m_pReserveBufferEnd);
 
     uint32* pBuffer = pCurrentBufferPos;
-    if ((dwordsUsed + numDwords) > m_reserveLimit)
+    if ((pBuffer + numDwords) > m_pReserveBufferEnd)
     {
         CommitCommands(pBuffer);
-        pBuffer = ReserveCommands();
+        pBuffer = ReserveCommandsSized(numDwords);
     }
 
     return pBuffer;
+}
+
+// =====================================================================================================================
+// Allocate exactly what the caller asked for. Note that m_reserveLimit does not apply here because it only exists to
+// give the caller a known lower bound on this buffer; the caller knows the exact size so it's meaningless here.
+//
+// There's still an upper limit though, the caller can't ask for more space than exists in a new command chunk minus
+// any preamble and postamble space. There's an assert in GetNextChunk which covers this case. If anyone needs this
+// upper limit at runtime a command allocator function can be added to estimate the limit.
+uint32* CmdStream::AllocateCommands(
+    uint32 sizeInDwords)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // It's not legal to call AllocateCommands inside of a ReserveCommands/CommitCommands pair.
+    PAL_ASSERT(m_isReserved == false);
+#endif
+
+    return AllocCommandSpace(sizeInDwords);
 }
 
 // =====================================================================================================================
@@ -319,7 +367,10 @@ CmdStreamChunk* CmdStream::GetNextChunk(
 {
     CmdStreamChunk* pChunk = nullptr;
 
-    if (m_status == Result::Success)
+    // If this stream is already in an error state then we want to continue being in an error state.
+    Result result = m_status;
+
+    if (result == Result::Success)
     {
         // First search the retained chunk list
         if (m_retainedChunkList.IsEmpty() == false)
@@ -335,23 +386,16 @@ CmdStreamChunk* CmdStream::GetNextChunk(
             // stream doesn't have enough space to accomodate this request.  Either way, we need to obtain a new chunk.
             // The allocator adds a reference for us automatically. If the chunk list is empty, then the new chunk will
             // be the root.
-            m_status = m_pCmdAllocator->GetNewChunk(m_cmdDataAllocType, (m_flags.buildInSysMem != 0), &pChunk);
+            result = m_pCmdAllocator->GetNewChunk(m_cmdDataAllocType, (m_flags.buildInSysMem != 0), &pChunk);
 
-            if (m_status != Result::Success)
-            {
-                // Something bad happen and the stream will always be in error status ever after
-                PAL_ALERT_ALWAYS();
-            }
-            else
-            {
-                // Make sure that the start address of this chunk work with the requirements of this command stream if
-                // the stream isn't being assembled in system memory.
-                PAL_ASSERT(pChunk->UsesSystemMemory() || IsPow2Aligned(pChunk->GpuVirtAddr(), m_startAlignBytes));
-            }
+            // Make sure that the start address of this chunk work with the requirements of this command stream if
+            // the stream isn't being assembled in system memory.
+            PAL_ASSERT((result != Result::Success) ||
+                       pChunk->UsesSystemMemory()  ||
+                       IsPow2Aligned(pChunk->GpuVirtAddr(), m_startAlignBytes));
         }
     }
-
-    PAL_ASSERT((pChunk != nullptr) || (m_status != Result::Success));
+    PAL_ASSERT((pChunk != nullptr) == (m_status == Result::Success));
 
     if (m_chunkList.IsEmpty() == false)
     {
@@ -361,23 +405,15 @@ CmdStreamChunk* CmdStream::GetNextChunk(
         // Add in the total DWORDs allocated to compute an upper-bound on total command size.
         m_totalChunkDwords += m_chunkList.Back()->DwordsAllocated();
     }
-    else if ((m_status == Result::Success) && m_pCmdAllocator->TrackBusyChunks())
+    else if ((pChunk != nullptr) && m_pCmdAllocator->TrackBusyChunks())
     {
         // This is the first chunk in the list so we have to initialize the busy tracker
-        const Result result = pChunk->InitRootBusyTracker(m_pCmdAllocator);
-
-        if (result != Result::Success)
-        {
-            // Something bad happen and the stream will always be in error status ever after
-            PAL_ALERT_ALWAYS();
-
-            m_status = result;
-        }
+        result = pChunk->InitRootBusyTracker(m_pCmdAllocator);
     }
 
-    if (m_status != Result::Success)
+    if (result != Result::Success)
     {
-        // Always pop up and use dummy chunk in error status.
+        // Always pop up and use dummy chunk in an error state.
         pChunk = m_pCmdAllocator->GetDummyChunk();
         pChunk->Reset();
 
@@ -388,9 +424,10 @@ CmdStreamChunk* CmdStream::GetNextChunk(
         }
     }
 
-    // And just add this chunk to the end of our list.
-    const Result result = m_chunkList.PushBack(pChunk);
-    PAL_ASSERT(result == Result::Success);
+    PAL_ASSERT(pChunk != nullptr);
+
+    // And just add this chunk to the end of our list, even if we're already in an error state.
+    result = CollapseResults(result, m_chunkList.PushBack(pChunk));
 
     // And remember how much of this chunk is available, accounting for any potential padding and/or postamble.
     m_chunkDwordsAvailable = pChunk->DwordsRemaining() - m_cmdSpaceDwordPadding;
@@ -399,9 +436,23 @@ CmdStreamChunk* CmdStream::GetNextChunk(
     // possibly allocate a chunk preamble.
     BeginCurrentChunk();
 
-    // It's possible for a client to request more command buffer space then what fits in a single chunk.
-    // This is unsupported.
-    PAL_ASSERT (numDwords <= m_chunkDwordsAvailable);
+    // It's possible (but illegal) for the caller to request more command buffer space than what fits in a single chunk.
+    // The best we can do is put this command stream into an error state so it's impossible to submit it.
+    if (numDwords > m_chunkDwordsAvailable)
+    {
+        result = CollapseResults(result, Result::ErrorInvalidValue);
+
+        // This is by definition a driver bug.
+        PAL_ASSERT_ALWAYS_MSG("GetNextChunk requested %u DWs but only %u available!",
+                              numDwords, m_chunkDwordsAvailable);
+    }
+
+    if (result != Result::Success)
+    {
+        // For any number of reasons this command stream is now invalid.
+        m_status = result;
+        PAL_ALERT_ALWAYS();
+    }
 
     return pChunk;
 }
@@ -496,9 +547,9 @@ void CmdStream::Reset(
     if (m_pCmdAllocator != nullptr)
     {
         // The reserve limit cannot be larger than the chunk size minus the padding space. Reserve limits up to
-        // 1024 DWORDs will always be OK; anything larger is at the mercy of the client's suballocation size.
-        PAL_ASSERT(m_reserveLimit <=
-            (m_pCmdAllocator->ChunkSize(m_cmdDataAllocType) / sizeof(uint32)) - m_cmdSpaceDwordPadding);
+        // ~950 DWORDs will always be OK; anything larger is at the mercy of the client's suballocation size.
+        m_maxReserveLimit = (m_pCmdAllocator->ChunkSize(m_cmdDataAllocType) / sizeof(uint32)) - m_cmdSpaceDwordPadding;
+        PAL_ASSERT(m_reserveLimit <= MaxReserveLimit());
     }
 
     // It's not legal to use this allocator now that command building is over. We make no attempt to rewind the

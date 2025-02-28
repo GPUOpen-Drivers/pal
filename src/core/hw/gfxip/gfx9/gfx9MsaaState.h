@@ -27,6 +27,7 @@
 
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
+#include "core/hw/gfxip/gfx9/gfx11RegPairHandler.h"
 #include "core/hw/gfxip/msaaState.h"
 
 namespace Pal
@@ -39,12 +40,12 @@ class Device;
 // =====================================================================================================================
 // Gfx9 hardware layer MSAA State class: implements GFX9 specific functionality for the ApiStateObject class,
 // specifically for MSAA state.
-class MsaaState final : public Pal::MsaaState
+class MsaaState : public Pal::MsaaState
 {
 public:
     MsaaState(const Device& device, const MsaaStateCreateInfo& msaaState);
 
-    uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
 
     static uint32 ComputeMaxSampleDistance(
         uint32                       numSamples,
@@ -56,12 +57,8 @@ public:
         CmdStream*                   pCmdStream,
         uint32*                      pCmdSpace);
 
-    bool UsesOverRasterization() const { return (m_regs.dbEqaa.bits.OVERRASTERIZATION_AMOUNT != 0); }
-    bool ShaderCanKill() const { return (m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_ENABLE != 0); }
-    bool UsesLineStipple() const { return (m_regs.paScModeCntl0.bits.LINE_STIPPLE_ENABLE != 0); }
-    bool ConservativeRasterizationEnabled() const { return (m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE != 0); }
-
-    regPA_SC_MODE_CNTL_0 PaScModeCntl0() const { return m_regs.paScModeCntl0; }
+    bool UsesLineStipple() const { return m_flags.usesLinesStipple; }
+    bool ConservativeRasterizationEnabled() const { return (m_paScConsRastCntl.bits.OVER_RAST_ENABLE != 0); }
 
     uint32 NumSamples() const { return (1 << m_log2Samples); }
     uint32 Log2NumSamples() const { return m_log2Samples; }
@@ -69,7 +66,7 @@ public:
 
     bool ForceSampleRateShading() const { return m_flags.forceSampleRateShading; }
 
-    regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL PaScConsRastCntl() const { return m_regs.paScConsRastCntl; }
+    regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL PaScConsRastCntl() const { return m_paScConsRastCntl; }
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_paScAaConfig; }
 
     // THis class only owns these bits in PA_SC_AA_CONFIG.
@@ -79,36 +76,113 @@ public:
 protected:
     virtual ~MsaaState() { }
 
-    void Init(const Device& device, const MsaaStateCreateInfo& msaaState);
-
-    uint32              m_log2Samples;
-    uint32              m_log2OcclusionQuerySamples;
-    regPA_SC_AA_CONFIG  m_paScAaConfig; // This register is only written in the draw-time validation code.
+    const uint32                             m_log2Samples;
+    const uint32                             m_log2OcclusionQuerySamples;
+    regPA_SC_AA_CONFIG                       m_paScAaConfig;     // Written at draw-time.
+    regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL m_paScConsRastCntl; // Written at draw-time.
 
     union
     {
         struct
         {
             uint32 waFixPostZConservativeRasterization :  1;
-            uint32 gfx10_3                             :  1;
             uint32 forceSampleRateShading              :  1;
+            uint32 usesLinesStipple                    :  1;
         };
         uint32  u32All;
     }  m_flags;
 
-    struct
-    {
-        regDB_EQAA                                dbEqaa;
-        regDB_ALPHA_TO_MASK                       dbAlphaToMask;
-        uint32                                    dbReservedReg2;
-        regPA_SC_AA_MASK_X0Y0_X1Y0                paScAaMask1;
-        regPA_SC_AA_MASK_X0Y1_X1Y1                paScAaMask2;
-        regPA_SC_MODE_CNTL_0                      paScModeCntl0;
-        regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL  paScConsRastCntl;
-    }  m_regs;
-
     PAL_DISALLOW_COPY_AND_ASSIGN(MsaaState);
     PAL_DISALLOW_DEFAULT_CTOR(MsaaState);
+};
+
+// =====================================================================================================================
+// GFX11 RS64 specific implemenation of Msaa State class.
+class Gfx11MsaaStateRs64 final : public Gfx9::MsaaState
+{
+public:
+    Gfx11MsaaStateRs64(const Device& device, const MsaaStateCreateInfo& msaaState);
+
+    virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
+protected:
+    virtual ~Gfx11MsaaStateRs64() { }
+
+private:
+    static constexpr uint32 Registers[] =
+    {
+        mmDB_EQAA,
+        mmDB_ALPHA_TO_MASK,
+        mmPA_SC_AA_MASK_X0Y0_X1Y0,
+        mmPA_SC_AA_MASK_X0Y1_X1Y1,
+        mmPA_SC_MODE_CNTL_0
+    };
+
+    using Regs = Gfx11PackedRegPairHandler<decltype(Registers), Registers>;
+
+    PackedRegisterPair m_regs[Regs::NumPackedRegPairs()];
+
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx11MsaaStateRs64);
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx11MsaaStateRs64);
+};
+
+// =====================================================================================================================
+// GFX11 F32 specific implemenation of Msaa State class.
+class Gfx11MsaaStateF32 final : public Gfx9::MsaaState
+{
+public:
+    Gfx11MsaaStateF32(const Device& device, const MsaaStateCreateInfo& msaaState);
+
+    virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
+protected:
+    virtual ~Gfx11MsaaStateF32() { }
+
+private:
+    static constexpr uint32 Registers[] =
+    {
+        mmDB_EQAA,
+        mmDB_ALPHA_TO_MASK,
+        mmPA_SC_AA_MASK_X0Y0_X1Y0,
+        mmPA_SC_AA_MASK_X0Y1_X1Y1,
+        mmPA_SC_MODE_CNTL_0
+    };
+    using Regs = Gfx11RegPairHandler<decltype(Registers), Registers>;
+
+    static_assert(Regs::Size() == Regs::NumContext(), "Only context regs expected.");
+
+    RegisterValuePair m_regs[Regs::Size()];
+
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx11MsaaStateF32);
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx11MsaaStateF32);
+};
+
+// =====================================================================================================================
+// GFX10 specific implemenation of Msaa State class.
+class Gfx10MsaaState final : public Gfx9::MsaaState
+{
+public:
+    Gfx10MsaaState(const Device& device, const MsaaStateCreateInfo& msaaState);
+
+    virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
+protected:
+    virtual ~Gfx10MsaaState() { }
+
+private:
+    struct
+    {
+        regDB_EQAA                 dbEqaa;
+        regDB_ALPHA_TO_MASK        dbAlphaToMask;
+        regPA_SC_AA_MASK_X0Y0_X1Y0 paScAaMask1;
+        regPA_SC_AA_MASK_X0Y1_X1Y1 paScAaMask2;
+        regPA_SC_MODE_CNTL_0       paScModeCntl0;
+    }  m_regs;
+
+    uint32 m_dbReservedReg2;
+
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10MsaaState);
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx10MsaaState);
 };
 
 } // Gfx9

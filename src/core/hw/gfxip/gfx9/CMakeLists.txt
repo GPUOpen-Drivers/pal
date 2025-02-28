@@ -120,5 +120,6 @@ target_sources(pal PRIVATE
     gfx10ShadowedRegisters_gfx103.h
     gfx10ShadowedRegisters_nv10.h
     gfx11ShadowedRegisters.h
+    gfx11RegPairHandler.h
     settings_gfx9.json
 )

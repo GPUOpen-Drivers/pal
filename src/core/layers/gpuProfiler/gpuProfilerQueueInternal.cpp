@@ -353,16 +353,17 @@ Result Queue::Init(
         // gpuProfilerQueueFileLogger.cpp
         m_maskEnabled = (BitfieldIsSet(engineMask, m_pQueueInfos[0].engineType) &&
                          BitfieldIsSet(engineIdMask, m_pQueueInfos[0].engineIndex) &&
-                         BitfieldIsSet(queueIdMask, m_queueId));
+                         (m_queueId >= 32 || BitfieldIsSet(queueIdMask, m_queueId)));
 
         m_profileEnabled   = m_maskEnabled && ((context != GpuProfilerContext::Pix) || m_recreateState);
         m_endSampleEnabled = settings.gpuProfilerConfig.skipEndSample == false;
 
-        if (m_profileEnabled)
+        if (m_maskEnabled)
         {
             result = BuildGpaSessionSampleConfig();
         }
-        else
+
+        if (m_profileEnabled == false)
         {
             GPUPROFILER_WARN("Skipping logging for queue %d", m_queueId);
         }
@@ -544,7 +545,7 @@ Result Queue::ProcessSubmit(
         m_recreateState = platformEndOfRecreation;
 
         // Assuming PIX is the only context that povides EndOfRecreation to have changed platformEndOrRecreation
-        PAL_ALERT_MSG(pPlatform->PlatformSettings().gpuProfilerConfig.context == GpuProfilerContext::Pix,
+        PAL_ALERT_MSG(pPlatform->PlatformSettings().gpuProfilerConfig.context != GpuProfilerContext::Pix,
                       "Either PIX being used without indicating in GpuProfilerConfig.Context, or unhandled context"
                       " is providing EndOfRecreation markers");
 
@@ -651,9 +652,9 @@ Result Queue::ProcessSubmit(
         memset(nextCmdBufInfoList.Data(), 0, sizeof(CmdBufInfo) * Max(cmdBufferCount, 1u));
 
         MultiSubmitInfo nextSubmitInfo   = submitInfo;
-        nextSubmitInfo.pGpuMemoryRefs    = &nextGpuMemoryRefs[0];
-        nextSubmitInfo.pDoppRefs         = &nextDoppRefs[0];
-        nextSubmitInfo.ppBlockIfFlipping = &pNextBlockIfFlipping[0];
+        nextSubmitInfo.pGpuMemoryRefs    = nextGpuMemoryRefs.Data();
+        nextSubmitInfo.pDoppRefs         = nextDoppRefs.Data();
+        nextSubmitInfo.ppBlockIfFlipping = pNextBlockIfFlipping;
         nextSubmitInfo.pFreeMuxMemory    = NextGpuMemory(submitInfo.pFreeMuxMemory);
 
         // In most cases, we want to release all newly acquired objects with each submit, since they are only used
@@ -812,10 +813,8 @@ Result Queue::ProcessSubmit(
                                 {
                                     pNextCmdBufInfoList->pPrivFlipMemory =
                                         NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
                                     pNextCmdBufInfoList->vidPnSourceId =
                                         origSubQueueInfo.pCmdBufInfoList[i].vidPnSourceId;
-#endif
                                 }
 
                                 pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
@@ -857,8 +856,8 @@ Result Queue::ProcessSubmit(
                         // Include all of subQueueInfos preceding current subQueue,
                         // but the contents of preceding subQueue is cleared.
                         nextSubmitInfo.perSubQueueInfoCount = subQueueIdx + 1;
-                        nextSubmitInfo.pPerSubQueueInfo     = &nextPerSubQueueInfosBreakBatch[0];
-                        nextSubmitInfo.ppFences = passFence ? &nextFences[0] : nullptr;
+                        nextSubmitInfo.pPerSubQueueInfo     = nextPerSubQueueInfosBreakBatch.Data();
+                        nextSubmitInfo.ppFences = passFence ? nextFences.Data() : nullptr;
                         nextSubmitInfo.fenceCount = passFence ? submitInfo.fenceCount : 0;
 
                         result = InternalSubmit(nextSubmitInfo, releaseObjectsBreakBatch);
@@ -880,8 +879,8 @@ Result Queue::ProcessSubmit(
         {
             // Make sure we didn't overflow the next arrays.
             PAL_ASSERT((globalCmdBufIdx == cmdBufferCount) && (globalCmdBufInfoIdx <= cmdBufferCount));
-            nextSubmitInfo.pPerSubQueueInfo     = &nextPerSubQueueInfos[0];
-            nextSubmitInfo.ppFences   = &nextFences[0];
+            nextSubmitInfo.pPerSubQueueInfo = nextPerSubQueueInfos.Data();
+            nextSubmitInfo.ppFences         = nextFences.Data();
 
             result = InternalSubmit(nextSubmitInfo, releaseObjects);
         }
@@ -1471,20 +1470,19 @@ Result Queue::BuildGpaSessionSampleConfig()
             if (m_pDevice->IsThreadTraceEnabled())
             {
                 const auto& sqttSettings = settings.gpuProfilerSqttConfig;
+                auto*const  pSqttConfig  = &m_gpaSessionSampleConfig.sqtt;
 
-                m_gpaSessionSampleConfig.sqtt.flags.enable                     = true;
-                m_gpaSessionSampleConfig.sqtt.seMask                           = m_pDevice->GetSeMask();
-                m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit                   = sqttSettings.bufferSize;
-                m_gpaSessionSampleConfig.sqtt.flags.stallMode                  = m_pDevice->GetSqttStallMode();
-                m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens   = sqttSettings.supressInstructionTokens;
-                m_gpaSessionSampleConfig.sqtt.flags.excludeNonDetailShaderData =
-                sqttSettings.excludeNonDetailShaderData;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
-                m_gpaSessionSampleConfig.sqtt.tokenMask                        = sqttSettings.tokenMask;
-#endif
+                pSqttConfig->flags.enable                     = true;
+                pSqttConfig->flags.stallMode                  = m_pDevice->GetSqttStallMode();
+                pSqttConfig->flags.supressInstructionTokens   = sqttSettings.supressInstructionTokens;
+                pSqttConfig->flags.excludeNonDetailShaderData = sqttSettings.excludeNonDetailShaderData;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899
-                m_gpaSessionSampleConfig.sqtt.flags.enableExecPopTokens = sqttSettings.enableExecPopulationTokens;
+                pSqttConfig->flags.enableExecPopTokens        = sqttSettings.enableExecPopulationTokens;
 #endif
+
+                pSqttConfig->seMask         = m_pDevice->GetSeMask();
+                pSqttConfig->tokenMask      = sqttSettings.tokenMask;
+                pSqttConfig->gpuMemoryLimit = sqttSettings.bufferSize;
             }
         }
         else

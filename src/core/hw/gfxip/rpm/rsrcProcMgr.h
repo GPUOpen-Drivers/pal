@@ -388,7 +388,7 @@ protected:
     uint32 SrdDwordAlignment() const { return m_srdAlignment; }
 
     virtual bool CopyImageUseMipLevelInSrd(bool isCompressed) const { return UseMipLevelInSrd; }
-    virtual bool CopyImageCsUseMsaaMorton(const Image& dstImage) const = 0;
+    virtual bool CopyImageCsUseMsaaMorton(const Image& dstImage) const;
 
     // Assume optimized copies won't work
     virtual bool HwlUseFMaskOptimizedImageCopy(

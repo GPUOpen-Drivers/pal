@@ -574,7 +574,8 @@ public:
         uint64           offset,
         uint64           size,
         uint64           virtualAddress,
-        MType            mtype) const;
+        MType            mtype,
+        GpuMemMallPolicy mallPolicy) const;
 
     Result UnmapVirtualAddress(
         amdgpu_bo_handle hBuffer,
@@ -583,9 +584,10 @@ public:
         uint64           virtualAddress) const;
 
     Result ReservePrtVaRange(
-        uint64  virtualAddress,
-        uint64  size,
-        MType   mtype) const;
+        uint64           virtualAddress,
+        uint64           size,
+        MType            mtype,
+        GpuMemMallPolicy mallPolicy) const;
 
     Result DiscardReservedPrtVaRange(
         uint64  virtualAddress,
@@ -596,7 +598,8 @@ public:
         uint64           offset,
         uint64           size,
         uint64           virtualAddress,
-        MType            mtype) const;
+        MType            mtype,
+        GpuMemMallPolicy mallPolicy) const;
 
     Result WaitBufferIdle(
         amdgpu_bo_handle         hBuffer,

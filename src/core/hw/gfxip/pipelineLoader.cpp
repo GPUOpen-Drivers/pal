@@ -461,7 +461,7 @@ Result LoadedElf::Init(
             // to actually resolve the symbol(s) in the loaded ELF, we use the same hack code below as for
             // a compute pipeline.
             ShaderLibraryCreateInfo localInfo = {};
-            localInfo.pCodeObject = elf.Data();
+            localInfo.pCodeObject    = elf.Data();
             localInfo.codeObjectSize = elf.NumElements();
 
             // Create the shader library.

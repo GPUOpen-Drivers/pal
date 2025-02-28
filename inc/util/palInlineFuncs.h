@@ -566,7 +566,7 @@ bool BitMaskScanReverse(
 template <typename T, size_t N>
 bool WideBitMaskScanForward(
     uint32* pIndex,        ///< [out] Index of least-significant '1' bit.  Undefined if input is zero.
-    T       (&mask)[N])    ///< Bit-mask to scan.
+    const T (&mask)[N])    ///< Bit-mask to scan.
 {
     uint32 maskIndex = ((*pIndex) / (sizeof(T) << 3));
 
@@ -600,7 +600,7 @@ bool WideBitMaskScanForward(
 template <typename T, size_t N>
 bool WideBitMaskScanReverse(
     uint32* pIndex,        ///< [out] Index of most-significant '1' bit.  Undefined if input is zero.
-    T       (&mask)[N])    ///< Bit-mask to scan.
+    const T (&mask)[N])    ///< Bit-mask to scan.
 {
     uint32 maskIndex = ((*pIndex) / (sizeof(T) << 3));
 

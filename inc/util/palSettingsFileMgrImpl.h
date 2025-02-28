@@ -68,7 +68,7 @@ Result SettingsFileMgr<Allocator>::Init(
 {
     Result ret = Result::ErrorInvalidPointer;
 
-    const char* pEnvOverridenPath = getenv("AMD_CONFIG_DIR");
+    const char* pEnvOverridenPath = getenv(SettingsDirEnvVar);
     if (pEnvOverridenPath != nullptr)
     {
         pSettingsPath = pEnvOverridenPath;

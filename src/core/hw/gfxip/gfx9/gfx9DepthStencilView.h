@@ -76,7 +76,7 @@ struct DepthStencilViewRegs
 
 // =====================================================================================================================
 // Gfx9 HW-specific implementation of the Pal::IDepthStencilView interface
-class DepthStencilView : public IDepthStencilView
+class DepthStencilView final : public IDepthStencilView
 {
 public:
     DepthStencilView(
@@ -101,7 +101,6 @@ public:
     const Image* GetImage() const { return m_pImage; }
     uint32 MipLevel() const { return m_depthSubresource.mipLevel; }
 
-    bool IsVaLocked() const { return m_flags.viewVaLocked; }
     bool ReadOnlyDepth() const { return m_flags.readOnlyDepth; }
     bool ReadOnlyStencil() const { return m_flags.readOnlyStencil; }
     bool VrsImageIncompatible() const { return m_flags.vrsImageIncompatible; }
@@ -126,6 +125,8 @@ public:
         const Device&         device,
         const uint8           numFragments,
         regDB_RENDER_CONTROL* pDbRenderControl);
+
+    regDB_Z_INFO DbZInfo() const { return m_regs.dbZInfo; }
 
     static constexpr uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |
                                                       DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK       |
@@ -178,14 +179,13 @@ protected:
             uint32 depthMetadataTexFetch   :  1;
             uint32 stencilMetadataTexFetch :  1;
             uint32 vrsOnlyDepth            :  1; // Set if the image is used for VRS-only depth
-            uint32 viewVaLocked            :  1; // Whether the view's VA range is locked and won't change.
             uint32 hiSPretests             :  1; // Set if the image has HiS pretest metadata
             uint32 dbRenderOverrideLocked  :  1; // Set if DB_RENDER_OVERRIDE cannot change due to bind-time
                                                  // compression state.
             uint32 dbRenderControlLocked   :  1; // Set if DB_RENDER_CONTROL cannot change due to bind-time
                                                  // compression state.
             uint32 vrsImageIncompatible    :  1; // Set if the view cannot be used with a VRS image (forced passthrough)
-            uint32 reserved                : 19;
+            uint32 reserved                : 20;
         };
 
         uint32 u32All;

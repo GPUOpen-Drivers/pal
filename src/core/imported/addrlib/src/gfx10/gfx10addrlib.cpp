@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -880,6 +880,9 @@ BOOL_32 Gfx10Lib::HwlInitGlobalParams(
             break;
     }
 
+    // Gfx10+ chips treat packed 8-bit 422 formats as 32bpe with 2pix/elem.
+    m_configFlags.use32bppFor422Fmt = TRUE;
+
     // Skip unaligned case
     m_xmaskBaseIndex += MaxNumOfBppCMask;
     m_htileBaseIndex += MaxNumOfAA;
@@ -1029,8 +1032,6 @@ ChipFamily Gfx10Lib::HwlConvertChipFamily(
             ADDR_ASSERT(!"Unknown chip family");
             break;
     }
-
-    m_configFlags.use32bppFor422Fmt = TRUE;
 
     return family;
 }

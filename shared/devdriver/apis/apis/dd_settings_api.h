@@ -37,7 +37,7 @@ extern "C" {
 
 #define DD_SETTINGS_API_NAME "DD_SETTINGS_API"
 
-#define DD_SETTINGS_API_VERSION_MAJOR 1
+#define DD_SETTINGS_API_VERSION_MAJOR 2
 #define DD_SETTINGS_API_VERSION_MINOR 0
 #define DD_SETTINGS_API_VERSION_PATCH 0
 
@@ -67,6 +67,7 @@ typedef enum
 {
     DD_SETTINGS_DRIVER_TYPE_DX12 = 0,
     DD_SETTINGS_DRIVER_TYPE_DX10,
+    DD_SETTINGS_DRIVER_TYPE_DX9,
     DD_SETTINGS_DRIVER_TYPE_VULKAN,
     DD_SETTINGS_DRIVER_TYPE_OPENGL,
     DD_SETTINGS_DRIVER_TYPE_COUNT,
@@ -112,6 +113,23 @@ typedef struct
     /// A pointer to an array of DDSettingsValueRef.
     DDSettingsValueRef* pValues;
 } DDSettingsComponentValueRefs;
+
+/// This struct represents a registry setting
+typedef struct
+{
+    /// A null-terminated string representing the registry key where the setting is stored.
+    /// @note: These differ from the component names in the settings blob
+    char registryComponentName[DD_SETTINGS_MAX_COMPONENT_NAME_SIZE];
+    /// A null-terminated string.
+    char settingNameStr[DD_SETTINGS_MAX_MISC_STRING_SIZE];
+    /// The settings hash
+    DD_SETTINGS_NAME_HASH nameHash;
+    /// Indicates whether the setting appears in the registry as its name string or as the hash
+    bool storedAsHash;
+    /// Indicates whether the setting is whitelisted
+    bool whitelisted;
+
+} DDSettingsRegistryInfo;
 
 typedef struct DDSettingsInstance DDSettingsInstance;
 
@@ -183,6 +201,31 @@ typedef struct DDSettingsApi
         uint8_t**           ppBuffer,
         size_t*             pSize,
         DDAllocator         alloc);
+
+    /// Gets the settings that are overridden in the registry.
+    ///
+    /// @param[in] pInstance Must be \ref DDSettingsApi.pInstance.
+    /// @param[in] driverType Which driver to load settings from.
+    /// @param[in] The settings blobs object returned from the settings blobs query.
+    /// @param[out] ppBuffer Will be set to a pointer to an array of DDSettingsRegistryInfo structs.
+    /// @param[out] pSize The size of the array pointed to by *\param ppBuffer.
+    /// @param[in] alloc Will be used to allocate the array mentioned above.
+    DD_RESULT (*QueryRegistryOverrides)(DDSettingsInstance*     pInstance,
+                                        DD_SETTINGS_DRIVER_TYPE driverType,
+                                        const char*             pBlobs,
+                                        uint8_t**               ppBuffer,
+                                        size_t*                 pSize,
+                                        DDAllocator             alloc);
+
+    /// Clears a setting that is overridden in the registry.
+    /// Note: Since this modifies the registry, it needs to be run with admin privileges.
+    ///
+    /// @param[in] pInstance Must be \ref DDSettingsApi.pInstance.
+    /// @param[in] driverType Which driver to clear the setting from.
+    /// @param[in] The setting to clear.
+    DD_RESULT (*ClearRegistryOverride)(DDSettingsInstance*           pInstance,
+                                       DD_SETTINGS_DRIVER_TYPE       driverType,
+                                       const DDSettingsRegistryInfo* pRegistrySetting);
 } DDSettingsApi;
 
 #ifdef __cplusplus

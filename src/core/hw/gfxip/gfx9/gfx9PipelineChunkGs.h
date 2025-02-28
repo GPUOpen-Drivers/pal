@@ -83,8 +83,8 @@ struct GsRegs
         regSPI_SHADER_PGM_RSRC4_GS spiShaderPgmRsrc4Gs;
     } dynamic;
 
-    static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
-    static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
+    static constexpr uint32 NumShReg      =
+        (sizeof(Sh) / sizeof(uint32_t)) + 1; // +1 for m_pPerfDataInfo->regOffset
 };
 
 // =====================================================================================================================
@@ -106,32 +106,40 @@ public:
         GraphicsPipelineLoadInfo* pInfo);
 
     void LateInit(
+        const Device&                           device,
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         const GraphicsPipelineLoadInfo&         loadInfo,
         const GraphicsPipelineCreateInfo&       createInfo,
         CodeObjectUploader*                     pUploader);
 
+    template <bool Pm4OptEnabled>
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         const bool              hasMeshShader) const;
+    template <bool Pm4OptEnabled>
     uint32* WriteDynamicRegs(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         const DynamicStageInfo& gsStageInfo) const;
 
+    template <bool Pm4OptEnabled>
     uint32* WriteContextCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
+    template <typename T>
     void AccumulateShRegs(
-        PackedRegisterPair* pRegPairs,
+        T*                  pRegPairs,
         uint32*             pNumRegs,
         const bool          hasMeshShader) const;
+
+    static constexpr uint32 AccumulateContextRegsMaxRegs = 6;
+    template <typename T>
     void AccumulateContextRegs(
-        PackedRegisterPair* pRegPairs,
-        uint32*             pNumRegs) const;
+        T*      pRegPairs,
+        uint32* pNumRegs) const;
 
     uint32 GsVsRingItemSize() const { return m_regs.context.vgtGsVsRingItemSize.bits.ITEMSIZE; }
 
@@ -153,13 +161,18 @@ public:
 
     void AccumulateRegistersHash(Util::MetroHash64& hasher) const { hasher.Update(m_regs.context); }
 private:
-    const Device&  m_device;
+    struct
+    {
+        uint8 supportSpp : 1;
+        uint8 isGfx11    : 1;
+        uint8 reserved   : 6;
+    } m_flags;
 
     GsRegs m_regs;
 
-    const PerfDataInfo*const  m_pPerfDataInfo;   // GS performance data information.
-    ShaderStageInfo           m_stageInfo;
-    GsFastLaunchMode          m_fastLaunchMode;
+    const PerfDataInfo*const m_pPerfDataInfo;   // GS performance data information.
+    ShaderStageInfo          m_stageInfo;
+    GsFastLaunchMode         m_fastLaunchMode;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkGs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkGs);

@@ -548,12 +548,10 @@ void BarrierMgr::ExpandColor(
                                         transition.imageInfo.pQuadSamplePattern,
                                         subresRange);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
             if (gfx9Image.HasDisplayDccData())
             {
                 RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
             }
-#endif
         }
         else if (fmaskDecompress)
         {
@@ -1062,11 +1060,6 @@ void BarrierMgr::IssueSyncs(
         {
             pCmdBuf->SetCpBltWriteCacheState(false);
         }
-
-        if (TestAnyFlagSet(origGlxCaches, SyncGl2Inv))
-        {
-            pCmdBuf->SetCpMemoryWriteL2CacheStaleState(false);
-        }
     }
 }
 
@@ -1127,7 +1120,6 @@ void BarrierMgr::OptimizeSrcCacheMask(
         // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
         // - If a compute BLT occurred, alias these srcCaches to CoherShader.
         // - If a CP L2 BLT occurred, alias these srcCaches to CoherCp.
-        // - If a CP direct-to-memory write occurred, alias these srcCaches to CoherMemory.
         // Clear the original srcCaches from the srcCache mask for the rest of this scope.
         if (TestAnyFlagSet(*pCacheMask, CacheCoherencyBlt))
         {
@@ -1135,7 +1127,6 @@ void BarrierMgr::OptimizeSrcCacheMask(
             const bool                   isCopySrcOnly    = (*pCacheMask == CoherCopySrc);
 
             *pCacheMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
-            *pCacheMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
 
             if (isCopySrcOnly)
             {
@@ -1180,7 +1171,7 @@ void BarrierMgr::Barrier(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    CmdStream* pCmdStream     = GetCmdStream(pCmdBuf);
+    CmdStream* pCmdStream     = static_cast<CmdStream*>(pCmdBuf->GetMainCmdStream());
     SyncReqs   globalSyncReqs = {};
 
     // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
@@ -1526,8 +1517,7 @@ void BarrierMgr::Barrier(
                                                                  subresRange,
                                                                  imageInfo.newLayout);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
-                    const ColorLayoutToState    layoutToState = gfx9Image.LayoutToColorCompressionState();
+                    const ColorLayoutToState layoutToState = gfx9Image.LayoutToColorCompressionState();
 
                     if (gfx9Image.HasDisplayDccData() &&
                         (ImageLayoutToColorCompressionState(layoutToState, imageInfo.newLayout) == ColorDecompressed))
@@ -1535,7 +1525,6 @@ void BarrierMgr::Barrier(
                         RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
                         usedCompute = true;
                     }
-#endif
 
                     // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
                     // finished, even if other Blts caused these operations to occur before any Blts were performed.
