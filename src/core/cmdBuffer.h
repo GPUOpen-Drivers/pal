@@ -819,6 +819,9 @@ public:
     bool IsNested()               const { return (m_createInfo.flags.nested               != 0); }
     bool IsRealtimeComputeUnits() const { return (m_createInfo.flags.realtimeComputeUnits != 0); }
     bool UsesDispatchTunneling()  const { return (m_createInfo.flags.dispatchTunneling    != 0); }
+#if PAL_BUILD_GFX12
+    bool DispatchPongPongWalk()   const { return (m_createInfo.flags.dispatchPingPongWalk != 0); }
+#endif
 
     bool IsExclusiveSubmit() const { return (m_buildFlags.optimizeExclusiveSubmit    != 0); }
     bool IsOneTimeSubmit()   const { return (m_buildFlags.optimizeOneTimeSubmit      != 0); }

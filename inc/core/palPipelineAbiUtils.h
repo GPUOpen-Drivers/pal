@@ -239,6 +239,13 @@ inline void MachineTypeToGfxIpVersion(
         *pGfxIpStepping = 1;
         break;
 #endif
+#if PAL_BUILD_NAVI48
+    case AmdGpuMachineType::Gfx1201:
+        *pGfxIpMajorVer = 12;
+        *pGfxIpMinorVer = 0;
+        *pGfxIpStepping = GfxIpSteppingNavi48;
+        break;
+#endif
     default:
         // What is this?
         PAL_ASSERT_ALWAYS();
@@ -419,6 +426,32 @@ inline void GfxIpVersionToMachineType(
             break;
         }
         break;
+#if PAL_BUILD_GFX12
+    case 12:
+        switch (gfxIpMinorVer)
+        {
+        case 0:
+            switch (gfxIpStepping)
+            {
+
+#if PAL_BUILD_NAVI48
+            case GfxIpSteppingNavi48:
+                *pMachineType = AmdGpuMachineType::Gfx1201;
+                break;
+#endif
+
+            default:
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
+            break;
+
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;

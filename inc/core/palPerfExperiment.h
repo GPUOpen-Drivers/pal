@@ -92,6 +92,14 @@ enum class GpuBlock : uint32
     DfMall  = 0x30, // The DF subblocks have unique instances and event IDs but they all share the DF's perf counters.
     SqWgp   = 0x31, // SQ counters that can be sampled at WGP granularity.
     Pc      = 0x32,
+#if PAL_BUILD_GFX12
+    Gl1xa   = 0x33,
+    Gl1xc   = 0x34,
+    Wgs     = 0x35,
+    EaCpwd  = 0x36,
+    EaSe    = 0x37,
+    RlcUser = 0x38,
+#endif
     Count
 };
 
@@ -141,6 +149,12 @@ enum class PerfTraceMarkerType : uint32
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 874
     A = SqttA,
     B = SqttB,
+#endif
+#if PAL_BUILD_GFX12
+    SpmA  = 0x2,
+    SpmB  = 0x3,
+    SpmC  = 0x4,
+    SpmD  = 0x5,
 #endif
     Count
 };
@@ -263,6 +277,9 @@ enum ThreadTraceTokenTypeFlags : Pal::uint32
     Immed1       = 0x00100000, ///< One wave issued an immediate instruction this cycle. TT 3.0.
     Immediate    = 0x00200000, ///< One or more waves have issued an immediate instruction this cycle. TT 3.0.
     UtilCounter  = 0x00400000, ///< A new set of utilization counter values. TT 3.0.
+#if PAL_BUILD_GFX12
+    RealTime     = 0x00800000, ///< Output realtime. TT 3.3.
+#endif
     All          = 0xFFFFFFFF  ///< Enable all the above tokens.
 };
 
@@ -326,7 +343,11 @@ struct ThreadTraceInfo
             uint32 threadTraceWrapBuffer                 :  1;
             uint32 threadTraceStallBehavior              :  1;
             uint32 threadTraceTokenConfig                :  1;
+#if PAL_BUILD_GFX12
+            uint32 threadTraceStallAllSimds              :  1;
+#else
             uint32 placeholder1                          :  1;
+#endif
             uint32 threadTraceExcludeNonDetailShaderData :  1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899
             uint32 threadTraceEnableExecPop              :  1;
@@ -356,6 +377,9 @@ struct ThreadTraceInfo
         uint32                    threadTraceIssueMask;
         bool                      threadTraceWrapBuffer;
         uint32                    threadTraceStallBehavior;
+#if PAL_BUILD_GFX12
+        bool                      threadTraceStallAllSimds;
+#endif
         bool                      threadTraceExcludeNonDetailShaderData;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899
         bool                      threadTraceEnableExecPop;

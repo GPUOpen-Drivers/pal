@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -184,6 +184,21 @@ typedef enum _AMDGPU_SWIZZLE_MODE
 	AMDGPU_SWIZZLE_MODE_VAR             = AMDGPU_SWIZZLE_MODE_VAR_S,
 } AMDGPU_SWIZZLE_MODE;
 
+#if PAL_BUILD_GFX12
+typedef enum _AMDGPU_ADDR3_SWIZZLE_MODE
+{
+	AMDGPU_ADDR3_SWIZZLE_MODE_LINEAR    = 0,
+	AMDGPU_ADDR3_SWIZZLE_MODE_256B_2D   = 1,
+	AMDGPU_ADDR3_SWIZZLE_MODE_4KB_2D    = 2,
+	AMDGPU_ADDR3_SWIZZLE_MODE_64KB_2D   = 3,
+	AMDGPU_ADDR3_SWIZZLE_MODE_256KB_2D  = 4,
+	AMDGPU_ADDR3_SWIZZLE_MODE_4KB_3D    = 5,
+	AMDGPU_ADDR3_SWIZZLE_MODE_64KB_3D   = 6,
+	AMDGPU_ADDR3_SWIZZLE_MODE_256KB_3D  = 7,
+	AMDGPU_ADDR3_SWIZZLE_MODE_MAX_TYPE  = 8,
+} AMDGPU_ADDR3_SWIZZLE_MODE;
+#endif
+
 typedef enum _AMDGPU_ADDR_RESOURCE_TYPE
 {
     AMDGPU_ADDR_RSRC_TEX_1D = 0,
@@ -291,6 +306,23 @@ typedef struct _amdgpu_shared_metadata_info
             uint32_t            htile_lookup_table_offset;
             AMDGPU_SWIZZLE_MODE fmask_swizzle_mode;
         } gfx9;
+#if PAL_BUILD_GFX12
+        struct
+        {
+            uint32_t                  hiZ_offset;
+            AMDGPU_ADDR3_SWIZZLE_MODE hiZ_swizzle_mode;
+            uint32_t                  hiS_offset;
+            AMDGPU_ADDR3_SWIZZLE_MODE hiS_swizzle_mode;
+            struct
+            {
+                uint32_t dcc_max_compressed_block_size_block0:     2;
+                uint32_t dcc_max_uncompressed_block_size_block0:   2;
+                uint32_t dcc_max_compressed_block_size_block1:     2;
+                uint32_t dcc_max_uncompressed_block_size_block1:   2;
+                uint32_t reserved:                                24;
+            } tiling_info;
+        } gfx12;
+#endif
     };
     uint32_t            resource_id;  ///< This is a unique ID to identify cross-process shared GPU memory.
                                       ///< It is composed of the GPU memory or image object pointer and the process id.
@@ -319,6 +351,13 @@ typedef struct _amdgpu_bo_umd_metadata
             AMDGPU_SWIZZLE_MODE       swizzleMode;       ///< Swizzle Mode for Gfx9
             AMDGPU_ADDR_RESOURCE_TYPE resourceType;      ///< Surface type
         } gfx9;
+#if PAL_BUILD_GFX12
+        struct
+        {
+            AMDGPU_ADDR3_SWIZZLE_MODE swizzleMode;  ///< Swizzle Mode for Gfx12
+            AMDGPU_ADDR_RESOURCE_TYPE resourceType; ///< Surface type
+        } gfx12;
+#endif
     };
     uint32_t    pipeBankXor;            ///< Pipe bank Xor for plane 0
     uint32_t    depth;                  ///< Image depth
@@ -336,7 +375,12 @@ typedef struct _amdgpu_bo_umd_metadata
             uint32_t                  cubemap:          1;
             uint32_t                  optimal_shareable:1;
             uint32_t                  samples:          7;
+#if PAL_BUILD_GFX12
+            uint32_t                  compression_mode: 2;  ///< Compression Mode for Gfx12. Default = 0; ReadEnableWriteEnable = 1;
+                                                            ///< ReadEnableWriteDisable = 2; ReadBypassWriteDisable = 3.
+#else
             uint32_t                  place_holder:     2;
+#endif
             uint32_t                  reserved:         6;
         };
         uint32_t    all32;

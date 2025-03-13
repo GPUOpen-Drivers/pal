@@ -29,8 +29,6 @@ endif()
 
 add_subdirectory(nullDevice)
 
-set(PAL_GLOBAL_INCLUDES "${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared")
-
 target_include_directories(pal PRIVATE ${PAL_GLOBAL_INCLUDES})
 
 target_sources(pal PRIVATE CMakeLists.txt)

@@ -247,6 +247,11 @@ public:
         gpusize         dstGpuVirtAddr,
         gpusize         fillSize,
         uint32          data
+#if PAL_BUILD_GFX12
+        // CompressionMode::ReadEnableWriteDisable is our expected default behavior when writing to ordinary memory.
+        // Only override this if you're writing to image memory on gfx12 hardware (pass the image's compression mode).
+        , CompressionMode compressionMode = CompressionMode::ReadEnableWriteDisable
+#endif
         ) const;
 
     void CmdClearBoundDepthStencilTargets(
@@ -451,6 +456,9 @@ protected:
 
     void FillMem32Bit(
         GfxCmdBuffer*   pCmdBuffer,
+#if PAL_BUILD_GFX12
+        CompressionMode compressionMode,
+#endif
         gpusize         dstGpuVirtAddr,
         gpusize         fillSize,
         uint32          data) const;

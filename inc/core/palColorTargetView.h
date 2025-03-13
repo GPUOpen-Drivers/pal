@@ -48,6 +48,14 @@ struct ColorTargetViewCreateInfo
     SwizzledFormat swizzledFormat;   ///< Color target view format and swizzle.
     Range          zRange;           ///< Specifies the z offset and z range for 3D images.
 
+#if PAL_BUILD_GFX12
+    CompressionMode compressionMode;   ///< Specify GFX12-style distributed compression mode override for this
+                                       ///  view. Only relevant if the backing resource (i.e., IImage) and
+                                       ///  memory pages enable compression.
+                                       ///  ReadBypassWriteDisable is only valid if compressionMode in ImageCreateInfo
+                                       ///  disables compressed write or if this is a buffer RTV.
+#endif
+
     union
     {
         struct

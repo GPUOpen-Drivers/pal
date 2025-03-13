@@ -666,6 +666,16 @@ void BuildRawBufferViewInfo(
         TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
     pInfo->flags.bypassMallWrite =
         TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
+#if PAL_BUILD_GFX12
+    if (isCompressed)
+    {
+        pInfo->compressionMode = CompressionMode::ReadEnableWriteDisable;
+    }
+    else
+    {
+        pInfo->compressionMode = CompressionMode::ReadBypassWriteDisable;
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -681,7 +691,11 @@ void BuildRawBufferViewInfo(
                            *bufferMemory.GetDevice(),
                            (desc.gpuVirtAddr + byteOffset),
                            (desc.size - byteOffset),
+#if PAL_BUILD_GFX12
+                           bufferMemory.MaybeCompressed()
+#else
                            false
+#endif
                            );
 }
 
@@ -697,7 +711,11 @@ void BuildRawBufferViewInfo(
                            *bufferMemory.GetDevice(),
                            (bufferMemory.Desc().gpuVirtAddr + byteOffset),
                            range,
+#if PAL_BUILD_GFX12
+                           bufferMemory.MaybeCompressed()
+#else
                            false
+#endif
                            );
 }
 

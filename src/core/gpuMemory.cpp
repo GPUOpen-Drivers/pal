@@ -772,6 +772,21 @@ Result GpuMemory::Init(
 
         if (IsShared())
         {
+#if PAL_BUILD_GFX12
+            if (memProps.flags.supportDistributedCompression != 0)
+            {
+                // Ideally TriState::Default would be an illegal value here but there are a lot of corner-cases in the
+                // external shared resource code where we don't have any compression metadata! In these cases the best
+                // we can do is assume that the original creator did not enable compression.
+#if PAL_AMDGPU_BUILD
+                // The AMDGPU version of OpenSharedMemory might override this state below.
+#endif
+                const bool enable = createInfo.compression == TriState::Enable;
+
+                m_flags.enableCompression = enable;
+                m_desc.flags.isCompressed = enable;
+            }
+#endif
 
             result = OpenSharedMemory(internalInfo.hExternalResource);
 
@@ -782,6 +797,19 @@ Result GpuMemory::Init(
         }
         else
         {
+#if PAL_BUILD_GFX12
+            // Note that we can't enable compression for CPU visible memory unless the memory system does some extra
+            // work for us behind the scenes. The OS layer advertises this via supportDistributedCompressionCpu.
+            if ((memProps.flags.supportDistributedCompression != 0) &&
+                ((m_flags.cpuVisible == 0) || (memProps.flags.supportDistributedCompressionCpu != 0)))
+            {
+                const bool enable =
+                    m_pDevice->GetGfxDevice()->CompressGpuMemory(createInfo, m_flags.cpuVisible, m_flags.isClient);
+
+                m_flags.enableCompression = enable;
+                m_desc.flags.isCompressed = enable;
+            }
+#endif
 
             gpusize baseVirtAddr = internalInfo.baseVirtAddr;
 
@@ -978,6 +1006,10 @@ Result GpuMemory::Init(
     m_flags.isPinned          = 1;
     m_flags.nonLocalOnly      = 1; // Pinned allocations always go into a non-local heap.
     m_flags.cpuVisible        = 1; // Pinned allocations are by definition CPU visible.
+#if PAL_BUILD_GFX12
+    m_flags.enableCompression = 0;
+    m_desc.flags.isCompressed = 0;
+#endif
 
     m_flags.useReservedGpuVa = createInfo.flags.useReservedGpuVa;
 
@@ -1060,6 +1092,10 @@ Result GpuMemory::Init(
     m_flags.isClient          = 1;
     m_flags.nonLocalOnly      = 1; // Pinned allocations always go into a non-local heap.
     m_flags.cpuVisible        = 1; // Pinned allocations are by definition CPU visible.
+#if PAL_BUILD_GFX12
+    m_flags.enableCompression = 0;
+    m_desc.flags.isCompressed = 0;
+#endif
 
     m_pPinnedMemory   = createInfo.pSysMem;
     m_mallPolicy      = createInfo.mallPolicy;
@@ -1136,6 +1172,10 @@ Result GpuMemory::Init(
     m_flags.interprocess      = m_pOriginalMem->m_flags.interprocess;
     m_flags.globalGpuVa       = m_pOriginalMem->m_flags.globalGpuVa;
     m_flags.cpuVisible        = m_pOriginalMem->m_flags.cpuVisible;
+#if PAL_BUILD_GFX12
+    m_flags.enableCompression = m_pOriginalMem->m_flags.enableCompression;
+    m_desc.flags.isCompressed = m_flags.enableCompression;
+#endif
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
     if (IsGlobalGpuVa())
@@ -1209,6 +1249,10 @@ Result GpuMemory::Init(
     m_flags.useReservedGpuVa  = (m_vaPartition == VaPartition::Svm);
     m_flags.cpuVisible        = m_pOriginalMem->m_flags.cpuVisible;
     m_flags.peerWritable      = m_pOriginalMem->m_flags.peerWritable;
+#if PAL_BUILD_GFX12
+    m_flags.enableCompression = m_pOriginalMem->m_flags.enableCompression;
+    m_desc.flags.isCompressed = m_flags.enableCompression;
+#endif
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
     if (IsGlobalGpuVa() || IsGpuVaPreReserved())

@@ -108,3 +108,15 @@ addrlib_bp(ADDR_STRIX_HALO_BUILD ON DEPENDS_ON ${ADDR_GFX11_BUILD})
 
 #endif
 
+#if ADDR_GFX12_BUILD
+# GFX12 CARDS #####################################
+#endif
+
+#if ADDR_GFX12_BUILD
+addrlib_bp(ADDR_GFX12_BUILD ${ADDRLIB_IS_TOP_LEVEL})
+
+#if ADDR_GFX12_SHARED_BUILD
+addrlib_bp(ADDR_GFX12_SHARED_BUILD OFF DEPENDS_ON ${ADDR_GFX12_BUILD})
+#endif
+#endif
+

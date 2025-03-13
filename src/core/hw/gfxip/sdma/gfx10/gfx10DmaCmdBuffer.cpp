@@ -1172,6 +1172,9 @@ uint32* DmaCmdBuffer::WriteFillMemoryCmd(
     gpusize  dstAddr,
     gpusize  byteSize,
     uint32   data,
+#if PAL_BUILD_GFX12
+    bool     isBufferCompressed,
+#endif
     uint32*  pCmdSpace,
     gpusize* pBytesCopied // [out] How many bytes out of byteSize this call was able to transfer.
     ) const

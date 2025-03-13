@@ -1066,6 +1066,10 @@ private:
     void InitGfx9CuMask(
         struct drm_amdgpu_info_device* pDeviceInfo);
 
+#if PAL_BUILD_GFX12
+    void InitGfx12ChipProperties();
+#endif
+
     const uint32 GetDeviceNodeIndex() { return m_deviceNodeIndex; }
 
     Result MapSdiMemory(

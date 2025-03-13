@@ -1143,6 +1143,15 @@ inline Result DeserializeHardwareStageMetadata(
                 pMetadata->hasEntry.vgprCount = (result == Result::Success);;
                 break;
 
+#if PAL_BUILD_GFX12
+            case HashLiteralString(HardwareStageMetadataKey::DynamicVgprSavedCount):
+                PAL_ASSERT(pMetadata->hasEntry.dynamicVgprSavedCount == 0);
+                result = pReader->UnpackNext(&pMetadata->dynamicVgprSavedCount);
+                pMetadata->hasEntry.dynamicVgprSavedCount = (result == Result::Success);;
+                break;
+
+#endif
+
             case HashLiteralString(HardwareStageMetadataKey::SgprCount):
                 PAL_ASSERT(pMetadata->hasEntry.sgprCount == 0);
                 result = pReader->UnpackNext(&pMetadata->sgprCount);
@@ -1160,6 +1169,15 @@ inline Result DeserializeHardwareStageMetadata(
                 result = pReader->UnpackNext(&pMetadata->sgprLimit);
                 pMetadata->hasEntry.sgprLimit = (result == Result::Success);;
                 break;
+
+#if PAL_BUILD_GFX12
+            case HashLiteralString(HardwareStageMetadataKey::OutgoingVgprCount):
+                PAL_ASSERT(pMetadata->hasEntry.outgoingVgprCount == 0);
+                result = pReader->UnpackNext(&pMetadata->outgoingVgprCount);
+                pMetadata->hasEntry.outgoingVgprCount = (result == Result::Success);;
+                break;
+
+#endif
 
             case HashLiteralString(HardwareStageMetadataKey::ThreadgroupDimensions):
                 PAL_ASSERT(pMetadata->hasEntry.threadgroupDimensions == 0);
@@ -1464,6 +1482,24 @@ inline Result DeserializeHardwareStageMetadata(
                 pMetadata->hasEntry.usesPrimId = (result == Result::Success);
                 break;
             }
+
+#if PAL_BUILD_GFX12
+            case HashLiteralString(HardwareStageMetadataKey::WgRoundRobin):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.wgRoundRobin == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.wgRoundRobin = value;
+                }
+
+                pMetadata->hasEntry.wgRoundRobin = (result == Result::Success);
+                break;
+            }
+
+#endif
 
             default:
                 result = pReader->Skip(1);
@@ -4800,6 +4836,46 @@ inline Result DeserializeSpiShaderColFormatMetadata(
     return result;
 }
 
+#if PAL_BUILD_GFX12
+// =====================================================================================================================
+inline Result DeserializeSpiShaderGsMeshletCtrlMetadata(
+    MsgPackReader*  pReader,
+    SpiShaderGsMeshletCtrlMetadata*  pMetadata)
+{
+    Result result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
+
+    for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
+    {
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
+
+        if (result == Result::Success)
+        {
+            switch (HashString(key))
+            {
+            case HashLiteralString(SpiShaderGsMeshletCtrlMetadataKey::InterleaveBitsX):
+                PAL_ASSERT(pMetadata->hasEntry.interleaveBitsX == 0);
+                result = pReader->UnpackNext(&pMetadata->interleaveBitsX);
+                pMetadata->hasEntry.interleaveBitsX = (result == Result::Success);;
+                break;
+
+            case HashLiteralString(SpiShaderGsMeshletCtrlMetadataKey::InterleaveBitsY):
+                PAL_ASSERT(pMetadata->hasEntry.interleaveBitsY == 0);
+                result = pReader->UnpackNext(&pMetadata->interleaveBitsY);
+                pMetadata->hasEntry.interleaveBitsY = (result == Result::Success);;
+                break;
+
+            default:
+                result = pReader->Skip(1);
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+#endif
+
 // =====================================================================================================================
 inline Result DeserializeGraphicsRegisterMetadata(
     MsgPackReader*  pReader,
@@ -5363,6 +5439,16 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 pMetadata->hasEntry.spiShaderZFormat = (result == Result::Success);;
                 break;
 
+#if PAL_BUILD_GFX12
+            case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletCtrl):
+                pReader->Next();
+                result = DeserializeSpiShaderGsMeshletCtrlMetadata(
+                        pReader, &pMetadata->spiShaderGsMeshletCtrl);
+                    pMetadata->hasEntry.spiShaderGsMeshletCtrl = (result == Result::Success);
+                break;
+
+#endif
+
             default:
                 result = pReader->Skip(1);
                 break;
@@ -5448,6 +5534,42 @@ inline Result DeserializeComputeRegisterMetadata(
                 pMetadata->hasEntry.tgSizeEn = (result == Result::Success);
                 break;
             }
+
+#if PAL_BUILD_GFX12
+            case HashLiteralString(ComputeRegisterMetadataKey::DynamicVgprEn):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.dynamicVgprEn == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.dynamicVgprEn = value;
+                }
+
+                pMetadata->hasEntry.dynamicVgprEn = (result == Result::Success);
+                break;
+            }
+
+#endif
+
+#if PAL_BUILD_GFX12
+            case HashLiteralString(ComputeRegisterMetadataKey::XInterleave):
+                PAL_ASSERT(pMetadata->hasEntry.xInterleave == 0);
+                result = pReader->UnpackNext(&pMetadata->xInterleave);
+                pMetadata->hasEntry.xInterleave = (result == Result::Success);;
+                break;
+
+#endif
+
+#if PAL_BUILD_GFX12
+            case HashLiteralString(ComputeRegisterMetadataKey::YInterleave):
+                PAL_ASSERT(pMetadata->hasEntry.yInterleave == 0);
+                result = pReader->UnpackNext(&pMetadata->yInterleave);
+                pMetadata->hasEntry.yInterleave = (result == Result::Success);;
+                break;
+
+#endif
 
             case HashLiteralString(ComputeRegisterMetadataKey::TidigCompCnt):
                 PAL_ASSERT(pMetadata->hasEntry.tidigCompCnt == 0);

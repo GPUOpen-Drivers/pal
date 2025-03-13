@@ -56,6 +56,10 @@
 
 #include "core/hw/gfxip/gfx9/gfx9PerfCtrInfo.h"
 
+#if PAL_BUILD_GFX12
+#include "core/hw/gfxip/gfx12/gfx12PerfCtrInfo.h"
+#endif
+
 #endif
 
 typedef void* ADDR_HANDLE;
@@ -340,7 +344,12 @@ struct GpuMemoryProperties
             uint32 supportsTmz                :  1; // Indicates TMZ (or HSFB) protected memory is supported.
             uint32 supportsMall               :  1; // Indicates that this device supports the MALL.
             uint32 supportPageFaultInfo       :  1; // Indicates support for querying page fault information
+#if PAL_BUILD_GFX12
+            uint32 supportDistributedCompression    :  1; // Support for GFX12-style distributed compression
+            uint32 supportDistributedCompressionCpu :  1; // The CPU can read and write distributed compression.
+#else
             uint32 reserved1                  :  2;
+#endif
             uint32 reserved                   : 13;
         };
         uint32 u32All;
@@ -536,6 +545,11 @@ constexpr IpTriple CreateGfxTriple(
     case GfxIpLevel::GfxIp11_5:
         retVal = { .major = 11, .minor = 5, .stepping = stepping };
         break;
+#if PAL_BUILD_GFX12
+    case GfxIpLevel::GfxIp12:
+        retVal = { .major = 12, .minor = 0, .stepping = stepping };
+        break;
+#endif
 #endif
     default:
         PAL_ASSERT_ALWAYS();
@@ -583,6 +597,19 @@ constexpr GfxIpLevel IpTripleToGfxLevel(
             break;
         }
         break;
+#if PAL_BUILD_GFX12
+    case 12:
+        switch (ipTriple.minor)
+        {
+        case 0:
+            retVal = GfxIpLevel::GfxIp12;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+        break;
+#endif
 #endif
     default:
         PAL_ASSERT_ALWAYS();
@@ -712,6 +739,9 @@ struct GpuChipProperties
         // packers (indicated by a single bit each) per physical SE (includes harvested SEs).
         uint32 activePixelPackerMask[ActivePixelPackerMaskDwords];
 
+#if PAL_BUILD_GFX12
+#endif
+
         struct
         {
             uint32 supportGl2Uncached               :  1; // Indicates support for the allocation of GPU L2
@@ -731,7 +761,11 @@ struct GpuChipProperties
             uint32 supportFloat64BufferAtomicMinMax :  1; // Indicates support for float64 image atomics min and max op
             uint32 supportFloat64SharedAtomicMinMax :  1; // Indicates support for float64 shared atomics min and max op
             uint32 support1dDispatchInterleave      :  1; // Indicates support for 1D Dispatch Interleave
+#if PAL_BUILD_GFX12
+            uint32 support2dDispatchInterleave      :  1; // Indicates support for 2D Dispatch Interleave
+#else
             uint32 placeholder1                     :  1;
+#endif
             uint32 gfx9DataValid                    :  1;
             uint32 reserved                         : 14;
         };
@@ -872,7 +906,11 @@ struct GpuChipProperties
                 uint32 supportBFloat16                     :  1; // Indicates support for bfloat16
                 uint32 supportFloat8                       :  1; // HW supports float 8-bit.
                 uint32 supportInt4                         :  1; // HW supports integer 4-bit.
+#if PAL_BUILD_GFX12
+                uint32 supportCooperativeMatrix2           :  1; // HW supports Gfx12 extenson cooperative matrix.
+#else
                 uint64 placeholder7                        :  1;
+#endif
                 uint64 placeholder8 : 1;
                 uint64 reserved                            :  7;
             };
@@ -884,6 +922,9 @@ struct GpuChipProperties
             union
             {
                 Gfx9::PerfCounterInfo  gfx9Info;   // Gfx9 HWL Per block Perf Counter info
+#if PAL_BUILD_GFX12
+                Gfx12::PerfCounterInfo gfx12Info;  // Gfx12 HWL Per block Perf Counter info
+#endif
             } perfCounterInfo;
         } gfx9;
     };
@@ -2196,7 +2237,71 @@ extern void InitializeGpuEngineProperties(
     GpuEngineProperties*      pInfo);
 }
 
+#if PAL_BUILD_GFX12
+namespace Gfx12
+{
+// Determines the GFXIP level of an GFXIP GPU that supports Gfx12.
+extern IpTriple DetermineIpLevel(
+    uint32 familyId,    // Hardware Family ID.
+    uint32 eRevId);     // Software Revision ID.
+
+// Gets the static format properties table for GFX12 hardware.
+extern const MergedFormatPropertiesTable* GetFormatPropertiesTable(
+    GfxIpLevel gfxIpLevel);
+
+// Initialize default values for the GPU chip properties for hardware that supports Gfx12.
+extern void InitializeGpuChipProperties(
+    const Platform*    pPlatform,
+    GpuChipProperties* pInfo);
+
+// Finalize default values for the GPU chip properties for hardware that supports Gfx12.
+extern void FinalizeGpuChipProperties(
+    const Device&      device,
+    GpuChipProperties* pInfo);
+
+// Initialize default values for the GPU engine properties for hardware that supports Gfx12.
+extern void InitializeGpuEngineProperties(
+    const GpuChipProperties&  chipProps,
+    GpuEngineProperties*      pInfo);
+
+extern void InitPerfCtrInfo(
+    const Device& device,
+    GpuChipProperties* pProps);
+
+extern void InitializePerfExperimentProperties(
+    const GpuChipProperties&  chipProps,
+    PerfExperimentProperties* pProperties);
+} // namespace Gfx12
+#endif
+
 // ASIC family and chip identification functions
+#if PAL_BUILD_GFX12
+constexpr bool IsGfx12(GfxIpLevel gfxLevel)
+{
+    return (gfxLevel == GfxIpLevel::GfxIp12);
+}
+
+inline bool IsGfx12(const Device& device)
+{
+    return IsGfx12(device.ChipProperties().gfxLevel);
+}
+#endif
+
+#if PAL_BUILD_GFX12
+constexpr bool IsGfx12Plus(GfxIpLevel gfxLevel)
+{
+    return  false
+#if PAL_BUILD_GFX12
+            || IsGfx12(gfxLevel)
+#endif
+    ;
+}
+
+inline bool IsGfx12Plus(const Device& device)
+{
+    return IsGfx12Plus(device.ChipProperties().gfxLevel);
+}
+#endif
 
 constexpr bool IsGfx11(GfxIpLevel gfxLevel)
 {
@@ -2211,12 +2316,18 @@ inline bool IsGfx11(const Device& device)
 inline bool IsGfx11Plus(GfxIpLevel gfxLevel)
 {
     return IsGfx11(gfxLevel)
+#if PAL_BUILD_GFX12
+           || IsGfx12(gfxLevel)
+#endif
            ;
 }
 
 inline bool IsGfx11Plus(const Device& device)
 {
     return IsGfx11(device.ChipProperties().gfxLevel)
+#if PAL_BUILD_GFX12
+           || IsGfx12(device.ChipProperties().gfxLevel)
+#endif
            ;
 }
 
@@ -2264,6 +2375,20 @@ inline bool IsPhoenixFamily(const Device& device)
 {
     return FAMILY_IS_PHX(device.ChipProperties().familyId);
 }
+
+#if PAL_BUILD_GFX12
+inline bool IsNavi4x(const Device& device)
+{
+    return (device.ChipProperties().familyId == FAMILY_NV4);
+}
+
+#if PAL_BUILD_NAVI48
+inline bool IsNavi48(const Device& device)
+{
+    return AMDGPU_IS_NAVI48(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+#endif
+#endif
 
 constexpr bool IsGfx10(GfxIpLevel gfxLevel)
 {

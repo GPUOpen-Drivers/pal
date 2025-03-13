@@ -237,6 +237,14 @@ bool Device::DetermineGpuIpLevels(
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 
+#if PAL_BUILD_GFX12
+#if PAL_BUILD_NAVI4X
+    case FAMILY_NV4:
+        pIpLevels->gfx = Gfx12::DetermineIpLevel(familyId, eRevId);
+        break;
+#endif
+#endif
+
     default:
         break;
     }
@@ -576,6 +584,14 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.binningMode            = DeferredBatchBinAccurate;
     m_publicSettings.customBatchBinSize     = 0x800080;
 
+#if PAL_BUILD_GFX12
+    if (IsGfx12Plus(gfxLevel))
+    {
+        // On gfx12+, HW limits max 512 primitives per batch.
+        m_publicSettings.binningMaxPrimPerBatch = 512;
+    }
+    else
+#endif
     {
         m_publicSettings.binningMaxPrimPerBatch = 1024;
     }
@@ -592,6 +608,12 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.forceShaderRingToVMem = false;
 
     m_publicSettings.preferGraphicsImageCopy = true;
+
+#if PAL_BUILD_GFX12
+    m_publicSettings.temporalHintsMrtBehavior = TemporalHintsDynamicRt;
+    m_publicSettings.hiSZWorkaroundBehavior   = HiSZWorkaroundBehavior::Default;
+    m_publicSettings.tileSummarizerTimeout    = 0;
+#endif
 
     return ret;
 }
@@ -627,6 +649,11 @@ Result Device::HwlEarlyInit()
         case GfxIpLevel::GfxIp11_5:
             result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
             break;
+#if PAL_BUILD_GFX12
+        case GfxIpLevel::GfxIp12:
+            result = Pal::Gfx12::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
+            break;
+#endif
         default:
             PAL_ASSERT(m_hwDeviceSizes.gfx == 0);
             break;
@@ -650,6 +677,11 @@ Result Device::HwlEarlyInit()
         case GfxIpLevel::GfxIp11_5:
             result = AddrMgr2::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
             break;
+#if PAL_BUILD_GFX12
+        case GfxIpLevel::GfxIp12:
+            result = AddrMgr3::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
+            break;
+#endif
         default:
             // PAL always needs an AddrMgr!
             PAL_ASSERT_ALWAYS();
@@ -693,6 +725,9 @@ void Device::InitPerformanceRatings()
     {
         case 10:
         case 11:
+#if PAL_BUILD_GFX12
+        case 12:
+#endif
             simdWidthMultiplier = 32;
             numShaderEngines    = m_chipProperties.gfx9.numShaderEngines;
             numShaderArrays     = m_chipProperties.gfx9.numShaderArrays;
@@ -832,6 +867,12 @@ void Device::GetHwIpDeviceSizes(
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize();
         *pAddrMgrSize       = AddrMgr2::GetSize();
         break;
+#if PAL_BUILD_GFX12
+    case 12:
+        pHwDeviceSizes->gfx = Gfx12::GetDeviceSize();
+        *pAddrMgrSize       = AddrMgr3::GetSize();
+        break;
+#endif
     default:
         break;
     }
@@ -1986,6 +2027,10 @@ Result Device::GetProperties(
         pInfo->gpuMemoryProperties.flags.supportsTmz             = m_memoryProperties.flags.supportsTmz;
         pInfo->gpuMemoryProperties.flags.supportsMall            = m_memoryProperties.flags.supportsMall;
         pInfo->gpuMemoryProperties.flags.supportPageFaultInfo    = m_memoryProperties.flags.supportPageFaultInfo;
+#if PAL_BUILD_GFX12
+        pInfo->gpuMemoryProperties.flags.supportDistributedCompression =
+            m_memoryProperties.flags.supportDistributedCompression;
+#endif
 
         pInfo->gpuMemoryProperties.realMemAllocGranularity    = m_memoryProperties.realMemAllocGranularity;
         pInfo->gpuMemoryProperties.virtualMemAllocGranularity = m_memoryProperties.virtualMemAllocGranularity;
@@ -2154,6 +2199,9 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports;
             pInfo->gfxipProperties.flags.supportFloat8                   = gfx9Props.supportFloat8;
             pInfo->gfxipProperties.flags.supportInt4                     = gfx9Props.supportInt4;
+#if PAL_BUILD_GFX12
+            pInfo->gfxipProperties.flags.supportCooperativeMatrix2       = gfx9Props.supportCooperativeMatrix2;
+#endif
 
             pInfo->gfxipProperties.supportedVrsRates = gfx9Props.gfx10.supportedVrsRates;
             pInfo->gfxipProperties.rayTracingIp      = gfx9Props.rayTracingIp;
@@ -2256,6 +2304,9 @@ Result Device::GetProperties(
             = m_chipProperties.gfxip.supportFloat64SharedAtomicMinMax;
 
         pInfo->gfxipProperties.flags.support1dDispatchInterleave = m_chipProperties.gfxip.support1dDispatchInterleave;
+#if PAL_BUILD_GFX12
+        pInfo->gfxipProperties.flags.support2dDispatchInterleave = m_chipProperties.gfxip.support2dDispatchInterleave;
+#endif
 
         pInfo->gfxipProperties.srdSizes.typedBufferView   = m_chipProperties.srdSizes.typedBufferView;
         pInfo->gfxipProperties.srdSizes.untypedBufferView = m_chipProperties.srdSizes.untypedBufferView;
@@ -5092,6 +5143,21 @@ bool Device::EnableDisplayDcc(
 {
     bool enable = false;
 
+#if PAL_BUILD_GFX12
+    if (IsGfx12Plus(*this))
+    {
+        const bool enablePlane0 = ((dccCaps.dcc_256_256_plane0 != 0) ||
+                                   (dccCaps.dcc_256_128_plane0 != 0) ||
+                                   (dccCaps.dcc_256_64_plane0  != 0));
+
+        const bool enablePlane1 = ((dccCaps.dcc_256_256_plane1 != 0) ||
+                                   (dccCaps.dcc_256_128_plane1 != 0) ||
+                                   (dccCaps.dcc_256_64_plane1  != 0));
+
+        // The issue of inefficient support display DCC on pipe-aligned metadata doesn't exist on gfx12.
+        enable = enablePlane0 && (enablePlane1 || (Formats::IsYuv(swizzledFormat.format) == false));
+    }
+#endif
     if (IsGfx9Hwl(*this))
     {
         PAL_ASSERT(dccCaps.dcc_256_128_128 ||

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -494,6 +494,9 @@ Lib* Gfx10HwlInit(const Client* pClient);
 #endif
 #if ADDR_GFX11_BUILD
 Lib* Gfx11HwlInit(const Client* pClient);
+#endif
+#if ADDR_GFX12_BUILD
+Lib* Gfx12HwlInit(const Client* pClient);
 #endif
 } // Addr
 

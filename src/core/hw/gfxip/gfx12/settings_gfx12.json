@@ -1,0 +1,1918 @@
+{
+  "ComponentName": "Gfx12Pal",
+  "Hwl": "Gfx12",
+  "Tags": [
+    "General",
+    "Depth/Stencil",
+    "Graphics Pipelines",
+    "Prefetching",
+    "Hardware Workarounds",
+    "Distributed Compression",
+    "Debug"
+  ],
+  "Enums": [
+    {
+      "IsExclusive": true,
+      "Values": [
+        {
+          "Name": "SdmaMallPolicyRt",
+          "Value": 0,
+          "Description": "Regular temporal of mall reuse."
+        },
+        {
+          "Name": "SdmaMallPolicyNt",
+          "Value": 1,
+          "Description": "Non-temporal (re-use not expected)."
+        },
+        {
+          "Name": "SdmaMallPolicyHt",
+          "Value": 2,
+          "Description": "High-priority temporal (precedence over RT) of mall reuse."
+        },
+        {
+          "Name": "SdmaMallPolicyLu",
+          "Value": 3,
+          "Description": "Last-use (non-temporal AND discard dirty if it hits) of mall reuse."
+        }
+      ],
+      "Name": "SdmaMallPolicy",
+      "Description": "All sdma mall policies."
+    },
+    {
+      "Values": [
+        {
+          "Name": "Gfx12TemporalHintsReadRt",
+          "Value": 0,
+          "Description": "Regular temporal for both near and far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsReadNt",
+          "Value": 1,
+          "Description": "Non-temporal (re-use not expected) for both near and far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsReadHt",
+          "Value": 2,
+          "Description": "High-priority temporal (precedence over Rt) for both near and far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsReadLu",
+          "Value": 3,
+          "Description": "Last-use (non-temporal AND discard dirty if it hits)."
+        },
+        {
+          "Name": "Gfx12TemporalHintsReadNtRt",
+          "Value": 4,
+          "Description": "Non-temporal for near cache(s) and regular for far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsReadRtNt",
+          "Value": 5,
+          "Description": "Regular for near cache(s) and non-temporal for far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsReadNtHt",
+          "Value": 6,
+          "Description": "Non-temporal for near cache(s) and high-priority temporal for far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsReadHonorClient",
+          "Value": 7,
+          "Description": "PAL gfx12 temporal hints read settings are superseded by the client settings. Eg: DxcTemporalHintsBehavior."
+        }
+      ],
+      "EnumSize": 8,
+      "Name": "Gfx12TemporalHintsRead",
+      "Description": "GFX12 Temporal Hints read cache policies."
+    },
+    {
+      "Values": [
+        {
+          "Name": "Gfx12TemporalHintsWriteRt",
+          "Value": 0,
+          "Description": "Regular temporal for both near and far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsWriteNt",
+          "Value": 1,
+          "Description": "Non-temporal (re-use not expected) for both near and far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsWriteHt",
+          "Value": 2,
+          "Description": "High-priority temporal (precedence over Rt) for both near and far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsWriteWb",
+          "Value": 3,
+          "Description": "Same as 'Ht', but also overrides wr-rinse in far cache where it forces to stay dirty in cache."
+        },
+        {
+          "Name": "Gfx12TemporalHintsWriteNtRt",
+          "Value": 4,
+          "Description": "Non-temporal for near cache(s) and regular for far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsWriteRtNt",
+          "Value": 5,
+          "Description": "Regular for near cache(s) and non-temporal for far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsWriteNtHt",
+          "Value": 6,
+          "Description": "Non-temporal for near cache(s) and high-priority temporal for far caches."
+        },
+        {
+          "Name": "Gfx12TemporalHintsWriteNtWb",
+          "Value": 7,
+          "Description": "Non-temporal for near cache(s) and Wb for far cache."
+        },
+        {
+          "Name": "Gfx12TemporalHintsWriteHonorClient",
+          "Value": 8,
+          "Description": "PAL gfx12 temporal hints write settings are superseded by the client settings. Eg: DxcTemporalHintsBehavior."
+        }
+      ],
+      "EnumSize": 8,
+      "Name": "Gfx12TemporalHintsWrite",
+      "Description": "GFX12 Temporal Hints write cache policies."
+    }
+  ],
+  "Settings": [
+    {
+      "Name": "ForcePerfExperimentBeginCounterSample",
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Description": "Counters are expected to be reset and thus have zero value, so we skip the begin sample. Use this setting to force a begin sample to read the counter value to take difference with end value.",
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      }
+    },
+    {
+      "Name": "PerfExperimentSampleSelect",
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Description": "Read out the select value instead of the counter for verification. If a 64 bit counter, will also add select1 to the upper bits of the value. Only to be used with GpuProfilerMode=1 and ForcePerfExperimentBeginCounterSample=0",
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      }
+    },
+    {
+      "Description": "Disables binding of border color palettes, and forces any samplers created to use a transparent black color. ",
+      "Tags": [
+        "General",
+        "Gfx12"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "DisableBorderColorPaletteBinds"
+    },
+    {
+      "Description": "Enables PBB PingPong Bin Order",
+      "Tags": [
+        "General",
+        "Gfx12"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "EnablePbbPingPongBinOrder"
+    },
+    {
+      "Name": "EnablePreamblePipelineStats",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Description": "If true, preamble will start pipeline stats and subsequent pipeline queries will be ignored. If false, preamble will not issue any pipeline stats, and a subsequent UniversalCmdBuffer::AddQuery() call with QueryPoolType::PipelineStats will start stats again."
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "AutoSyncClearPreferEngineDefault",
+            "Value": 0,
+            "Description": "Default behavior. PAL employs internal heuristic to choose which engine is preferred for auto sync clear."
+          },
+          {
+            "Name": "AutoSyncClearPreferEngineGraphics",
+            "Value": 1,
+            "Description": "Graphics engine is preferred for auto sync clear."
+          },
+          {
+            "Name": "AutoSyncClearPreferEngineCompute",
+            "Value": 2,
+            "Description": "Compute engine is preferred for auto sync clear."
+          }
+        ],
+        "Name": "AutoSyncClearPreferEngineOverride",
+        "Description": "Enum to specify overrides of PAL's heuristic to determine which engine is preferred for auto sync clear."
+      },
+      "Name": "AutoSyncClearPreferEngine",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": "AutoSyncClearPreferEngineDefault"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Description": "Override for PAL's heuristic to decide which engine is preferred for auto sync clear. But which engine is used eventually is also determined by other conditions. For example, compute engine should be used for texel scale case."
+    },
+    {
+      "Description": "Controls gfx12's LinearClear path. This shader is supposed to improve CS clear speed.",
+      "Tags": [
+        "Debug",
+        "Performance"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "RpmLinearClearDefault",
+            "Value": 0,
+            "Description": "Let RPM's built-in heuristic decide if we should use the LinearClear shader."
+          },
+          {
+            "Name": "RpmLinearClearForceOff",
+            "Value": 1,
+            "Description": "Never use the LinearClear shader."
+          },
+          {
+            "Name": "RpmLinearClearForceOn",
+            "Value": 2,
+            "Description": "If we can legally use the LinearClear shader and we're going down the CS path we will use it. You might also want to change the autoSyncClearPreferEngine setting to Compute."
+          }
+        ],
+        "Name": "RpmLinearClearMode"
+      },
+      "Defaults": {
+        "Default": "RpmLinearClearDefault"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "RpmLinearClearMode"
+    },
+    {
+      "Description": "Controls the DB_RENDER_OVERRIDE2.DISABLE_COLOR_ON_VALIDATION register field",
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "DbDisableColorOnValidation"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx12RedundantStateFilterNone",
+            "Value": "0x0",
+            "Description": "Enable state filtering for no states."
+          },
+          {
+            "Name": "Gfx12RedundantStateFilterPipelineCtxLow",
+            "Value": "0x1",
+            "Description": "Enable state filtering for Pipeline Context Low Freq."
+          },
+          {
+            "Name": "Gfx12RedundantStateFilterPipelineCtxHigh",
+            "Value": "0x2",
+            "Description": "Enable state filtering for Pipeline Context High Freq."
+          },
+          {
+            "Name": "Gfx12RedundantStateFilterPipelineCtxMed",
+            "Value": "0x4",
+            "Description": "Enable state filtering for Pipeline Context Med Freq."
+          },
+          {
+            "Name": "Gfx12RedundantStateFilterPipelineCtxTessRegsWhenTessIsOff",
+            "Value": "0x8",
+            "Description": "Enable state filtering of Tess only regs when Tess if off."
+          },
+          {
+            "Name": "Gfx12RedundantStateFilterCbDbHighBitsWhenZero",
+            "Value": "0x10",
+            "Description": "Enable state filtering of CB/DB high bits when zero."
+          },
+          {
+            "Name": "Gfx12RedundantStateFilterNullDsvMinimumState",
+            "Value": "0x20",
+            "Description": "Enable using the minimum subset of registers for NULL DSV bind."
+          },
+          {
+            "Name": "Gfx12RedundantStateFilterAll",
+            "Value": "0xFFFFFFFF",
+            "Description": "Enable state filtering for all states."
+          }
+        ],
+        "Name": "Gfx12RedundantStateFilter"
+      },
+      "Description": "Bitfield mask of state groups to allow redundant state filtering on the CPU side.",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": "Gfx12RedundantStateFilterAll"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "Gfx12RedundantStateFilter"
+    },
+    {
+      "Description": "If RELEASE_MEM packet supports wait CP DMA when releasing EOP and EOS.",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "EnableReleaseMemWaitCpDma"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "OreoModeBlend",
+            "Value": 0,
+            "Description": "Pipeline is in blend mode (fail-safe that should work for all cases)."
+          },
+          {
+            "Name": "OreoModeOpaqueThenBlend",
+            "Value": 1,
+            "Description": "Pipeline operates in Opaque mode unless overridden by register state back to Blend mode (should be the most performant)."
+          },
+          {
+            "Name": "OreoModePunchoutThenOpaqueThenBlend",
+            "Value": 2,
+            "Description": "Pipeline operates in Punchout mode unless reg fallback to Opaque then Blend mode."
+          }
+        ],
+        "Name": "OreoMode"
+      },
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 1
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "OreoModeControl",
+      "Description": "Enum to control how the OREO feature works."
+    },
+    {
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "ForceOreoMode",
+      "Description": "If true, disables falling back to blend mode when OREO_MODE = 1 (Gfx11OreoModeControl = 1)."
+    },
+    {
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "ForceExportOrderControl",
+      "Description": "If true, forces DB to make every wave conflict with the prior wave."
+    },
+    {
+      "Name": "HiDepthEnable",
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Description": "If true, hierarchical depth testing will be enabled."
+    },
+    {
+      "Name": "HiDepthRound",
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Description": "For precision issue, represent value of (1 << hiDepthRound) - 1. When determining zRange, it is added or subtracted to adjust zMin and zMax). Valid value range is 0 ~ 7."
+    },
+    {
+      "Name": "HiStencilEnable",
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Description": "If true, hierarchical stencil testing will be enabled."
+    },
+    {
+      "Name": "EnableHiDepthHiStencilMinSize",
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Defaults": {
+        "Default": 32
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Description": "Enable hierarchical depth or stencil only if base image's size (width * height >= setting * setting)."
+    },
+    {
+      "Description": "Controls the primitive target size for the Primitive Ring Buffer. Valid value range is from 1024 to 16368. Value needs to be a multiple of 2.",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": 16368
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "PrimBufferRingSizing"
+    },
+    {
+      "Description": "Controls the position target size for the Position Ring Buffer. Valid value range is from 2048 to 32764. Value needs to be a multiple of 2.",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": 16382
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "PosBufferRingSizing"
+    },
+    {
+      "Description": "Use this prefetch method when the client sets prefetchShaders on a graphics command stream.",
+      "Tags": [
+        "Prefetching"
+      ],
+      "Defaults": {
+        "Default": "PrefetchPrimeMall"
+      },
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "PrefetchDisabled",
+            "Value": 0,
+            "Description": "Never prefetch."
+          },
+          {
+            "Name": "PrefetchPrimeMall",
+            "Value": 1,
+            "Description": "Use CP DMA to stream data into the MALL."
+          },
+          {
+            "Name": "PrefetchPrimeUtcL2",
+            "Value": 2,
+            "Description": "Just prime the UTCL2, not the MALL."
+          }
+        ],
+        "Name": "PrefetchMethod"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "ShaderPrefetchMethodGfx"
+    },
+    {
+      "Description": "Use this prefetch method when the client sets prefetchShaders on an async compute command stream.",
+      "Tags": [
+        "Prefetching"
+      ],
+      "Defaults": {
+        "Default": "PrefetchPrimeUtcL2"
+      },
+      "ValidValues": {
+        "Values": [
+          {
+            "Name": "PrefetchDisabled",
+            "Value": 0,
+            "Description": "Never prefetch."
+          },
+          {
+            "Name": "PrefetchPrimeMall",
+            "Value": 1,
+            "Description": "Use CP DMA to stream data into the MALL."
+          },
+          {
+            "Name": "PrefetchPrimeUtcL2",
+            "Value": 2,
+            "Description": "Just prime the UTCL2, not the MALL."
+          }
+        ],
+        "Name": "PrefetchMethod"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "ShaderPrefetchMethodAce"
+    },
+    {
+      "Description": "True forces a BATCH_BREAK event when a new pixel shader is bound. False by default.",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {},
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "BatchBreakOnNewPixelShader"
+    },
+    {
+      "Description": "If true, offchip tessellation will always use the maximum number of LDS buffers possible (based on Chip ID).",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "UseMaxOffchipLdsBuffers"
+    },
+    {
+      "Description": "HS-specific CU_EN mask to allow limiting of enabled CUs for HS waves.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx12"
+      ],
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "HsCuEnLimitMask",
+      "Flags": {
+        "IsHex": true
+      }
+    },
+    {
+      "Description": "This mask is AND-ed with the driver-decided GS-specific CU_EN mask to further allow limiting of enabled CUs for GS waves. ",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx12"
+      ],
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "GsCuEnLimitMask",
+      "Flags": {
+        "IsHex": true
+      }
+    },
+    {
+      "Description": "PS-specific CU_EN mask to allow limiting of enabled CUs for PS waves.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx12"
+      ],
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "PsCuEnLimitMask",
+      "Flags": {
+        "IsHex": true
+      }
+    },
+    {
+      "Description": "This mask is AND-ed with the driver-decided CS-specific CU_EN mask to further allow limiting of enabled CUs for CS waves. ",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx12"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "CsCuEnLimitMask"
+    },
+    {
+      "Description": "Controls the value of the COMPUTE_DISPATCH_INTERLEAVE register. This register governs how many thread groups are sent to one SE before switching to the next one. This setting will override the clients behaviour.",
+      "Tags": [
+        "Compute Pipelines"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "CsDispatchInterleaveSizeHonorClient",
+            "Value": 0,
+            "Description": "Leave the interleave size determination to the client."
+          },
+          {
+            "Name": "CsDispatchInterleaveSizeDisabled",
+            "Value": 1,
+            "Description": "Disable interleaving."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize1D_128",
+            "Value": 2,
+            "Description": "Switch at 128 threads."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize1D_256",
+            "Value": 3,
+            "Description": "Switch at 256 threads."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize1D_512",
+            "Value": 4,
+            "Description": "Switch at 512 threads."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_1x1",
+            "Value": 5,
+            "Description": "Switch at 1x1 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_1x2",
+            "Value": 6,
+            "Description": "Switch at 1x2 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_1x4",
+            "Value": 7,
+            "Description": "Switch at 1x4 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_1x8",
+            "Value": 8,
+            "Description": "Switch at 1x8 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_1x16",
+            "Value": 9,
+            "Description": "Switch at 1x16 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_2x1",
+            "Value": 10,
+            "Description": "Switch at 2x1 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_2x2",
+            "Value": 11,
+            "Description": "Switch at 2x2 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_2x4",
+            "Value": 12,
+            "Description": "Switch at 2x4 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_2x8",
+            "Value": 13,
+            "Description": "Switch at 2x8 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_4x1",
+            "Value": 14,
+            "Description": "Switch at 4x1 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_4x2",
+            "Value": 15,
+            "Description": "Switch at 4x2 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_4x4",
+            "Value": 16,
+            "Description": "Switch at 4x4 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_8x1",
+            "Value": 17,
+            "Description": "Switch at 8x1 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_8x2",
+            "Value": 18,
+            "Description": "Switch at 8x2 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize2D_16x1",
+            "Value": 19,
+            "Description": "Switch at 16x1 thread groups."
+          },
+          {
+            "Name": "CsDispatchInterleaveSize1D_64",
+            "Value": 20,
+            "Description": "Switch at 64 threads."
+          }
+        ],
+        "Name": "CsDispatchInterleaveSize"
+      },
+      "Defaults": {
+        "Default": "CsDispatchInterleaveSizeHonorClient"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "Gfx12CsDispatchInterleaveSize"
+    },
+    {
+      "Description": "Min dispatch dim size X to enable 2D dispatch interleave on direct dispatch (Can't control indirect dispatch), e.g. only allow enabled on (dim.x >= setting.minX). ",
+      "Tags": [
+        "Compute Pipelines"
+      ],
+      "Defaults": {
+        "Default": 2
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "DispatchInterleaveSize2DMinX"
+    },
+    {
+      "Description": "Min dispatch dim size Y to enable 2D dispatch interleave on direct dispatch (Can't control indirect dispatch), e.g. only allow enabled on (dim.y >= setting.minY). ",
+      "Tags": [
+        "Compute Pipelines"
+      ],
+      "Defaults": {
+        "Default": 2
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "DispatchInterleaveSize2DMinY"
+    },
+    {
+      "Description": "If allow enabling 2D dispatch interleave on indirect dispatch.",
+      "Tags": [
+        "Compute Pipelines"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "Allow2dDispatchInterleaveOnIndirectDispatch"
+    },
+    {
+      "Description": "This contains the size in bytes that we will allocate for attributes through memory. Maximum value is 16MB for the entire chip. The value will 64KB aligned. This value is in bytes. NOTE: If key is not set, default value can vary per ASIC.",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": 1048576
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "Gfx12VertexAttributesRingBufferSizePerSe"
+    },
+    {
+      "Description": "",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "EnumSize": 8,
+        "Values": [
+          {
+            "Name": "GsWaveThrottleCntlOff",
+            "Value": 0,
+            "Description": "Disable all GS Wave throttle control."
+          },
+          {
+            "Name": "GsWaveThrottleCntlPhThrottleEn",
+            "Value": 1,
+            "Description": "Enable PH GS wave throttle."
+          },
+          {
+            "Name": "GsWaveThrottleCntlSpiThrottleEn",
+            "Value": 2,
+            "Description": "Enable SPI GS wave throttle."
+          },
+          {
+            "Name": "GsWaveThrottleCntlAll",
+            "Value": 3,
+            "Description": "Enable all GS wave throttles."
+          }
+        ],
+        "Name": "GsWaveThrottleCntl"
+      },
+      "Flags": {},
+      "Defaults": {
+        "Default": "GsWaveThrottleCntlOff"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "Gfx12GsWaveThrottleCntl"
+    },
+    {
+      "Description": "Value of uconfig register GE_GS_THROTTLE, which is used to control the amount of GS work active. The default value comes from recommendations from HW.",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": 2140831969
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "Gfx12GeGsThrottle"
+    },
+    {
+      "Description": "Value of register SPI_GS_THROTTLE_CNTL1.",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": "Chip::mmSPI_GS_THROTTLE_CNTL1_DEFAULT"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "Gfx12SpiGsThrottleCntl1"
+    },
+    {
+      "Description": "Value of register SPI_GS_THROTTLE_CNTL2.",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": "Chip::mmSPI_GS_THROTTLE_CNTL2_DEFAULT"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "Gfx12SpiGsThrottleCntl2"
+    },
+    {
+      "Description": "Value of register SPI_GRP_LAUNCH_GUARANTEE_ENABLE.",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": "0x00008a4d"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "gfx12SpiGrpLaunchGuaranteeEnable"
+    },
+    {
+      "Description": "Value of register SPI_GRP_LAUNCH_GUARANTEE_CTRL.",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": "0x00401123"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "gfx12SpiGrpLaunchGuaranteeCtrl"
+    },
+    {
+      "Description": "Allows overriding of the client's Dispatch PingPong mode. However, it does not apply to dispatches with offsets.",
+      "Tags": [
+        "Compute Pipelines"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "CsDispatchPingPongModeHonorClient",
+            "Value": 0,
+            "Description": "Honor what the client requested."
+          },
+          {
+            "Name": "CsDispatchPingPongModeForceOn",
+            "Value": 1,
+            "Description": "Forces on Dispatch PingPong walking."
+          },
+          {
+            "Name": "CsDispatchPingPongModeForceOff",
+            "Value": 2,
+            "Description": "Forces off Dispatch PingPong walking."
+          }
+        ],
+        "Name": "CsDispatchPingPongMode"
+      },
+      "Defaults": {
+        "Default": "CsDispatchPingPongModeHonorClient"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "OverrideCsDispatchPingPongMode"
+    },
+    {
+      "ValidValues": {
+        "Name": "SdmaMallPolicy"
+      },
+      "Name": "SdmaSrcMallPolicy",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "Defaults": {
+        "Default": "SdmaMallPolicyNt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Description": "Specify mall policy for SDMA copy source."
+    },
+    {
+      "ValidValues": {
+        "Name": "SdmaMallPolicy"
+      },
+      "Name": "SdmaDstMallPolicy",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "Defaults": {
+        "Default": "SdmaMallPolicyNt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Description": "Specify mall policy for SDMA copy destination."
+    },
+    {
+      "Description": "Controls the value of the PHQ Rd Temporal Hints (GE_PRIM_RING_SIZE.PAB_TEMPORAL)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsRead"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsReadLu"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsPhqRead"
+    },
+    {
+      "Description": "Controls the value of the PHQ Wr Temporal Hints (GE_PRIM_RING_SIZE.PAF_TEMPORAL)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsWrite"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsWriteWb"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsPhqWrite"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "EnumSize": 8,
+        "Values": [
+          {
+            "Name": "Gfx12DynamicCbTemporalHintsNone",
+            "Value": "0x0",
+            "Description": "Disable Dynamic CB Temporal Hints."
+          },
+          {
+            "Name": "Gfx12DynamicCbTemporalHintsBlendReadsDest",
+            "Value": "0x1",
+            "Description": "Enable Dynamic CB Temporal hints for Blending which reads from the dest."
+          },
+          {
+            "Name": "Gfx12DynamicCbTemporalHintsReadAfterWrite",
+            "Value": "0x2",
+            "Description": "Enable Dynamic CB Temporal hints for the producer pass when we detect ReadAfterWrite scenarios."
+          },
+          {
+            "Name": "Gfx12DynamicCbTemporalHintsHonorClient",
+            "Value": "0x80",
+            "Description": "PAL gfx12 temporal hints dynamic Cb settings are superseded by the client settings. Eg: DxcTemporalHintsBehavior."
+          }
+        ],
+        "Name": "Gfx12DynamicCbTemporalHints"
+      },
+      "Description": "Bitfield mask of dynamic CB temporal hint scenarios.",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": "Gfx12DynamicCbTemporalHintsHonorClient"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12DynamicCbTemporalHints"
+    },
+    {
+      "Description": "Controls the default value of the MRT/Color Rd Temporal Hints (CB_MEM#_INFO.TEMPORAL_READ)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsRead"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsReadHonorClient"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsMrtRead"
+    },
+    {
+      "Description": "Controls the default value of the MRT/Color Wr Temporal Hints (CB_MEM#_INFO.TEMPORAL_WRITE)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsWrite"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsWriteHonorClient"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsMrtWrite"
+    },
+    {
+      "Description": "Controls the value of the MRT/Color Rd Temporal Hints (CB_MEM#_INFO.TEMPORAL_READ) when a pass with blending that reads from dest is seen",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsRead"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsReadNtRt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsMrtReadBlendReadsDst"
+    },
+    {
+      "Description": "Controls the value of the MRT/Color Wr Temporal Hints (CB_MEM#_INFO.TEMPORAL_WRITE) when a pass with blending that reads from dest is seen",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsWrite"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsWriteNtRt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsMrtWriteBlendReadsDst"
+    },
+    {
+      "Description": "Controls the value of the MRT/Color Rd Temporal Hints (CB_MEM#_INFO.TEMPORAL_READ) when we detect a subsequent pass consumes the output of a previous pass",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsRead"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsReadNtRt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsMrtReadRaw"
+    },
+    {
+      "Description": "Controls the value of the MRT/Color Wr Temporal Hints (CB_MEM#_INFO.TEMPORAL_WRITE) when we detect a subsequent pass consumes the output of a previous pass",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsWrite"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsWriteNtRt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsMrtWriteRaw"
+    },
+    {
+      "Description": "Controls the value of the Z/Depth Rd Temporal Hints (DB_MEM_TEMPORAL.Z_TEMPORAL_READ)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsRead"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsReadNtRt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsZRead"
+    },
+    {
+      "Description": "Controls the value of the Z/Depth Wr Temporal Hints (DB_MEM_TEMPORAL.Z_TEMPORAL_WRITE)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsWrite"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsWriteNtRt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsZWrite"
+    },
+    {
+      "Description": "Controls the value of the Stencil Rd Temporal Hints (DB_MEM_TEMPORAL.STENCIL_TEMPORAL_READ)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsRead"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsReadNtRt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsSRead"
+    },
+    {
+      "Description": "Controls the value of the Stencil RW Temporal Hints (DB_MEM_TEMPORAL.STENCIL_TEMPORAL_WRITE)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "Name": "Gfx12TemporalHintsWrite"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsWriteNtRt"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsSWrite"
+    },
+    {
+      "Description": "Controls the value of the index buffer read Temporal Hints (VGT_DMA_INDEX_TYPE.TEMPORAL)",
+      "Tags": [
+        "Cache Policy"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx12TemporalHintsIbReadNormal",
+            "Value": 0,
+            "Description": "Known as RT, regular temporal."
+          },
+          {
+            "Name": "Gfx12TemporalHintsIbReadStream",
+            "Value": 1,
+            "Description": "Known as NT, non-temporal (re-use not expected)."
+          },
+          {
+            "Name": "Gfx12TemporalHintsIbReadHighPriority",
+            "Value": 2,
+            "Description": "Known as HT, high-priority temporal (precedence over RT)."
+          },
+          {
+            "Name": "Gfx12TemporalHintsIbReadDiscard",
+            "Value": 3,
+            "Description": "Known as LU, last-use (non-temporal AND discard dirty if it hits)."
+          }
+        ],
+        "Name": "Gfx12TemporalHintsIbRead"
+      },
+      "Defaults": {
+        "Default": "Gfx12TemporalHintsIbReadStream"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "gfx12TemporalHintsIbRead"
+    },
+    {
+      "Description": "Forces Gfx12PerfExperiment to broadcast perf counter programming globally instead of per-instance. Enabling this will break perf experiments that vary perf counter programming between instances. Client must prevent counter overlap.",
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "PerfExperimentGlobalSelect"
+    },
+    {
+      "Description": "Workaround that enables whether or not compute GroupLaunchGuarantee can be disabled.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaCsGlgDisableOff"
+    },
+    {
+      "Description": "Workaround that disables WALK_ALIGN8_PRIM_FITS_ST when primitive is within 3 tiles of 64K HW screen boundary.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaWalkAlign64kScreenSpace"
+    },
+    {
+      "Description": "Workaround that increases the PA_SC_HISZ_CONTROL.ROUND precision.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaHiSZRoundMode2"
+    },
+    {
+      "Description": "Workaround that prevents a timing race caused by SQG stalling CP_PERFMON_CNTL's write, resulting in old counter values being read.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaPreventSqgTimingRace"
+    },
+    {
+      "Description": "Workaround that forces no tessellation distribution when sending packets to one PA for tessellation draws.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaNoDistTessPacketToOnePa"
+    },
+    {
+      "Description": "Workaround that disables the use of OREO's Opaque mode.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaNoOpaqueOreo"
+    },
+    {
+      "Description": "Workaround that inserts 3 SQ_NON_EVENTs after the end of every DRAW_OPAQUE packet.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaDrawOpaqueSqNonEvents"
+    },
+    {
+      "Description": "Workaround that zeros out some of LSB bits of DB_Z_READ_BASE.BASE_256B , DB_Z_WRITE_BASE.BASE_256B to disable address swizzle.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaZSurfaceMismatchWithXorSwizzleBits"
+    },
+    {
+      "Description": "Workaround that zeros out some of the CUs in SPI_SHADER_PGM_RSRC3_GS to avoid a GS/PS deadlock due to backpressure from SC_PC.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaSCPCBackPressure"
+    },
+    {
+      "Description": "Workaround that forces stencil to be read to force DB to fetch stencil surface when DB processes the no-ops tiles.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaDbForceStencilRead"
+    },
+    {
+      "Description": "Workaround that forces stencil to be marked as valid to force DB to unroll tiles to prevent corruption when MSAA Depth is active.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaDbForceStencilValid"
+    },
+    {
+      "Description": "Workaround that forces HiZ and HiS to be disabled when specific Z/S Writes are enabled.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaHiZSDisableWhenZSWrite"
+    },
+    {
+      "Description": "When the workaround that forces HiZ and HiS to be disabled when specific Z/S Writes are enabled triggers, forcibly enable ReZ for pipelines that allow it.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "ForceReZWhenHiZSDisabledWa"
+    },
+    {
+      "Description": "Workaround that issues a bottom of pipe timestamp event after every draw to reduce the probability of hitting a hang with HiZ/S.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "WaHiZSBopTsEventAfterDraw"
+    },
+    {
+      "Description": "Value for DB_SUMMARIZER_TIMEOUTS to be programmed to. Overrides whatever the client has picked via public settings unless this is set to 0.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "hiZSDbSummarizerTimeouts"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "MaxCompressSize64B",
+            "Value": 0,
+            "Description": "Max compressed block size of 64B."
+          },
+          {
+            "Name": "MaxCompressSize128B",
+            "Value": 1,
+            "Description": "Max compressed block size of 128B."
+          },
+          {
+            "Name": "MaxCompressSize256B",
+            "Value": 2,
+            "Description": "Max compressed block size of 256B."
+          }
+        ],
+        "Name": "MaxCompressSize",
+        "Description": "Enum to specify max compressed block size."
+      },
+      "Description": "Sets the default Max Compressed Block size.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "MaxCompressSize256B"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "DefaultMaxCompressedBlockSize"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Default",
+            "Value": 0,
+            "Description": "Default behavior. PAL employs internal heuristic to choose if memory allocations should enable distributed compression or not."
+          },
+          {
+            "Name": "ForceDefault",
+            "Value": 1,
+            "Description": "Default behavior, but the client setting is ignored."
+          },
+          {
+            "Name": "ForceEnable",
+            "Value": 2,
+            "Description": "Enable distributed compression for all memory allocations."
+          },
+          {
+            "Name": "ForceDisable",
+            "Value": 3,
+            "Description": "Disable distributed compression for all memory allocations."
+          }
+        ],
+        "Name": "GpuMemoryCompressionOverride",
+        "Description": "Enum to specify overrides of PAL's heuristic to determine PTE.D for IGpuMemory allocations."
+      },
+      "Description": "Overrides for PAL's heuristic to decide if an IGpuMemory object should enable distributed compression or not. This indirectly controls PTE.D.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "Default"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "GpuMemoryCompression"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "SdmaBufferCompressionDefault",
+            "Value": 0,
+            "Description": "Use ReadEnableWriteDisable if GpuMemoryCompression is enabled (PTE.D is 1) otherwise ReadBypassWriteDisable."
+          },
+          {
+            "Name": "SdmaBufferCompressionReadEnableWriteEnable",
+            "Value": 1,
+            "Description": "Enable distribution compression."
+          },
+          {
+            "Name": "SdmaBufferCompressionReadEnableWriteDisable",
+            "Value": 2,
+            "Description": "Only enable read compression, and set disabled / decompressed state for write compression."
+          }
+        ],
+        "Name": "SdmaReadCompressMode"
+      },
+      "Description": "Controls the sdma buffer compression mode, only take effect if GpuMemoryCompression is enabled on the buffer (e.g. PTE.D=1)",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "SdmaBufferCompressionDefault"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "SdmaBufferCompressionMode"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "SdmaImageCompressionDefault",
+            "Value": 0,
+            "Description": "Use ImageCreateInfo.compressionMode provided by clients."
+          },
+          {
+            "Name": "SdmaImageCompressionReadEnableWriteEnable",
+            "Value": 1,
+            "Description": "Enable distribution compression."
+          },
+          {
+            "Name": "SdmaImageCompressionReadEnableWriteDisable",
+            "Value": 2,
+            "Description": "Only enable read compression, and set disabled / decompressed state for write compression."
+          }
+        ],
+        "Name": "SdmaImageCompressMode"
+      },
+      "Description": "Controls the sdma image compression mode, only take effect if GpuMemoryCompression is enabled on the image (e.g. PTE.D=1)",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "SdmaImageCompressionDefault"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "SdmaImageCompressionMode"
+    },
+    {
+      "Description": "Allow compression read bypass. If this is false, CompressionMode::ReadBypassWriteDisable will be internally converted to CompressionMode::ReadEnableWriteDisable. This can be useful for debugging suspected issues with read bypass.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "EnableCompressionReadBypass"
+    },
+    {
+      "Description": "Specifies minimum image format bits per pixel at which to default distributed compression ON for static read-only image resources, only takes effect if GpuMemoryCompression is set to default or forceDefault.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "0xFFFFFFFF"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "CompressReadOnlyImageMinBpp"
+    },
+    {
+      "Description": "Specifies minimum image format bits per pixel at which to default distributed compression ON for color target image resources, only takes effect if GpuMemoryCompression is set to default or forceDefault.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "CompressColorTargetImageMinBpp"
+    },
+    {
+      "Description": "Specifies minimum image format bits per pixel at which to default distributed compression ON for UAV image resources, only takes effect if GpuMemoryCompression is set to default or forceDefault.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "CompressUavTargetImageMinBpp"
+    },
+    {
+      "Description": "Specifies minimum image format bits per pixel at which to default distributed compression ON for depth/stencil target image resources, only takes effect if GpuMemoryCompression is set to default or forceDefault.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "CompressDsTargetImageMinBpp"
+    },
+    {
+      "Description": "Specifies minimum image format bits per pixel at which to default distributed compression ON for video decoder target image (aka YUV) resources, only takes effect if GpuMemoryCompression is set to default or forceDefault.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "CompressVideoDecoderTargetImageMinBpp"
+    },
+    {
+      "Description": "Specifies minimum size in bytes to default distributed compression ON for client created buffer memory (GpuMemoryCreateInfo::pImage == nullptr); only takes effect if GpuMemoryCompression is set to default or forceDefault. Note that compression is always disabled for PAL internal buffers",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "0xFFFFFFFF"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "CompressBufferMemoryMinSize"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "ImageViewCompressionDefault",
+            "Value": 0,
+            "Description": "Use compression mode determined by ImageViewInfo.compressionMode and ImageCreateInfo.compressionMode provided by clients."
+          },
+          {
+            "Name": "ImageViewCompressionReadEnableWriteEnable",
+            "Value": 1,
+            "Description": "Set this view to enable distributed compression."
+          },
+          {
+            "Name": "ImageViewCompressionReadEnableWriteDisable",
+            "Value": 2,
+            "Description": "Set this view to only enable read compression."
+          }
+        ],
+        "Name": "ImageViewCompressionMode",
+        "Description": "Enum to specify overrides of compression mode of image srd."
+      },
+      "Description": "Overrides for image srd compression settings, only take effect if GpuMemoryCompression is enabled on the image (e.g. PTE.D=1).",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "ImageViewCompressionDefault"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "ImageViewCompressionMode"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "BufferViewCompressionDefault",
+            "Value": 0,
+            "Description": "Use BufferViewInfo.compressionMode provided by clients."
+          },
+          {
+            "Name": "BufferViewCompressionReadEnableWriteEnable",
+            "Value": 1,
+            "Description": "Set this view to enable distributed compression."
+          },
+          {
+            "Name": "BufferViewCompressionReadEnableWriteDisable",
+            "Value": 2,
+            "Description": "Set this view to only enable read compression."
+          }
+        ],
+        "Name": "BufferViewCompressionMode",
+        "Description": "Enum to specify overrides of compression mode of buffer srd."
+      },
+      "Description": "Overrides for buffer srd compression settings, only take effect if GpuMemoryCompression is enabled on the buffer (e.g. PTE.D=1).",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "BufferViewCompressionDefault"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "BufferViewCompressionMode"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "RtvCompressionDefault",
+            "Value": 0,
+            "Description": "Use compression mode determined by ColorTargetViewCreateInfo.compressionMode and ImageCreateInfo.compressionMode provided by clients."
+          },
+          {
+            "Name": "RtvCompressionReadEnableWriteEnable",
+            "Value": 1,
+            "Description": "Set this view to enable distributed compression."
+          },
+          {
+            "Name": "RtvCompressionReadEnableWriteDisable",
+            "Value": 2,
+            "Description": "Set this view to only enable read compression."
+          }
+        ],
+        "Name": "RtvCompressionMode",
+        "Description": "Enum to specify overrides of compression mode of render target view."
+      },
+      "Description": "Overrides for render target view compression settings, only take effect if GpuMemoryCompression is enabled on the image (e.g. PTE.D=1).",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "RtvCompressionDefault"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "RtvCompressionMode"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "DsvCompressionDefault",
+            "Value": 0,
+            "Description": "Use compression mode determined by DepthStencilViewCreateInfo.compressionMode and ImageCreateInfo.compressionMode provided by clients."
+          },
+          {
+            "Name": "DsvCompressionReadEnableWriteEnable",
+            "Value": 1,
+            "Description": "Set this view to enable distributed compression."
+          },
+          {
+            "Name": "DsvCompressionReadEnableWriteDisable",
+            "Value": 2,
+            "Description": "Set this view to only enable read compression."
+          }
+        ],
+        "Name": "DsvCompressionMode",
+        "Description": "Enum to specify overrides of compression mode of depth stencil view."
+      },
+      "Description": "Overrides for depth stencil view compression settings, only take effect if GpuMemoryCompression is enabled on the image (e.g. PTE.D=1).",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Defaults": {
+        "Default": "DsvCompressionDefault"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "DsvCompressionMode"
+    },
+    {
+      "Description": "Maximum shader prefetch size in bytes. Set to zero to disable.",
+      "Tags": [
+        "Shader Options",
+        "Gfx12"
+      ],
+      "Defaults": {
+        "Default": 8064
+      },
+      "Flags": {},
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "ShaderPrefetchSizeBytes"
+    },
+    {
+      "Description": "Specifies the number of entries in the DrawData and PayloadData shader rings for Task and Mesh shaders, per SE. Must be a power-of-2.",
+      "Tags": [
+        "Shader Options"
+      ],
+      "Defaults": {
+        "Default": 256
+      },
+      "Flags": {},
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "uint32",
+      "Name": "NumTsMsDrawEntriesPerSe"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "DistCompNone",
+            "Value": "0x0",
+            "Description": "When GpuMemoryCompression is set to default or forceDefault, disable GpuMemoryCompression for all GpuMemory types."
+          },
+          {
+            "Name": "DistCompMemCrossAdapter",
+            "Value": "0x1",
+            "Description": "Support CrossAdapter GpuMemory flag."
+          },
+          {
+            "Name": "DistCompMemInterprocess",
+            "Value": "0x2",
+            "Description": "Support Interprocess GpuMemory flag."
+          },
+          {
+            "Name": "DistCompMemPresentable",
+            "Value": "0x4",
+            "Description": "Support Presentable GpuMemory flag."
+          },
+          {
+            "Name": "DistCompMemPrivPrimary",
+            "Value": "0x8",
+            "Description": "Support PrivPrimary GpuMemory flag."
+          },
+          {
+            "Name": "DistCompMemSharedViaNtHandle",
+            "Value": "0x20",
+            "Description": "Support SharedViaNtHandle GpuMemory flag."
+          },
+          {
+            "Name": "DistCompMemFlippable",
+            "Value": "0x40",
+            "Description": "Support Flippable GpuMemory flag."
+          },
+          {
+            "Name": "DistCompMemShareable",
+            "Value": "0x80",
+            "Description": "Support Shareable GpuMemory flag."
+          },
+          {
+            "Name": "DistCompMemCpuVisible",
+            "Value": "0x100",
+            "Description": "Support CpuVisible GpuMemory flag."
+          },
+          {
+            "Name": "DistCompImgPresentable",
+            "Value": "0x20000",
+            "Description": "Support Presentable Image flag."
+          },
+          {
+            "Name": "DistCompImgShared",
+            "Value": "0x40000",
+            "Description": "Support Shared Image flag."
+          },
+          {
+            "Name": "DistCompImgDisplayable",
+            "Value": "0x80000",
+            "Description": "Support compressing displayable images (when made with their GpuMemory)."
+          }
+        ],
+        "Name": "DistCompFlags"
+      },
+      "Description": "Controls the GPU memory compression flag support modes when GpuMemoryCompression is set to default or forceDefault. When the flag is turned off, corresponding buffer or image will have compression disabled; and when the flag is turned on, it doesn't indicate that compression will be finally enabled since this depends on other CompressBuffer* or Compress*ImageMinBpp settings.",
+      "Tags": [
+        "Distributed Compression"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": "0xF00FF"
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "enum",
+      "Name": "DistributedCompressionMask"
+    }
+  ]
+}

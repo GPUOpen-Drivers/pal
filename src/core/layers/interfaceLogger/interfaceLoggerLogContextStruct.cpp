@@ -597,6 +597,9 @@ void LogContext::Struct(
     KeyAndValue("disablePartialDispatchPreemption", value.disablePartialDispatchPreemption);
     KeyAndEnum("interleaveSize", value.interleaveSize);
     KeyAndStruct("threadsPerGroup", value.threadsPerGroup);
+#if PAL_BUILD_GFX12
+    KeyAndEnum("groupLaunchGuarantee", value.groupLaunchGuarantee);
+#endif
     EndMap();
 }
 
@@ -772,6 +775,13 @@ void LogContext::Struct(
     {
         Value("dispatchTunneling");
     }
+
+#if PAL_BUILD_GFX12
+    if (value.flags.dispatchPingPongWalk)
+    {
+        Value("dispatchPingPongWalk");
+    }
+#endif
 
     static_assert(CheckReservedBits<decltype(value.flags)>(32, 28), "Update CmdBufferCreateInfo interfaceLogger!");
 
@@ -1894,6 +1904,12 @@ void LogContext::Struct(
     {
         Value("isExternPhys");
     }
+#if PAL_BUILD_GFX12
+    if (value.flags.isCompressed)
+    {
+        Value("isCompressed");
+    }
+#endif
 
     static_assert(CheckReservedBits<decltype(value.flags)>(32, 23), "Update interfaceLogger!");
 
@@ -2042,6 +2058,10 @@ void LogContext::Struct(
     EndMap();
 
     KeyAndEnum("taskInterleaveSize", value.taskInterleaveSize);
+#if PAL_BUILD_GFX12
+    KeyAndEnum("groupLaunchGuarantee", value.groupLaunchGuarantee);
+    KeyAndValue("noForceReZ", value.noForceReZ);
+#endif
 
     EndMap();
 }
@@ -2716,6 +2736,9 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndValue("clientInternal", value.clientInternal);
+#if PAL_BUILD_GFX12
+    KeyAndValue("reverseWorkgroupOrder", value.reverseWorkgroupOrder);
+#endif
     EndMap();
 
     static_assert(CheckReservedBits<decltype(value)>(32, 30), "Update PipelineCreateFlags interfaceLogger!");

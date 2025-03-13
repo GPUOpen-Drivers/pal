@@ -331,6 +331,13 @@ Result GpuMemory::AllocateOrPinMemory(
                 allocRequest.alloc_size     = m_desc.size;
                 allocRequest.phys_alignment = GetPhysicalAddressAlignment();
 
+#if PAL_BUILD_GFX12
+                if (IsCompressed())
+                {
+                    allocRequest.flags |= AMDGPU_GEM_CREATE_GFX12_DCC;
+                }
+#endif
+
                 result = pDevice->AllocBuffer(&allocRequest, &bufferHandle);
             }
             if (result == Result::Success)
@@ -621,6 +628,16 @@ Result GpuMemory::OpenSharedMemory(
             m_flags.explicitSync = 1;
         }
 
+#if PAL_BUILD_GFX12
+        if (m_pDevice->MemoryProperties().flags.supportDistributedCompression != 0)
+        {
+            // Only valid if this GPU has distributed compression.
+            const bool isCompressed = TestAnyFlagSet(bufferInfo.alloc_flags, AMDGPU_GEM_CREATE_GFX12_DCC);
+
+            m_flags.enableCompression = isCompressed;
+            m_desc.flags.isCompressed = isCompressed;
+        }
+#endif
     }
 
     // On native Linux, handle should be closed here if it's a DMA buf fd. Otherwise, the memory would never be freed

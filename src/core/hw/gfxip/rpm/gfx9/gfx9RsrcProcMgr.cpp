@@ -4447,6 +4447,9 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     viewInfo.stride         = 1;
     viewInfo.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
     viewInfo.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
+#if PAL_BUILD_GFX12
+    viewInfo.compressionMode       = CompressionMode::ReadEnableWriteDisable;
+#endif
     m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
     pTableMem += SrdDwords;
 

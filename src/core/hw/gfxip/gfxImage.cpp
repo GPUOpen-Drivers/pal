@@ -433,6 +433,33 @@ void GfxImage::IncrementFceRefCount()
     }
 }
 
+#if PAL_BUILD_GFX12
+
+// =====================================================================================================================
+bool GfxImage::EnableClientCompression(
+    bool disableClientCompression
+    ) const
+{
+    // Note that compression status (PTE.D) on virtual GPU memory is unknown, since it depends on if mapped physical
+    // GPU memory enables compression or not. Enabling compression for virtual memory with PTE.D=0 may have
+    // performance hit as client compressed content will be decompressed by GL2 when writing out.
+    const GpuMemory*const  pGpuMemory      = m_pParent->GetBoundGpuMemory().Memory();
+    const ImageCreateInfo& imageCreateInfo = m_pParent->GetImageCreateInfo();
+
+    const bool enableClientCompression =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 876
+        (imageCreateInfo.clientCompressionMode != ClientCompressionMode::Disable) &&
+#else
+        (imageCreateInfo.clientCompressionMode != TriState::Disable) &&
+#endif
+        (disableClientCompression == false) &&
+        pGpuMemory->MaybeCompressed();
+
+    return enableClientCompression;
+}
+
+#endif
+
 // =====================================================================================================================
 void GfxImage::Destroy()
 {

@@ -77,6 +77,12 @@ static const PipelineBinary*const GetTextWriterComputePipelineTable(
         break;
 #endif
 
+#if PAL_BUILD_GFX12 && PAL_BUILD_NAVI48
+    case Pal::IpTriple({ 12, 0, 1 }):
+        pTable = textWriterComputeBinaryTable12_0_1;
+        break;
+#endif
+
     }
 
     return pTable;

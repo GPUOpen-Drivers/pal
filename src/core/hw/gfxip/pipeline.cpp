@@ -548,6 +548,9 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
     const GpuChipProperties& chipProps)
 {
     bool is1D = false;
+#if PAL_BUILD_GFX12
+    bool is2D = false;
+#endif
 
     switch (interleave)
     {
@@ -560,6 +563,25 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
     case DispatchInterleaveSize::_1D_512_Threads:
         is1D = true;
         break;
+#if PAL_BUILD_GFX12
+    case DispatchInterleaveSize::_2D_1x1_ThreadGroups:
+    case DispatchInterleaveSize::_2D_1x2_ThreadGroups:
+    case DispatchInterleaveSize::_2D_1x4_ThreadGroups:
+    case DispatchInterleaveSize::_2D_1x8_ThreadGroups:
+    case DispatchInterleaveSize::_2D_1x16_ThreadGroups:
+    case DispatchInterleaveSize::_2D_2x1_ThreadGroups:
+    case DispatchInterleaveSize::_2D_2x2_ThreadGroups:
+    case DispatchInterleaveSize::_2D_2x4_ThreadGroups:
+    case DispatchInterleaveSize::_2D_2x8_ThreadGroups:
+    case DispatchInterleaveSize::_2D_4x1_ThreadGroups:
+    case DispatchInterleaveSize::_2D_4x2_ThreadGroups:
+    case DispatchInterleaveSize::_2D_4x4_ThreadGroups:
+    case DispatchInterleaveSize::_2D_8x1_ThreadGroups:
+    case DispatchInterleaveSize::_2D_8x2_ThreadGroups:
+    case DispatchInterleaveSize::_2D_16x1_ThreadGroups:
+        is2D = true;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;
@@ -567,7 +589,12 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
 
     bool isValid = true;
 
+#if PAL_BUILD_GFX12
+    if ((is1D && (chipProps.gfxip.support1dDispatchInterleave == false)) ||
+        (is2D && (chipProps.gfxip.support2dDispatchInterleave == false)))
+#else
     if (is1D && (chipProps.gfxip.support1dDispatchInterleave == false))
+#endif
     {
         isValid = false;
     }

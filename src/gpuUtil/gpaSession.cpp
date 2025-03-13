@@ -73,6 +73,11 @@ static SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::GfxIp11_5:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_11_5;
         break;
+#if PAL_BUILD_GFX12
+    case Pal::GfxIpLevel::GfxIp12:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_12;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -103,6 +108,11 @@ SqttVersion GfxipToSqttVersion(
     case Pal::GfxIpLevel::GfxIp11_5:
         version = SQTT_VERSION_3_2;
         break;
+#if PAL_BUILD_GFX12
+    case Pal::GfxIpLevel::GfxIp12:
+        version = SQTT_VERSION_3_3;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -189,6 +199,9 @@ static constexpr ThreadTraceTokenConfig SqttTokenConfigNoInst    =
     TokenType::EventGfx1 |
     TokenType::RegCs     |
     TokenType::UtilCounter
+#if PAL_BUILD_GFX12
+    | TokenType::RealTime
+#endif
     ,
     RegType::AllRegWrites
 };
@@ -3998,6 +4011,10 @@ Result GpaSession::AcquirePerfExperiment(
                     sampleConfig.sqtt.flags.excludeNonDetailShaderData;
                 sqttInfo.optionValues.threadTraceExcludeNonDetailShaderData =
                     (sampleConfig.sqtt.flags.excludeNonDetailShaderData != 0);
+#if PAL_BUILD_GFX12
+                sqttInfo.optionFlags.threadTraceStallAllSimds   = 1;
+                sqttInfo.optionValues.threadTraceStallAllSimds  = sampleConfig.sqtt.flags.stallAllSimds;
+#endif
                 sqttInfo.optionValues.threadTraceStallBehavior  = sampleConfig.sqtt.flags.stallMode;
                 sqttInfo.optionValues.threadTraceShaderTypeMask = PerfShaderMaskAll;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899

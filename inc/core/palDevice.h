@@ -396,10 +396,16 @@ enum InternalSettingScope : uint32
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     PublicCatalystKey  = 0x3,
     PrivatePalGfx9Key  = 0x4,
+#if PAL_BUILD_GFX12
+    PrivatePalGfx12Key = 0x5,
+#endif
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     PrivatePalGfx6Key  = 0x3,
     PrivatePalGfx9Key  = 0x4,
     PublicCatalystKey  = 0x5,
+#if PAL_BUILD_GFX12
+    PrivatePalGfx12Key = 0x7,
+#endif
 #endif
 };
 
@@ -527,6 +533,36 @@ enum class BufferAlignmentMode : uint8
     Dword,    ///< Hardware will automatically align requests to the smaller of: element-size or DWORD.
     Unaligned ///< Any request alignment is allowed.
 };
+
+#if PAL_BUILD_GFX12
+enum TemporalHintsMrtBehavior : uint8
+{
+    TemporalHintsDynamicRt = 0x0, ///< Enable Dynamic RT Temporal hints. PAL chooses NT vs RT based on heuristics.
+    TemporalHintsStaticRt  = 0x1, ///< Regular temporal for both near and far read/write caches.
+    TemporalHintsStaticNt  = 0x2, ///< Non-temporal (re-use not expected) for both near and far read/write caches.
+};
+
+/// Client-controllable behavior for Gfx12-specific software workaround to HiSZ hardware bug.
+/// Allows the client to override PAL defaults for performance or profiled reasons.
+enum class HiSZWorkaroundBehavior : uint8
+{
+    Default = 0x0,                  ///< Let PAL decide what the default is.
+    ForceDisableAllWar,             ///< Force disable all workarounds.
+                                    ///  Note: This should rarely be chosen and carries an extremely high risk of issue.
+                                    ///        Should only be used when application has been profiled to guarantee no
+                                    ///        risk of issue.
+    ForceHiSZDisableBasedWar,       ///< Force the disable HiZ/S based workaround behavior.
+    ForceHiSZEventBasedWar,         ///< Force the event-after-draw workaround behavior.
+                                    ///  Note: This carries a risk that the hang may still be seen.
+    ForceHiSZDisableBaseWarWithReZ  ///< Force the disable HiZ/S based workaround behavior, but with an added
+                                    ///  optimization to force ZOrder mode to EarlyZThenReZ to reclaim some performance.
+                                    ///  This will apply to all graphics pipelines that trigger the workaround
+                                    ///  condition, except those pipelines that have set
+                                    ///  GraphicsPipelineCreateInfo::noForceReZ. This ZOrder change will occur only when
+                                    ///  HiZ/S is forcibly disabled by the workaround; otherwise the ZOrder remains what
+                                    ///  was chosen by the compiler.
+};
+#endif
 
 /// Pal settings that are client visible and editable.
 struct PalPublicSettings
@@ -781,6 +817,23 @@ struct PalPublicSettings
     /// Issues resolved by added waits should be root caused.
     uint32 waitOnFlush;
 
+#if PAL_BUILD_GFX12
+    /// Provides the ability for mall to be alloc-ed/noalloc-ed using the dynamic or static behavior.
+    TemporalHintsMrtBehavior temporalHintsMrtBehavior;
+
+    /// Allows the client to change the behavior of the Gfx12 HW Bug that impacts HiS and HiZ.
+    /// This should never be forced away from default unconditionally.
+    HiSZWorkaroundBehavior hiSZWorkaroundBehavior;
+
+    /// For event-based HiSZ workarounds (Gfx12), specifies the timeouts supported by the Scan Converter and Depth Block
+    /// for their tile summarizer controller.
+    /// Ignored unless @ref hiSZWorkaroundBehavior is set to ForceHiSZEventBasedWar.
+    /// If set to 0, PAL picks a default value.
+    /// Note: Choosing any value other than 0 carries with it **significant risk** of hangs, as the timeout value
+    ///       determined by PAL is the most optimal to avoid the most hangs. Any deviation from the default must be
+    ///       thoroughly tested and is not guaranteed to be safe!
+    uint32 tileSummarizerTimeout;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -912,7 +965,23 @@ enum class RayTracingIpLevel : uint32
     RtIp1_1 = 0x2,   ///< Added computation of triangle barycentrics into HW
     RtIp2_0 = 0x3,   ///< Added more Hardware RayTracing features, such as BoxSort, PointerFlag, etc
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+#if PAL_BUILD_GFX12
+    RtIp3_0 = 0x4,   ///< Added high precision box node, HW instance node, dual intersect ray, BVH8 intersect ray,
+                     ///  LDS stack push 8 pop 1, and LDS stack push 8 pop 2
+#endif
+#if PAL_BUILD_GFX12
+    RtIp3_1 = 0x5,   ///< Added improved bvh footprints (change to node pointer, 128 Byte primitive structure format,
+                     ///  128 Byte Quantized box node, obb support, wide sort)
+#endif
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+#if PAL_BUILD_GFX12
+    RtIp3_0 = 0x4,     ///< Added high precision box node, HW instance node, dual intersect ray, BVH8 intersect ray,
+                       ///  LDS stack push 8 pop 1, and LDS stack push 8 pop 2
+#endif
+#if PAL_BUILD_GFX12
+    RtIp3_1 = 0x6,     ///< Added improved bvh footprints (change to node pointer, 128 Byte primitive structure format,
+                       ///  128 Byte Quantized box node, obb support, wide sort)
+#endif
 #endif
 };
 
@@ -1184,7 +1253,14 @@ struct DeviceProperties
 
                 /// Support for querying page fault information
                 uint32 supportPageFaultInfo             : 1;
+#if PAL_BUILD_GFX12
+                /// Indicates if this device supports GFX12-style distributed compression. Client can control
+                /// whether distributed compression is enabled or not per IGpuMemory object using the
+                /// distributedCompression field in @ref GpuMemoryCreateInfo.
+                uint32 supportDistributedCompression    : 1;
+#else
                 uint32 reserved13 : 1;
+#endif
                 /// Reserved for future use.
                 uint32 reserved : 18;
             };
@@ -1424,11 +1500,19 @@ struct DeviceProperties
                                                                 ///  with zRange specified.
                 uint64 supportCooperativeMatrix           :  1; ///< HW supports cooperative matrix
                 uint64 support1dDispatchInterleave        :  1; ///< Indicates support for 1D Dispatch Interleave.
+#if PAL_BUILD_GFX12
+                uint64 support2dDispatchInterleave        :  1; ///< Indicates support for 2D Dispatch Interleave.
+#else
                 uint64 placeholder12                      :  1;
+#endif
                 uint64 supportBFloat16                    :  1; ///< HW supports bf16 instructions.
                 uint64 supportFloat8                      :  1; ///< HW supports float 8-bit instructions.
                 uint64 supportInt4                        :  1; ///< HW supports integer 4-bit instructions.
+#if PAL_BUILD_GFX12
+                uint64 supportCooperativeMatrix2          :  1; ///< HW supports Gfx12 extenson cooperative matrix.
+#else
                 uint64 placeholder13                      :  1;
+#endif
                 uint64 placeholder14                      :  1;
                 uint64 reserved                           :  60; ///< Reserved for future use.
             };
@@ -2032,6 +2116,33 @@ enum class PrtMapAccessType : uint32
     Count
 };
 
+#if PAL_BUILD_GFX12
+/// Specifies compression behavior for an IImage or image/buffer view.
+enum class CompressionMode : uint32
+{
+    Default                = 0,  ///< Let PAL choose behavior.
+    ReadEnableWriteEnable  = 1,  ///< Override default to force read and write compression on.
+    ReadEnableWriteDisable = 2,  ///< Support reading compressed data, but force any writes to be uncompressed (keeping
+                                 ///  physical metadata consistent).
+    ReadBypassWriteDisable = 3,  ///< Bypass physical metadata on reads (assume decompressed), all writes will be
+                                 ///  uncompressed and will write physical metatdata marking updated blocks as being
+                                 ///  uncompressed. This mode is intended to handle placed resources that do not
+                                 ///  want compression in memory allocations that have distributed compression enabled.
+                                 ///  WARNING: Using this mode to read compressed data will result in corruption.
+    Count,
+};
+
+/// Specifies client compression behavior for an IImage.
+enum class ClientCompressionMode : uint32
+{
+    Default          = 0,  ///< Let implementation decide whether to enable or disable
+    Enable           = 1,  ///< Force enable
+    Disable          = 2,  ///< Force disable
+    DisableClearOnly = 3,  ///< Force enable for all image views except for image clears
+    Count,
+};
+#endif
+
 /// Specifies parameters for a buffer view descriptor that control how a range of GPU memory is viewed by a shader.
 ///
 /// Input to either CreateTypedBufferViewSrds() or CreateUntypedBufferViewSrds().  Used for any buffer descriptor,
@@ -2059,6 +2170,11 @@ struct BufferViewInfo
     gpusize         stride;         ///< Stride in bytes.  Must be aligned to bytes-per-element for typed access.
     SwizzledFormat  swizzledFormat; ///< Format and channel swizzle for typed access. Must be Undefined for structured
                                     ///  or raw access.
+
+#if PAL_BUILD_GFX12
+    CompressionMode compressionMode;  ///< Specify GFX12-style distributed compression mode override for this view.
+                                      ///  Only relevant if the backing memory pages enable compression.
+#endif
 
     union
     {
@@ -2144,6 +2260,14 @@ struct ImageViewInfo
                                  ///  The primary purpose of this flag is to avoid compressed shader writes if a
                                  ///  different usage does not support compression and PAL won't get an opportunity to
                                  ///  decompress it (ie. a transition in a barrier)
+
+#if PAL_BUILD_GFX12
+    CompressionMode compressionMode;  ///< Specify GFX12-style distributed compression mode override for this view.
+                                      ///  Only relevant if the backing IImage resource and its bound memory pages
+                                      ///  enable compression.
+                                      ///  ReadBypassWriteDisable is only valid if compressionMode in ImageCreateInfo
+                                      ///  disables compressed write.
+#endif
 
     union
     {
@@ -2301,9 +2425,23 @@ struct BvhInfo
             uint32    bypassMallWrite       :  1;
             uint32    pointerFlags          :  1; ///< If set, flags are encoded in the node pointer bits
 
+#if  PAL_BUILD_GFX12
+            uint32    highPrecisionBoxNode  :  1; ///< If set, enable 64-byte high precision box node
+            uint32    wideSort              :  1; ///< If set, enable wide sort
+            uint32    hwInstanceNode        :  1; ///< If set, enable hardware instance node
+            uint32    sortTrianglesFirst    :  1; ///< If set, Pointers to triangle nodes
+                                                  ///  are treated specially during child sorting
+#else
             uint32    placeholder2          :  4;
+#endif
 
+#if PAL_BUILD_GFX12
+            uint32    compressedFormatEn    :  1; ///< If set, enable compressed format support. This include enable
+                                                  ///  support for compressed primitive packets, BVH8-128B box nodes,
+                                                  ///  and changes to triangle intersection test return data.
+#else
             uint32    placeholder4          :  1;
+#endif
 
             uint32    reserved              :  22; ///< Reserved for future HW
         };

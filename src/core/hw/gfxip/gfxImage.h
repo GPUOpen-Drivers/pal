@@ -109,6 +109,10 @@ struct SharedMetadataInfo
 
     gpusize             hiZOffset;
     gpusize             hiSOffset;
+#if PAL_BUILD_GFX12
+    Addr3SwizzleMode    hiZSwizzleMode;
+    Addr3SwizzleMode    hiSSwizzleMode;
+#endif
     gpusize             dccSize[MaxNumPlanes];
     gpusize             dccAlignment[MaxNumPlanes];
     gpusize             displayDccSize[MaxNumPlanes];
@@ -132,6 +136,18 @@ struct DccState
         uint32 reserved                 :25;
     };
 };
+
+#if PAL_BUILD_GFX12
+// DCC compressed/uncompressed block size settings
+struct DccControlBlockSize
+{
+    uint32 maxUncompressedBlockSizePlane0 :  2;
+    uint32 maxCompressedBlockSizePlane0   :  2;
+    uint32 maxUncompressedBlockSizePlane1 :  2;
+    uint32 maxCompressedBlockSizePlane1   :  2;
+    uint32 reserved                       : 24;
+};
+#endif
 
 // =====================================================================================================================
 class GfxImage
@@ -170,6 +186,9 @@ public:
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const = 0;
     virtual void GetDisplayDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
     virtual void GetDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
+#if PAL_BUILD_GFX12
+    virtual void GetDccControlBlockSize(DccControlBlockSize* pBlockSize) const { PAL_NEVER_CALLED(); }
+#endif
 
     // Mall only exists on Gfx9+ hardware, so base functions should do nothing
     virtual void SetMallCursorCacheSize(uint32 cursorSize) { }
@@ -217,6 +236,26 @@ public:
     virtual void Addr2FinalizeSubresource(
         SubResourceInfo*                               pSubResInfo,
         const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT& surfaceSetting) const { PAL_NEVER_CALLED(); }
+
+#if PAL_BUILD_GFX12
+    virtual void Addr3InitSubResInfo(
+        const SubResIterator&  subResIt,
+        SubResourceInfo*       pSubResInfoList,
+        void*                  pSubResTileInfoList,
+        gpusize*               pGpuMemSize) { PAL_NEVER_CALLED(); }
+
+    // Helper function for AddrMgr3 to finalize the addressing information for a plane.
+    virtual Result Addr3FinalizePlane(
+        SubResourceInfo*                         pBaseSubRes,
+        void*                                    pBaseTileInfo,
+        Addr3SwizzleMode                         swizzleMode,
+        const ADDR3_COMPUTE_SURFACE_INFO_OUTPUT& surfaceInfo) { return Result::ErrorUnavailable; }
+
+    // Helper function for AddrMgr3 to finalize the subresource info for a subresource after calling AddrLib.
+    virtual void Addr3FinalizeSubresource(
+        SubResourceInfo*  pSubResInfo,
+        Addr3SwizzleMode  swizzleMode) const { PAL_NEVER_CALLED(); }
+#endif
 
     virtual Result Finalize(
         bool               dccUnsupported,
@@ -267,6 +306,10 @@ public:
     uint32* GetFceRefCounter() const { return m_pNumSkippedFceCounter; }
     uint32  GetFceRefCount() const;
     void    IncrementFceRefCount();
+
+#if PAL_BUILD_GFX12
+    bool EnableClientCompression(bool disableClientCompression) const;
+#endif
 
 protected:
     GfxImage(

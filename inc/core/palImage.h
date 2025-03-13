@@ -100,6 +100,12 @@ enum class MetadataMode : uint16
     Disabled,           ///< The Image will not contain any compression metadata.
     FmaskOnly,          ///< The color msaa Image will only contain Cmask/Fmask metadata; this mode is only valid for
                         ///  color msaa Image.
+#if PAL_BUILD_GFX12
+                        ///  On GPUs with GFX12-style distributed compression (see
+                        ///  supportDistributedCompression flag in @ref DeviceProperties),
+                        ///  metadataMode only controls UMD metadata (Hi-Z and Hi-S). On such
+                        ///  GPUs, the FmaskOnly enum is ignored and treated like Default.
+#endif
     Count,
 };
 
@@ -303,7 +309,33 @@ struct ImageCreateInfo
     SwizzleMode        fixedSwizzleMode;  ///< For directed image tests, force a particular swizzle mode.
 #endif
     MetadataMode       metadataMode;      ///< Metadata behavior mode for this image.
+#if PAL_BUILD_GFX12
+                                          ///  On GPUs with GFX12-style distributed compression (see
+                                          ///  supportDistributedCompression flag in @ref DeviceProperties),
+                                          ///  metadataMode only controls UMD metadata (Hi-Z and Hi-S). On such
+                                          ///  GPUs, the FmaskOnly enum is ignored and treated like Default.
+#endif
     MetadataTcCompatMode metadataTcCompatMode; ///< TC compat mode for this image.
+#if PAL_BUILD_GFX12
+    /// Distributed compression contains GL2/DF DCC compression and RB backend client compression which includes
+    /// fragment client compression (previous FMASK compression alike) on color MSAA images and Z Plane client
+    /// compression on depth stencil images.
+    /// Only relevant if the backing memory pages enable compression, controllable by client with
+    /// @ref GpuMemoryCreateInfo::compression.
+    CompressionMode    compressionMode;       ///< Specify GFX12-style GL2/DF DCC compression behavior for this
+                                              ///  resource.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 876
+#if PAL_BUILD_GFX12
+    /// Client compression is part of distributed compression (aka physical compression); it can only be enabled if
+    /// physical compression is enabled.
+    ///
+    /// On Gfx12, controls (legacy FMask based) color fragment compression and Z plane compression.
+#endif
+    ClientCompressionMode clientCompressionMode; ///< Controls client compression behavior for this resource.
+#else
+    TriState           clientCompressionMode; ///< Controls client compression behavior for this resource.
+#endif
+#endif
     uint32             maxBaseAlign;      ///< Maximum address alignment for this image or zero for an unbounded
                                           ///  alignment.
     float              imageMemoryBudget; ///< The memoryBudget value used in SW addrlib to determine the minSizeBlk for
@@ -377,6 +409,10 @@ inline constexpr bool operator==(const ImageCreateInfo& lhs, const ImageCreateIn
 #endif
                 (lhs.metadataMode            == rhs.metadataMode)            &&
                 (lhs.metadataTcCompatMode    == rhs.metadataTcCompatMode)    &&
+#if PAL_BUILD_GFX12
+                (lhs.compressionMode         == rhs.compressionMode)         &&
+                (lhs.clientCompressionMode   == rhs.clientCompressionMode)   &&
+#endif
                 (lhs.maxBaseAlign            == rhs.maxBaseAlign)            &&
                 (lhs.imageMemoryBudget       == rhs.imageMemoryBudget)       &&
                 (lhs.prtPlus.mapType         == rhs.prtPlus.mapType)         &&
@@ -436,6 +472,12 @@ struct PresentableImageCreateInfo
     SwizzledFormat      swizzledFormat; ///< Pixel format and channel swizzle.
     ImageUsageFlags     usage;          ///< Image usage flags.
     Extent2d            extent;         ///< Width/height of the image.
+#if PAL_BUILD_GFX12
+    CompressionMode     compressionMode;///< Specify GFX12-style distributed compression behavior for this resource.
+                                        ///  Only relevant if the backing memory pages enable compression
+                                        ///  (controllable by client with the distributedCompression field in
+                                        ///  @ref GpuMemoryCreateInfo).
+#endif
     const IScreen*      pScreen;        ///< Target screen for fullscreen presentable images.  Can be null if the
                                         ///  fullscreen flag is 0.
     OsDisplayHandle     hDisplay;       ///< Display handle of the local display system only for WSI.
@@ -475,6 +517,12 @@ struct PrivateScreenImageCreateInfo
     Extent2d        extent;         ///< Width/height of the image.
     IPrivateScreen* pScreen;        ///< Private screen this image is created on (then this image can be used to be
                                     ///  presented on this private screen).
+#if PAL_BUILD_GFX12
+    CompressionMode compressionMode;///< Specify GFX12-style distributed compression behavior for this resource.
+                                    ///  Only relevant if the backing memory pages enable compression
+                                    ///  (controllable by client with the distributedCompression field in
+                                    ///  @ref GpuMemoryCreateInfo).
+#endif
     uint32             viewFormatCount;   ///< Number of additional image formats views of this image can be used with
                                           ///  or the special value AllCompatibleFormats to indicate that all
                                           ///  compatible formats can be used as a view format.

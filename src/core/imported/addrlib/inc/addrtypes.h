@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -242,6 +242,28 @@ typedef enum _AddrSwizzleMode
     ADDR_SW_256KB_R_X       = ADDR_SW_MISCDEF31,
 #endif
 } AddrSwizzleMode;
+
+#if ADDR3_SUPPORT
+/**
+****************************************************************************************************
+* @brief
+*   Neutral enums that define swizzle modes for Gfx12+ ASIC
+*
+****************************************************************************************************
+*/
+typedef enum _Addr3SwizzleMode
+{
+    ADDR3_LINEAR     = 0,
+    ADDR3_256B_2D    = 1,
+    ADDR3_4KB_2D     = 2,
+    ADDR3_64KB_2D    = 3,
+    ADDR3_256KB_2D   = 4,
+    ADDR3_4KB_3D     = 5,
+    ADDR3_64KB_3D    = 6,
+    ADDR3_256KB_3D   = 7,
+    ADDR3_MAX_TYPE,
+} Addr3SwizzleMode;
+#endif
 
 /**
 ****************************************************************************************************

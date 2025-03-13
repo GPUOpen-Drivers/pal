@@ -145,6 +145,16 @@ void SettingsLoader::OverrideDefaults()
             m_settings.ifh = IfhModeKmd;
         }
     }
+#if PAL_BUILD_GFX12
+    // 1. CPU read local always in compressed mode and does not honor PTE.D bit.
+    // 2. Mall coherency issue due to CPU host write back door (bypass mall) while GPU access front door (through mall).
+    if (IsNavi4x(*m_pDevice) &&
+        m_pDevice->IsHwEmulationEnabled() &&
+       (m_pDevice->GetPlatform()->IsEmulationEnabled() == false)) // Not SW emu
+    {
+        m_settings.forceCpuAccessibleAllocationsToNonLocal = true;
+    }
+#endif
 
     if (m_pDevice->GetPlatform()->IsEmulationEnabled())
     {

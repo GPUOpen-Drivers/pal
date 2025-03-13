@@ -140,6 +140,23 @@ void LogContext::Enum(
         "_1D_128_Threads",
         "_1D_256_Threads",
         "_1D_512_Threads",
+#if PAL_BUILD_GFX12
+        "_2D_1x1_ThreadGroups",
+        "_2D_1x2_ThreadGroups",
+        "_2D_1x4_ThreadGroups",
+        "_2D_1x8_ThreadGroups",
+        "_2D_1x16_ThreadGroups",
+        "_2D_2x1_ThreadGroups",
+        "_2D_2x2_ThreadGroups",
+        "_2D_2x4_ThreadGroups",
+        "_2D_2x8_ThreadGroups",
+        "_2D_4x1_ThreadGroups",
+        "_2D_4x2_ThreadGroups",
+        "_2D_4x4_ThreadGroups",
+        "_2D_8x1_ThreadGroups",
+        "_2D_8x2_ThreadGroups",
+        "_2D_16x1_ThreadGroups",
+#endif
     };
 
     static_assert(ArrayLen32(StringTable) == static_cast<uint32>(DispatchInterleaveSize::Count),
@@ -1086,7 +1103,10 @@ void LogContext::Enum(
 #if PAL_BUILD_STRIX_HALO
         "StrixHalo",     // 11.5.1
 #endif
-#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
+#if PAL_BUILD_GFX12 || (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888)
+#if PAL_BUILD_NAVI48
+        "Navi48",        // 12.0.1
+#endif
 #endif
 #if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif

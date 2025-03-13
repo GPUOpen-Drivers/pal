@@ -42,6 +42,10 @@ enum DmaCopyFlags : uint32
     None              = 0x00000000,  ///< No flags specified
     TmzCopy           = 0x00000002,  ///< Whether the copy source is in TMZ memory. Results are undefined if
                                      ///  the destination is not in TMZ memory.
+#if PAL_BUILD_GFX12
+    CompressedCopySrc = 0x00000004,  ///< Whether source gpu memory has distributed compression
+    CompressedCopyDst = 0x00000008,  ///< Whether destination gpu memory has distributed compression
+#endif
 };
 
 // operator overloads for DmaCopyFlags
@@ -350,6 +354,9 @@ protected:
         gpusize  dstAddr,
         gpusize  byteSize,
         uint32   data,
+#if PAL_BUILD_GFX12
+        bool     isBufferCompressed,
+#endif
         uint32*  pCmdSpace,
         gpusize* pBytesCopied) const = 0;
 

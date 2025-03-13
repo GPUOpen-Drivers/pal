@@ -86,6 +86,9 @@ if (PAL_BUILD_GFX)
     pal_bp(PAL_BUILD_GFX9 ${PAL_BUILD_GFX} MODE "AUTHOR_WARNING")
     # PAL's GFX11 support is part of its GFX9 HWL so you need to enable both to get GFX11.
     pal_bp(PAL_BUILD_GFX11 ${PAL_BUILD_GFX} DEPENDS_ON PAL_BUILD_GFX9 MODE "AUTHOR_WARNING")
+#if PAL_BUILD_GFX12
+    pal_bp(PAL_BUILD_GFX12 ${PAL_BUILD_GFX} MODE "AUTHOR_WARNING")
+#endif
 endif() # PAL_BUILD_GFX
 
 # If the client wants Gfx9 support, them give them all the neccessary build parameters they need to fill out.
@@ -110,6 +113,21 @@ if (PAL_BUILD_GFX9)
 #endif
 
 endif() # PAL_BUILD_GFX9
+
+#if PAL_BUILD_GFX12
+if (PAL_BUILD_GFX12)
+
+#if PAL_BUILD_NAVI48
+    pal_bp(PAL_BUILD_NAVI48 ON MODE "AUTHOR_WARNING"
+           ASIC_CONFIG
+               PAL_BUILD_GFX11
+               PAL_BUILD_GFX12
+               PAL_BUILD_NAVI4X
+               CHIP_HDR_NAVI48
+          )
+#endif
+endif() # PAL_BUILD_GFX12
+#endif
 
 #if PAL_BUILD_RDF
 pal_bp(PAL_BUILD_RDF ON)

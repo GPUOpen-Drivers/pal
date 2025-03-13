@@ -105,6 +105,9 @@ constexpr GpuInfo GpuInfoLookupTable[] =
 #if PAL_BUILD_STRIX_HALO
     { AsicRevision::StrixHalo,  NullGpuId::StrixHalo, GfxIpLevel::GfxIp11_5, FAMILY_STX, STRIX_HALO_P, PRID_STX_STRIX_HALO_00, GfxEngineGfx9, DEVICE_ID_STXH_1586, "STRIX_HALO:gfx1151" },
 #endif
+#if PAL_BUILD_NAVI48
+    { AsicRevision::Navi48,     NullGpuId::Navi48,    GfxIpLevel::GfxIp12,   FAMILY_NV4, NAVI48_P,     PRID_NV_NAVI48_00,      GfxEngineGfx9, DEVICE_ID_NAVI48_94, "NAVI48:gfx1201" },
+#endif
 };
 
 // =====================================================================================================================

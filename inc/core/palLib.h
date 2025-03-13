@@ -110,7 +110,10 @@ enum class NullGpuId : uint32
 #if PAL_BUILD_STRIX_HALO
     StrixHalo,     ///< 11.5.1
 #endif
-#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
+#if PAL_BUILD_GFX12 || (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888)
+#if PAL_BUILD_NAVI48
+    Navi48,        ///< 12.0.1
+#endif
 #endif
 #if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif
@@ -134,6 +137,9 @@ enum class GfxIpLevel : uint32
     GfxIp10_3,     ///< GFXIP 10.3 (Navi2x, Rembrandt, Raphael, Mendocino)
     GfxIp11_0,     ///< GFXIP 11.0 (Navi3x, Phoenix)
     GfxIp11_5,     ///< GFXIP 11.5 (Strix)
+#if PAL_BUILD_GFX12
+    GfxIp12,       ///< GFXIP 12.0 (Navi4x)
+#endif
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     GfxIp6    = 0x1,
     GfxIp7    = 0x2,
@@ -144,6 +150,9 @@ enum class GfxIpLevel : uint32
     GfxIp10_3 = 0x9,
     GfxIp11_0 = 0xC,
     GfxIp11_5 = 0xF,
+#if PAL_BUILD_GFX12
+    GfxIp12   = 0x11,
+#endif
 #endif
 };
 
@@ -199,6 +208,9 @@ enum class AsicRevision : uint32
     Phoenix2         = 0x38, ///< 11.0.3
 #if PAL_BUILD_STRIX_HALO
     StrixHalo        = 0x3C, ///< 11.5.1
+#endif
+#if PAL_BUILD_NAVI48
+    Navi48           = 0x3E, ///< 12.0.1
 #endif
 };
 

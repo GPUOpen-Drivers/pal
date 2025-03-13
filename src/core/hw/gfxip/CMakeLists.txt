@@ -27,6 +27,12 @@ if(PAL_BUILD_GFX9)
     add_subdirectory(gfx9)
 endif()
 
+#if PAL_BUILD_GFX12
+if(PAL_BUILD_GFX12)
+    add_subdirectory(gfx12)
+endif()
+#endif
+
 add_subdirectory(rpm)
 add_subdirectory(sdma)
 

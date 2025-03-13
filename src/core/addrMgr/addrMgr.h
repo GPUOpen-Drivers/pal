@@ -167,4 +167,17 @@ extern Result Create(
 extern size_t GetSize();
 }
 
+#if PAL_BUILD_GFX12
+namespace AddrMgr3
+{
+// Called to instantiate and initialize an Address Manager
+extern Result Create(
+    const Device*  pDevice,
+    void*          pPlacementAddr,
+    AddrMgr**      ppAddrMgr);
+// Returns the size, in bytes, of an address manager
+extern size_t GetSize();
+}
+#endif
+
 } // Pal

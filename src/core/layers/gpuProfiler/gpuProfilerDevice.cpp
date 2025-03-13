@@ -1417,6 +1417,14 @@ GpuBlock StringToGpuBlock(
         "DF_MALL", // GpuBlock::DfMall
         "SQWGP",   // GpuBlock::SqWgp
         "PC",      // GpuBlock::Pc
+#if PAL_BUILD_GFX12
+        "GL1XA",   // GpuBlock::Gl1xa
+        "GL1XC",   // GpuBlock::Gl1xc
+        "WGS",     // GpuBlock::Wgs
+        "EACPWD",  // GpuBlock::EaCpwd
+        "EASE",    // GpuBlock::EaSe
+        "RLCUSER", // GpuBlock::RlcUser
+#endif
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

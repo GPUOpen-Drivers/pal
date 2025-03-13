@@ -170,3 +170,11 @@ if __name__ == "__main__":
     gfx9_hwl = retrieve_hfmt_data(GFX9, ifmts)
     gen_hwl_header(gfx9_hwl, f"{args.out_dir}/src/core/hw/gfxip/gfx9/g_gfx9MergedDataFormats.h", "Gfx9", ifmts)
 
+#if PAL_BUILD_GFX12
+    GFX12 = [
+        ("Gfx12", "gfx12.yaml")
+    ]
+    gfx12_hwl = retrieve_hfmt_data(GFX12, ifmts)
+    gen_hwl_header(gfx12_hwl, f"{args.out_dir}/src/core/hw/gfxip/gfx12/g_gfx12DataFormats.h", "Gfx12", ifmts)
+#endif
+

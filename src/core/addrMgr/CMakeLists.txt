@@ -33,3 +33,15 @@ if(PAL_BUILD_GFX9)
     add_subdirectory(addrMgr2)
 endif()
 
+#if PAL_BUILD_GFX12
+set(ADDRMGR3_BUILD OFF)
+#if PAL_BUILD_GFX12
+if(PAL_BUILD_GFX12)
+    set(ADDRMGR3_BUILD ON)
+endif()
+#endif
+
+if(ADDRMGR3_BUILD)
+    add_subdirectory(addrMgr3)
+endif()
+#endif

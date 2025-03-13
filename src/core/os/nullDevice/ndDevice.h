@@ -319,6 +319,9 @@ public:
     virtual Result CreateDmaUploadRing() override { return Result::Success; };
 
     static void FillGfx9ChipProperties(GpuChipProperties* pChipProps);
+#if PAL_BUILD_GFX12
+    static void FillGfx12ChipProperties(GpuChipProperties* pChipProps);
+#endif
 
 protected:
     Device(
@@ -391,6 +394,9 @@ private:
         size_t               bufferSz = 0) const override;
 
     void InitGfx9ChipProperties();
+#if PAL_BUILD_GFX12
+    void InitGfx12ChipProperties();
+#endif
 
     const GpuInfo&  m_gpuInfo;
     Util::SettingsFileMgr<Platform> m_settingFileMgr; // File Mangager.

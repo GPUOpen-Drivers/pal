@@ -491,6 +491,17 @@ void DmaCmdBuffer::CmdCopyMemory(
     const GpuMemory& dstMemory = static_cast<const GpuMemory&>(dstGpuMemory);
     DmaCopyFlags flags = srcMemory.IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
 
+#if PAL_BUILD_GFX12
+    if (srcMemory.MaybeCompressed())
+    {
+        flags |= DmaCopyFlags::CompressedCopySrc;
+    }
+    if (dstMemory.MaybeCompressed())
+    {
+        flags |= DmaCopyFlags::CompressedCopyDst;
+    }
+#endif
+
     // Splits up each region's copy size into chunks that the specific hardware can handle.
     for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
     {
@@ -507,7 +518,11 @@ void DmaCmdBuffer::CmdCopyMemoryByGpuVa(
 {
 
     // Splits up each region's copy size into chunks that the specific hardware can handle.
+#if PAL_BUILD_GFX12
+    constexpr DmaCopyFlags Flags = (DmaCopyFlags::CompressedCopySrc | DmaCopyFlags::CompressedCopyDst);
+#else
     constexpr DmaCopyFlags Flags = DmaCopyFlags::None;
+#endif
     for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
     {
         CopyMemoryRegion(srcGpuVirtAddr, dstGpuVirtAddr, Flags, pRegions[rgnIdx]);
@@ -1188,6 +1203,9 @@ void DmaCmdBuffer::CmdFillMemory(
         pCmdSpace = WriteFillMemoryCmd(dstAddr,
                                        bytesRemaining,
                                        data,
+#if PAL_BUILD_GFX12
+                                       dstMemory.MaybeCompressed(),
+#endif
                                        pCmdSpace,
                                        &bytesJustCopied);
 
@@ -1691,6 +1709,16 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                         memToEmbeddedRgn.dstOffset = embeddedOffset;
 
                         DmaCopyFlags flags = gpuMemory.IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
+#if PAL_BUILD_GFX12
+                        if (gpuMemory.MaybeCompressed())
+                        {
+                            flags |= DmaCopyFlags::CompressedCopySrc;
+                        }
+                        if (m_pT2tEmbeddedGpuMemory->MaybeCompressed())
+                        {
+                            flags |= DmaCopyFlags::CompressedCopyDst;
+                        }
+#endif
 
                         CopyMemoryRegion(gpuMemory.Desc().gpuVirtAddr,
                                          m_pT2tEmbeddedGpuMemory->Desc().gpuVirtAddr,
@@ -1732,6 +1760,16 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 
                         DmaCopyFlags flags =
                             m_pT2tEmbeddedGpuMemory->IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
+#if PAL_BUILD_GFX12
+                        if (m_pT2tEmbeddedGpuMemory->MaybeCompressed())
+                        {
+                            flags |= DmaCopyFlags::CompressedCopySrc;
+                        }
+                        if (gpuMemory.MaybeCompressed())
+                        {
+                            flags |= DmaCopyFlags::CompressedCopyDst;
+                        }
+#endif
 
                         // Copy from embedded region to memory
                         CopyMemoryRegion(m_pT2tEmbeddedGpuMemory->Desc().gpuVirtAddr,

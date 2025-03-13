@@ -305,6 +305,9 @@ Result Queue::Init(
     if ((result == Result::Success)                                              &&
         (m_device.EngineProperties().perEngine[EngineTypeDma].numAvailable != 0) &&
         (m_pQueueInfos[0].createInfo.submitOptMode != SubmitOptMode::Disabled)
+#if PAL_BUILD_GFX12
+        && (m_device.ChipProperties().gfxLevel < GfxIpLevel::GfxIp12)
+#endif
         )
     {
         const bool supportsGraphics = Pal::Device::EngineSupportsGraphics(GetEngineType());

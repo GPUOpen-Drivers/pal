@@ -50,6 +50,10 @@
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
+#if PAL_BUILD_GFX12
+#include "core/addrMgr/addrMgr3/addrMgr3.h"
+#include "core/hw/gfxip/gfx12/gfx12Device.h"
+#endif
 
 #include <climits>
 #include <inttypes.h>
@@ -1013,6 +1017,14 @@ Result Device::InitGpuProperties()
         InitGfx9ChipProperties();
         Gfx9::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
         break;
+#if PAL_BUILD_GFX12
+    case 12:
+        m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
+        m_pFormatPropertiesTable     = Gfx12::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
+        InitGfx12ChipProperties();
+        Gfx12::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
+        break;
+#endif
     case 0:
         // No Graphics IP block found or recognized!
     default:
@@ -1046,6 +1058,12 @@ Result Device::InitGpuProperties()
             Gfx9::InitPerfCtrInfo(*this, &m_chipProperties);
             Gfx9::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
             break;
+#if PAL_BUILD_GFX12
+        case 12:
+            Gfx12::InitPerfCtrInfo(*this, &m_chipProperties);
+            Gfx12::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
+            break;
+#endif
         case 0:
             // No Graphics IP block found or recognized!
         default:
@@ -1353,6 +1371,101 @@ void Device::InitGfx9CuMask(
     PAL_ASSERT(pChipInfo->gfx10.maxNumWgpPerSa >= 1);
 }
 
+#if PAL_BUILD_GFX12
+// =====================================================================================================================
+// Helper method which initializes the GPU chip properties for all hardware families using the GFX9 hardware layer.
+void Device::InitGfx12ChipProperties()
+{
+    auto*const                    pChipInfo  = &m_chipProperties.gfx9;
+    struct drm_amdgpu_info_device deviceInfo = {};
+
+    // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
+    Gfx12::InitializeGpuChipProperties(GetPlatform(), &m_chipProperties);
+
+    // Any chip info from the KMD does not apply to a spoofed chip and should be ignored
+    if (IsSpoofed() == false)
+    {
+        if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
+        {
+            m_chipProperties.imageProperties.prtFeatures = static_cast<PrtFeatureFlags>(0);
+        }
+
+        if (((m_chipProperties.imageProperties.flags.supportDisplayDcc == 1) &&
+            (IsDrmVersionOrGreater(3, 34) == false))
+            )
+        {
+            m_chipProperties.imageProperties.flags.supportDisplayDcc = 0;
+        }
+        pChipInfo->gbAddrConfig = m_gpuInfo.gb_addr_cfg;
+
+        if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
+        {
+            pChipInfo->numShaderEngines         = deviceInfo.num_shader_engines;
+            pChipInfo->numShaderArrays          = deviceInfo.num_shader_arrays_per_engine;
+            pChipInfo->maxNumRbPerSe            = deviceInfo.num_rb_pipes / deviceInfo.num_shader_engines;
+            pChipInfo->nativeWavefrontSize      = deviceInfo.wave_front_size;
+            pChipInfo->numPhysicalVgprsPerSimd  = deviceInfo.num_shader_visible_vgprs;
+            pChipInfo->maxNumCuPerSh            = deviceInfo.num_cu_per_sh;
+            pChipInfo->numTccBlocks             = deviceInfo.num_tcc_blocks;
+            pChipInfo->gsVgtTableDepth          = deviceInfo.gs_vgt_table_depth;
+            pChipInfo->gsPrimBufferDepth        = deviceInfo.gs_prim_buffer_depth;
+            pChipInfo->maxGsWavesPerVgt         = deviceInfo.max_gs_waves_per_vgt;
+            pChipInfo->doubleOffchipLdsBuffers  = deviceInfo.gc_double_offchip_lds_buf;
+            pChipInfo->paScTileSteeringOverride = 0;
+            pChipInfo->sdmaL2PolicyValid        = false;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        if ((m_drmProcs.pfnAmdgpuVmReserveVmidisValid() || m_drmProcs.pfnAmdgpuCsReservedVmidisValid()) &&
+            (m_drmProcs.pfnAmdgpuVmUnreserveVmidisValid() || m_drmProcs.pfnAmdgpuCsUnreservedVmidisValid()))
+        {
+            m_chipProperties.gfxip.supportStaticVmid = 1;
+        }
+
+        if (IsGfx12(m_chipProperties.gfxLevel))
+        {
+            pChipInfo->gfx10.numTcpPerSa    =  8; // GC__NUM_TCP_PER_SA
+            pChipInfo->gfx10.numWgpAboveSpi =  4; // GC__NUM_WGP0_PER_SA
+            pChipInfo->gfx10.numWgpBelowSpi =  0; // GC__NUM_WGP1_PER_SA
+        }
+
+        InitGfx9CuMask(&deviceInfo);
+    }
+    else
+    {
+#if PAL_BUILD_NULL_DEVICE
+        NullDevice::Device::FillGfx12ChipProperties(&m_chipProperties);
+#else
+        PAL_ASSERT_ALWAYS_MSG("NullDevice spoofing requested but not compiled in!");
+#endif
+    }
+
+    // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
+    // overrode above.
+    Gfx12::FinalizeGpuChipProperties(*this, &m_chipProperties);
+
+    if (IsSpoofed() == false)
+    {
+        pChipInfo->numActiveRbs = CountSetBits(m_gpuInfo.enabled_rb_pipes_mask);
+
+        pChipInfo->backendDisableMask = (~m_gpuInfo.enabled_rb_pipes_mask) & ((1 << pChipInfo->numTotalRbs) - 1);
+    }
+
+    m_engineProperties.perEngine[EngineTypeUniversal].flags.supportsMidCmdBufPreemption =
+        (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
+    m_engineProperties.perEngine[EngineTypeUniversal].contextSaveAreaSize               = 0;
+    m_engineProperties.perEngine[EngineTypeUniversal].contextSaveAreaAlignment          = 0;
+
+    m_engineProperties.perEngine[EngineTypeDma].flags.supportsMidCmdBufPreemption       =
+        (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
+    m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize                     = 0;
+    m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment                = 0;
+}
+#endif
+
 // =====================================================================================================================
 // Helper method which translate the amdgpu vram type into LocalMemoryType.
 static LocalMemoryType TranslateMemoryType(
@@ -1479,6 +1592,26 @@ Result Device::InitMemInfo()
     {
         m_memoryProperties.sharedApertureBase = startVa;
     }
+
+#if PAL_BUILD_GFX12
+    if (IsGfx12Plus(*this))
+    {
+        const bool noSupportCompression = ((m_chipProperties.deviceId == 0x95) ||
+                                           (m_chipProperties.deviceId == 0x96) ||
+                                           (m_chipProperties.deviceId == 0x97) ||
+                                           (m_chipProperties.deviceId == 0xAC));
+
+        if (GetPlatform()->IsEmulationEnabled() || // SW emulation
+            (IsHwEmulationEnabled() == false)   || // Real HW
+            (noSupportCompression   == false))     // HW emulation: not in non-support list
+        {
+            m_memoryProperties.flags.supportDistributedCompression = 1;
+
+            // This is not supported on Linux.
+            m_memoryProperties.flags.supportDistributedCompressionCpu = 0;
+        }
+    }
+#endif
 
     if (m_drmProcs.pfnAmdgpuVaRangeQuery(m_hDevice,
                               amdgpu_gpu_va_range_general,
@@ -2155,6 +2288,13 @@ Result Device::CreateImage(
         {
             // PipeBankXor is zero initialized by internalInfo declaration
             // Do not override the swizzle mode value
+#if PAL_BUILD_GFX12
+            if (IsGfx12Plus(*this))
+            {
+                internalInfo.gfx12.sharedSwizzleMode = ADDR3_MAX_TYPE;
+            }
+            else
+#endif
             {
                 internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
             }
@@ -2175,6 +2315,13 @@ Result Device::CreateImage(
             internalInfo.displayDcc.value   = displayDcc.value;
             internalInfo.displayDcc.enabled = 1;
 
+#if PAL_BUILD_GFX12
+            if (IsGfx12Plus(*this))
+            {
+                modifiedCreateInfo.flags.optimalShareable = 0;
+            }
+            else
+#endif
             {
                 modifiedCreateInfo.flags.optimalShareable = 1;
             }
@@ -2227,6 +2374,17 @@ void Device::GetDisplayDccInfo(
         displayDcc.pipeAligned = 0;
         displayDcc.rbAligned   = 0;
 
+#if PAL_BUILD_GFX12
+        if (IsGfx12(*this) && IsDrmVersionOrGreater(3, 58))
+        {
+            displayDcc.dcc_256_256_plane0 = 0;
+            displayDcc.dcc_256_128_plane0 = 1;
+            displayDcc.dcc_256_64_plane0  = 0;
+            displayDcc.dcc_256_256_plane1 = 0;
+            displayDcc.dcc_256_128_plane1 = 1;
+            displayDcc.dcc_256_64_plane1  = 0;
+        }
+#endif
         if (IsGfx9Hwl(*this))
         {
             if (IsGfx115(*this))
@@ -3527,6 +3685,20 @@ void Device::UpdateImageInfo(
         {
             auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
                                         (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+#if PAL_BUILD_GFX12
+            if (IsGfx12Plus(*this))
+            {
+                auto*const pTileInfo    = static_cast<AddrMgr3::TileInfo*>(pImage->GetSubresourceTileInfo(0));
+                pTileInfo->pipeBankXor  = pUmdMetaData->pipeBankXor;
+
+                for (uint32 plane = 1; plane < numPlanes; plane++)
+                {
+                    auto*const pPlaneTileInfo   = static_cast<AddrMgr3::TileInfo*>
+                                                    (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
+                    pPlaneTileInfo->pipeBankXor = pUmdMetaData->additionalPipeBankXor[plane - 1];
+                }
+            }
+#endif
             if (IsGfx9Hwl(*this))
             {
                 auto*const pTileInfo    = static_cast<AddrMgr2::TileInfo*>(pImage->GetSubresourceTileInfo(0));
@@ -3592,6 +3764,44 @@ void Device::UpdateMetaData(
     pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
     pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
 
+#if PAL_BUILD_GFX12
+    if (IsGfx12(*this))
+    {
+        const AddrMgr3::TileInfo*const pTileInfo   = AddrMgr3::GetTileInfo(&image, 0);
+        pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
+
+        static_assert(uint32(AMDGPU_ADDR_RSRC_TEX_2D)            == uint32(ADDR_RSRC_TEX_2D));
+
+        const auto curAddr3SwizzleMode =
+            static_cast<AMDGPU_ADDR3_SWIZZLE_MODE>(image.GetGfxImage()->GetSwTileMode(pSubResInfo));
+        const uint32 subResPerPlane = (imageCreateInfo.mipLevels * imageCreateInfo.arraySize);
+
+        for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
+        {
+            const AddrMgr3::TileInfo*const pPlaneTileInfo  = AddrMgr3::GetTileInfo(&image, BaseSubres(plane));
+            pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->pipeBankXor;
+        }
+
+        pUmdMetaData->gfx12.swizzleMode  = curAddr3SwizzleMode;
+        pUmdMetaData->gfx12.resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
+
+        DccControlBlockSize dccControlBlockSize = {};
+        image.GetGfxImage()->GetDccControlBlockSize(&dccControlBlockSize);
+
+        metadata.tiling_info = 0;
+        metadata.tiling_info |= AMDGPU_TILING_SET(GFX12_SWIZZLE_MODE, curAddr3SwizzleMode);
+        metadata.tiling_info |= AMDGPU_TILING_SET(SCANOUT, imageCreateInfo.flags.presentable);
+
+        pUmdMetaData->shared_metadata_info.gfx12.tiling_info.dcc_max_compressed_block_size_block0   =
+            dccControlBlockSize.maxCompressedBlockSizePlane0;
+        pUmdMetaData->shared_metadata_info.gfx12.tiling_info.dcc_max_uncompressed_block_size_block0 =
+            dccControlBlockSize.maxUncompressedBlockSizePlane0;
+        pUmdMetaData->shared_metadata_info.gfx12.tiling_info.dcc_max_compressed_block_size_block1   =
+            dccControlBlockSize.maxCompressedBlockSizePlane1;
+        pUmdMetaData->shared_metadata_info.gfx12.tiling_info.dcc_max_uncompressed_block_size_block1 =
+            dccControlBlockSize.maxUncompressedBlockSizePlane1;
+    }
+#endif
     if (IsGfx9Hwl(*this))
     {
         const AddrMgr2::TileInfo*const pTileInfo   = AddrMgr2::GetTileInfo(&image, 0);
@@ -3648,6 +3858,9 @@ void Device::UpdateMetaData(
     pUmdMetaData->flags.resource_type     = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
     pUmdMetaData->flags.optimal_shareable = imageCreateInfo.flags.optimalShareable;
     pUmdMetaData->flags.samples           = imageCreateInfo.samples;
+#if PAL_BUILD_GFX12
+    pUmdMetaData->flags.compression_mode  = static_cast<uint32_t>(imageCreateInfo.compressionMode);
+#endif
 
     if (pUmdMetaData->flags.optimal_shareable)
     {
@@ -3660,6 +3873,20 @@ void Device::UpdateMetaData(
         auto*const pUmdSharedMetadata = reinterpret_cast<amdgpu_shared_metadata_info*>
                                             (&pUmdMetaData->shared_metadata_info);
 
+#if PAL_BUILD_GFX12
+        if (IsGfx12(*this))
+        {
+            if ((sharedMetadataInfo.hiZOffset != 0) || (sharedMetadataInfo.hiSOffset != 0))
+            {
+                pUmdSharedMetadata->gfx12.hiZ_offset = LowPart(sharedMetadataInfo.hiZOffset);
+                pUmdSharedMetadata->gfx12.hiS_offset = LowPart(sharedMetadataInfo.hiSOffset);
+                pUmdSharedMetadata->gfx12.hiZ_swizzle_mode =
+                    static_cast<AMDGPU_ADDR3_SWIZZLE_MODE>(sharedMetadataInfo.hiZSwizzleMode);
+                pUmdSharedMetadata->gfx12.hiS_swizzle_mode =
+                    static_cast<AMDGPU_ADDR3_SWIZZLE_MODE>(sharedMetadataInfo.hiSSwizzleMode);
+            }
+        }
+#endif
         if (IsGfx9Hwl(*this))
         {
             pUmdSharedMetadata->gfx9.dcc_offset   = sharedMetadataInfo.dccOffset[0];
@@ -4812,6 +5039,13 @@ Result Device::OpenExternalSharedGpuMemory(
             const GpuMemoryDesc& desc = pGpuMemory->Desc();
             createInfo.size      = desc.size;
             createInfo.alignment = desc.alignment;
+#if PAL_BUILD_GFX12
+            if (MemoryProperties().flags.supportDistributedCompression != 0)
+            {
+                // Now the actual compression state has been loaded into pGpuMemory from the shared info metadata.
+                createInfo.compression = pGpuMemory->IsCompressed() ? TriState::Enable : TriState::Disable;
+            }
+#endif
             GpuHeap* pHeaps = &createInfo.heaps[0];
             static_cast<GpuMemory*>(pGpuMemory)->GetHeapsInfo(&createInfo.heapCount, &pHeaps);
 
@@ -5584,6 +5818,16 @@ Result Device::CreateGpuMemoryFromExternalShare(
         pCreateInfo->flags.presentable   = pImage->IsPresentable();
         pCreateInfo->flags.privateScreen = (pImage->GetPrivateScreen() != nullptr);
     }
+
+#if PAL_BUILD_GFX12
+    if (MemoryProperties().flags.supportDistributedCompression != 0)
+    {
+        // Only valid if this GPU has distributed compression.
+        const bool isCompressed = TestAnyFlagSet(sharedInfo.info.alloc_flags, AMDGPU_GEM_CREATE_GFX12_DCC);
+
+        pCreateInfo->compression = isCompressed ? TriState::Enable : TriState::Disable;
+    }
+#endif
 
     GpuMemory* pGpuMemory = static_cast<GpuMemory*>(ConstructGpuMemoryObject(pPlacementAddr));
 

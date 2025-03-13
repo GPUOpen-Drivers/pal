@@ -423,7 +423,16 @@ struct CmdBufferCreateInfo
             /// Target queue uses dispatch tunneling.
             uint32 dispatchTunneling          :  1;
 
+#if PAL_BUILD_GFX12
+            /// Indicates that each subsequent Dispatch command is desired to be executed in alternating
+            /// order of forward and reverse workgroup walk order. This can improve cache locality when
+            /// subsequent Dispatches consume data from the previous Dispatch and the overall footprint
+            /// does not fit in cache.
+            /// This is a best effort as not all implementations or Queues may support this.
+            uint32 dispatchPingPongWalk       :  1;
+#else
             uint32 reserved1                  :  1;
+#endif
 
             /// Reserved for future use.
             uint32 reserved                   : 28;
@@ -3204,6 +3213,9 @@ public:
     /// Basically clone copy clones all subresources' data of one image object in another while preserving the image
     /// layout. It does raw copy on image data and metadata; and tries to keep the metadata (like DCC/HiZ/HiS)
     /// unchanged but may be not true due to different HW design.
+#if PAL_BUILD_GFX12
+    /// e.g. Client compression (fragment and ZPlane compression) will be missed during the compute based raw copy.
+#endif
     ///
     /// This function requires use of the following barrier flags:
     /// - PipelineStage:  @ref PipelineStageBlt

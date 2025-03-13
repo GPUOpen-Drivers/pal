@@ -236,11 +236,20 @@ void CmdBuffer::ReplayBegin(
     uint32 commandBufferId = m_pDevice->CommandBufferBegin();
 
     pTgtCmdBuffer->Begin(NextCmdBufferBuildInfo(info));
+#if PAL_BUILD_GFX12
+    m_spmMarkersEnabled = m_pDevice->LoggingEnabled() && m_pDevice->IsSpmTraceEnabled()
+                          && m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerSpmConfig.spmInsertDrawMarkers;
+#else
     m_spmMarkersEnabled = false;
+#endif
 
     if (m_spmMarkersEnabled)
     {
         m_timedCallId = 0;
+#if PAL_BUILD_GFX12
+        pTgtCmdBuffer->CmdInsertTraceMarker(PerfTraceMarkerType::SpmB, commandBufferId);
+        pTgtCmdBuffer->CmdInsertTraceMarker(PerfTraceMarkerType::SpmA, m_timedCallId);
+#endif
     }
 
     m_sampleFlags.u8All = 0;
@@ -4181,6 +4190,12 @@ void CmdBuffer::LogPreTimedCall(
     LogItem*          pLogItem,
     CmdBufCallId      callId)
 {
+#if PAL_BUILD_GFX12
+    if (m_spmMarkersEnabled)
+    {
+        pTgtCmdBuffer->CmdInsertTraceMarker(PerfTraceMarkerType::SpmA, m_timedCallId++);
+    }
+#endif
 
     if (m_profileEnabled && (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) || m_forceDrawGranularityLogging))
     {

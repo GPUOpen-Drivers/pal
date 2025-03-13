@@ -52,6 +52,9 @@
 #define FAMILY_RPL     0x95
 #define FAMILY_MDN     0x97
 #endif
+#if ADDR_GFX12_BUILD
+#define FAMILY_NV4     0x98
+#endif
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -63,6 +66,9 @@
 #endif
 #if ADDR_GFX11_BUILD
 #define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
+#endif
+#if ADDR_GFX12_BUILD
+#define FAMILY_IS_NV4(f)     FAMILY_IS(f, NV4)
 #endif
 
 #define AMDGPU_UNKNOWN          0xFF

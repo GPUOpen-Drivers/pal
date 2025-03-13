@@ -39,45 +39,45 @@ function(swd_add_to_target TARGET PREFIX)
 
 #if SWD_BUILD_PHX2
     swd_bp(${PREFIX}_SWD_BUILD_PHX2 OFF)
-    if(${PREFIX}_SWD_BUILD_PHX2)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_PHX2=1)
-    endif()
+    target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_PHX2=$<BOOL:${${PREFIX}_SWD_BUILD_PHX2}>)
 #endif
 
 #if SWD_BUILD_STRIX
     swd_bp(${PREFIX}_SWD_BUILD_STRIX OFF)
-    if(${PREFIX}_SWD_BUILD_STRIX)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX=1)
-    endif()
+    target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX=$<BOOL:${${PREFIX}_SWD_BUILD_STRIX}>)
 #endif
 
 #if SWD_BUILD_STRIX && SWD_BUILD_STRIX1
     swd_bp(${PREFIX}_SWD_BUILD_STRIX1 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_STRIX")
-    if(${PREFIX}_SWD_BUILD_STRIX1)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX1=1)
-    endif()
+    target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX1=$<BOOL:${${PREFIX}_SWD_BUILD_STRIX1}>)
 #endif
 
 #if SWD_BUILD_STRIX && SWD_BUILD_STRIX_HALO
     swd_bp(${PREFIX}_SWD_BUILD_STRIX_HALO OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_STRIX")
-    if(${PREFIX}_SWD_BUILD_STRIX_HALO)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX_HALO=1)
-    endif()
+    target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX_HALO=$<BOOL:${${PREFIX}_SWD_BUILD_STRIX_HALO}>)
 #endif
 
-#if SWD_BUILD_MI400
-    swd_bp(${PREFIX}_SWD_BUILD_MI400 OFF)
-    if(${PREFIX}_SWD_BUILD_MI400)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_MI400=1)
-    endif()
+#if SWD_BUILD_GFX12
+    swd_bp(${PREFIX}_SWD_BUILD_GFX12 OFF)
+    target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_GFX12=$<BOOL:${${PREFIX}_SWD_BUILD_GFX12}>)
+#endif
+
+#if SWD_BUILD_GFX12 && SWD_BUILD_NAVI4X
+    swd_bp(${PREFIX}_SWD_BUILD_NAVI4X OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_GFX12")
+    target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI4X=$<BOOL:${${PREFIX}_SWD_BUILD_NAVI4X}>)
+#endif
+
+#if SWD_BUILD_NAVI4X && SWD_BUILD_GFX12 && SWD_BUILD_NAVI48
+    swd_bp(${PREFIX}_SWD_BUILD_NAVI48 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_NAVI4X;${PREFIX}_SWD_BUILD_GFX12")
+    target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI48=$<BOOL:${${PREFIX}_SWD_BUILD_NAVI48}>)
 #endif
 
     target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)
     set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
-#if SWD_BUILD_MI400
-    if(${PREFIX}_SWD_BUILD_MI400)
-        target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_mi400SwWarDetection.h)
-        set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_mi400SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
+#if SWD_BUILD_GFX12
+    if(${PREFIX}_SWD_BUILD_GFX12)
+        target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx12SwWarDetection.h)
+        set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx12SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
     endif()
 #endif
 

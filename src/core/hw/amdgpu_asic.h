@@ -40,6 +40,9 @@
 #define FAMILY_RPL     0x95 // 149 / Raphael
 #define FAMILY_STX     0x96 // 150 / Strix
 #define FAMILY_MDN     0x97 // 151 / Mendocino
+#if PAL_BUILD_NAVI4X
+#define FAMILY_NV4     0x98 // 152 / Navi4x
+#endif
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -56,6 +59,13 @@
 
 // Gfx11.5
 #define FAMILY_IS_STX(f)     FAMILY_IS(f, STX)
+
+#if PAL_BUILD_GFX12
+// Gfx12
+#if PAL_BUILD_NAVI4X
+#define FAMILY_IS_NV4(f)     FAMILY_IS(f, NV4)
+#endif
+#endif
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -84,6 +94,10 @@
 #define AMDGPU_STRIX1_RANGE          0x01, 0x40 // 1  <= x < 64 (tentative)
 #if PAL_BUILD_STRIX_HALO
 #define AMDGPU_STRIX_HALO_RANGE    0xC0, 0xFF // 192 <= x < 255 (tentative)
+#endif
+
+#if PAL_BUILD_NAVI48
+#define AMDGPU_NAVI48_RANGE        0x50, 0xff
 #endif
 
 #define AMDGPU_EXPAND_FIX(x) x
@@ -120,6 +134,10 @@
 #define ASICREV_IS_STRIX_HALO(r)       ASICREV_IS(r, STRIX_HALO)
 #endif
 
+#if PAL_BUILD_NAVI48
+#define ASICREV_IS_NAVI48(r)           ASICREV_IS(r, NAVI48)
+#endif
+
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
 
@@ -150,6 +168,10 @@
 #define AMDGPU_IS_STRIX_HALO(f,r)     AMDGPU_IS(f, r, STX, STRIX_HALO)
 #endif
 
+#if PAL_BUILD_NAVI48
+#define AMDGPU_IS_NAVI48(f, r)        AMDGPU_IS(f, r, NV4, NAVI48)
+#endif
+
 // Device IDs
 // Gfx10.1
 #define DEVICE_ID_NV_NAVI10_P_7310      0x7310
@@ -174,6 +196,10 @@
 #define DEVICE_ID_STX1_150E             0x150E // Strix1
 #if PAL_BUILD_STRIX_HALO
 #define DEVICE_ID_STXH_1586             0x1586 // Strix Halo
+#endif
+
+#if PAL_BUILD_NAVI48
+#define DEVICE_ID_NAVI48_94             0x94
 #endif
 
 // DEVICE_IS(deviceId, deviceName)
@@ -209,6 +235,10 @@
 #define STRIX1_P                  0x10
 #if PAL_BUILD_STRIX_HALO
 #define STRIX_HALO_P              0xC0
+#endif
+
+#if PAL_BUILD_NAVI48
+#define NAVI48_P                  0x51
 #endif
 
 // PRIDs
@@ -276,6 +306,10 @@
 #define PRID_STX_STRIX1_00          0x00
 #if PAL_BUILD_STRIX_HALO
 #define PRID_STX_STRIX_HALO_00      0x00
+#endif
+
+#if PAL_BUILD_NAVI48
+#define PRID_NV_NAVI48_00      0x00
 #endif
 
 // VARIANT_IS(prid, variantName)

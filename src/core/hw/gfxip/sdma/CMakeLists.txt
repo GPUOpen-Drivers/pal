@@ -27,3 +27,9 @@ if(PAL_BUILD_GFX9)
     add_subdirectory(gfx10)
 endif()
 
+#if PAL_BUILD_GFX12
+if(PAL_BUILD_GFX12)
+    add_subdirectory(gfx12)
+endif()
+#endif
+

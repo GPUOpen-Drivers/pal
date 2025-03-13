@@ -47,6 +47,9 @@ function(pal_compile_definitions_gpu TARGET)
         # PAL GFXx BUILD Defines
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX9=$<BOOL:${PAL_BUILD_GFX9}>)
         target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX11=$<BOOL:${PAL_BUILD_GFX11}>)
+#if PAL_BUILD_GFX12
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX12=$<BOOL:${PAL_BUILD_GFX12}>)
+#endif
 
         # PAL no longer references these defines and our clients must remove their references when upgrading.
         if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888)
@@ -61,6 +64,18 @@ function(pal_compile_definitions_gpu TARGET)
 #if PAL_BUILD_STRIX_HALO
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_STRIX_HALO=$<BOOL:${PAL_BUILD_STRIX_HALO}>)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_STRIX_HALO=$<BOOL:${CHIP_HDR_STRIX_HALO}>)
+#endif
+
+#if PAL_BUILD_GFX12
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX12=$<BOOL:${PAL_BUILD_GFX12}>)
+
+#if PAL_BUILD_NAVI4X
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI4X=$<BOOL:${PAL_BUILD_NAVI4X}>)
+#endif
+#if PAL_BUILD_NAVI48
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI48=$<BOOL:${PAL_BUILD_NAVI48}>)
+        target_compile_definitions(${TARGET} PUBLIC CHIP_HDR_NAVI48=$<BOOL:${CHIP_HDR_NAVI48}>)
+#endif
 #endif
 
     endif()

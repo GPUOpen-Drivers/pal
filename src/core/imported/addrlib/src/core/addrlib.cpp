@@ -183,6 +183,11 @@ ADDR_E_RETURNCODE Lib::Create(
                         pLib = Gfx11HwlInit(&client);
                         break;
 #endif
+#if ADDR_GFX12_BUILD
+                    case FAMILY_NV4:
+                        pLib = Gfx12HwlInit(&client);
+                        break;
+#endif
                     default:
                         ADDR_ASSERT_ALWAYS();
                         break;

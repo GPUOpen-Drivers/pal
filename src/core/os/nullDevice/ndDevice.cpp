@@ -691,6 +691,84 @@ void Device::InitGfx9ChipProperties()
     Gfx9::FinalizeGpuChipProperties(*this, &m_chipProperties);
 }
 
+#if PAL_BUILD_GFX12
+// =====================================================================================================================
+// Helper method which initializes the GPU chip properties for all hardware families using the Gfx12 hardware layer.
+void Device::FillGfx12ChipProperties(
+    GpuChipProperties* pChipProps)
+{
+    auto*const   pChipInfo = &pChipProps->gfx9;
+    const uint32 familyId  = pChipProps->familyId;
+    const uint32 eRevId    = pChipProps->eRevId;
+
+#if PAL_BUILD_NAVI48
+    if (AMDGPU_IS_NAVI48(familyId, eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority  = 1;
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->gbAddrConfig            = 0x0044; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        = 4;      // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         = 2;      // GPU__GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe           = 4;      // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     = 32;     // GPU__GC__SQ_WAVE_SIZE;
+        pChipInfo->minWavefrontSize        = 32;
+        pChipInfo->maxWavefrontSize        = 64;
+        pChipInfo->numPhysicalVgprsPerSimd = 1536;   // GPU__GC__NUM_GPRS;
+        pChipInfo->maxNumCuPerSh           = 8;      // GPU__GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks            = 32;      // GPU__GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth         = 32;     // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792;   // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        = 32;     // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else
+#endif
+    {
+        // Unknown device id
+        PAL_ASSERT_ALWAYS();
+    }
+
+    pChipInfo->supportMeshShader = pChipInfo->supportImplicitPrimitiveShader;
+    pChipInfo->supportTaskShader = true;
+
+    // Assume all CUs and all RBs are active/enabled.
+    pChipInfo->numCuPerSh         = pChipInfo->maxNumCuPerSh;
+    pChipInfo->backendDisableMask = 0;
+    pChipInfo->numActiveRbs       = pChipInfo->maxNumRbPerSe * pChipInfo->numShaderEngines;
+
+    const uint32  activeCuMask = (1 << pChipInfo->numCuPerSh) - 1;
+    for (uint32 seIndex = 0; seIndex < pChipInfo->numShaderEngines; seIndex++)
+    {
+        for (uint32 shIndex = 0; shIndex < pChipInfo->numShaderArrays; shIndex++)
+        {
+            pChipInfo->activeCuMask[seIndex][shIndex]   = activeCuMask;
+            pChipInfo->alwaysOnCuMask[seIndex][shIndex] = activeCuMask;
+        }
+    }
+
+    PAL_ASSERT(pChipInfo->numCuPerSh <= 32);      // avoid overflow in activeWgpMask
+    PAL_ASSERT((pChipInfo->numCuPerSh & 1) == 0); // CUs come in WGP pairs in gfx10
+    const uint16  activeWgpMask = (1 << (pChipInfo->numCuPerSh / 2)) - 1;
+    for (uint32 seIndex = 0; seIndex < pChipInfo->numShaderEngines; seIndex++)
+    {
+        for (uint32 shIndex = 0; shIndex < pChipInfo->numShaderArrays; shIndex++)
+        {
+            pChipInfo->gfx10.activeWgpMask[seIndex][shIndex]   = activeWgpMask;
+            pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] = activeWgpMask;
+        }
+    }
+}
+
+// =====================================================================================================================
+void Device::InitGfx12ChipProperties()
+{
+    Gfx12::InitializeGpuChipProperties(GetPlatform(), &m_chipProperties);
+
+    FillGfx12ChipProperties(&m_chipProperties);
+
+    Gfx12::FinalizeGpuChipProperties(*this, &m_chipProperties);
+}
+#endif
+
 // =====================================================================================================================
 Result Device::EarlyInit(
     const HwIpLevels& ipLevels)
@@ -742,6 +820,15 @@ Result Device::EarlyInit(
         InitGfx9ChipProperties();
         Gfx9::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
         break;
+
+#if PAL_BUILD_GFX12
+    case 12:
+        m_pFormatPropertiesTable = Gfx12::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
+
+        InitGfx12ChipProperties();
+        Gfx12::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
+        break;
+#endif
 
     case 0:
         // No Graphics IP block found or recognized!

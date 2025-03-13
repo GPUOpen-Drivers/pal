@@ -1495,6 +1495,9 @@ void ConvertPrivateScreenImageCreateInfo(
     pImageInfo->usageFlags            = privateImageCreateInfo.usage;
     pImageInfo->viewFormatCount       = privateImageCreateInfo.viewFormatCount;
     pImageInfo->pViewFormats          = privateImageCreateInfo.pViewFormats;
+#if PAL_BUILD_GFX12
+    pImageInfo->compressionMode       = privateImageCreateInfo.compressionMode;
+#endif
 }
 
 // =====================================================================================================================

@@ -106,6 +106,14 @@ static const char* GpuBlockEnumToString(
         "DfMall", // The DF subblocks have unique instances and event IDs but they all share the DF's perf counters.
         "SqWgp",  // SQ counters that can be sampled at WGP granularity.
         "Pc",
+#if PAL_BUILD_GFX12
+        "Gl1xa",
+        "Gl1xc",
+        "Wgs",
+        "EaCpwd",
+        "EaSe",
+        "RlcUser",
+#endif
     };
 
     static_assert(ArrayLen(GpuBlockStrings) == static_cast<size_t>(GpuBlock::Count),

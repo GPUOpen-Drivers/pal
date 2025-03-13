@@ -84,6 +84,13 @@ struct DepthStencilViewCreateInfo
     uint32        baseArraySlice; ///< First array slice in the view.
     uint32        arraySize;      ///< Number of slices in the view.
 
+#if PAL_BUILD_GFX12
+    CompressionMode compressionMode;  ///< Specify GFX12-style distributed compression mode override for this view.
+                                      ///  Only relevant if the backing resource (i.e., IImage) and memory pages enable
+                                      ///  compression.
+                                      ///  ReadBypassWriteDisable is only valid if compressionMode in ImageCreateInfo
+                                      ///  disables compressed write.
+#endif
 };
 
 /**

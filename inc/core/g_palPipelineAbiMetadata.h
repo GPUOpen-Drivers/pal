@@ -117,6 +117,10 @@ struct HardwareStageMetadata
     uint32                  perfDataBufferSize;
     /// Number of VGPRs used.
     uint32                  vgprCount;
+#if PAL_BUILD_GFX12
+    /// Number of dynamic vgprs that need to be saved.
+    uint32                  dynamicVgprSavedCount;
+#endif
 
     /// Number of SGPRs used.
     uint32                  sgprCount;
@@ -125,6 +129,11 @@ struct HardwareStageMetadata
     uint32                  vgprLimit;
     /// SGPR count upper limit (only set if different from HW default).
     uint32                  sgprLimit;
+#if PAL_BUILD_GFX12
+    /// Number of live VPGRs leaving the shader. Reports n+1 if V_N is the highest live outgoing VGPR. In dynamic VGPR
+    /// mode, the pipeline-wide maximum of these values is used to lower bound dVGPR allocations in the pipeline.
+    uint32                  outgoingVgprCount;
+#endif
 
     /// Thread-group X/Y/Z dimensions (Compute only).
     uint32                  threadgroupDimensions[3];
@@ -190,7 +199,12 @@ struct HardwareStageMetadata
             uint16 usesAppendConsume : 1;
             /// The shader uses PrimID.
             uint16 usesPrimId        : 1;
+#if PAL_BUILD_GFX12
+            /// The shader uses round-robin scheduling for waves in a workgroup.
+            uint16 wgRoundRobin      : 1;
+#else
             uint16 placeholder0      : 1;
+#endif
         };
         uint16 uAll;
     } flags;
@@ -211,11 +225,19 @@ struct HardwareStageMetadata
             uint64 ldsSize                   : 1;
             uint64 perfDataBufferSize        : 1;
             uint64 vgprCount                 : 1;
+#if PAL_BUILD_GFX12
+            uint64 dynamicVgprSavedCount     : 1;
+#else
             uint64 placeholder1              : 1;
+#endif
             uint64 sgprCount                 : 1;
             uint64 vgprLimit                 : 1;
             uint64 sgprLimit                 : 1;
+#if PAL_BUILD_GFX12
+            uint64 outgoingVgprCount         : 1;
+#else
             uint64 placeholder2              : 1;
+#endif
             uint64 threadgroupDimensions     : 1;
             uint64 origThreadgroupDimensions : 1;
             uint64 cbConstUsage              : 1;
@@ -244,7 +266,11 @@ struct HardwareStageMetadata
             uint64 writesDepth               : 1;
             uint64 usesAppendConsume         : 1;
             uint64 usesPrimId                : 1;
+#if PAL_BUILD_GFX12
+            uint64 wgRoundRobin              : 1;
+#else
             uint64 placeholder3              : 1;
+#endif
             uint64 reserved                  : 22;
         };
         uint64 uAll;
@@ -1593,6 +1619,27 @@ struct SpiShaderColFormatMetadata
     } hasEntry;
 };
 
+#if PAL_BUILD_GFX12
+struct SpiShaderGsMeshletCtrlMetadata
+{
+    /// Log2 X interleave size.
+    uint16 interleaveBitsX;
+    /// Log2 Y interleave size.
+    uint16 interleaveBitsY;
+
+    union
+    {
+        struct
+        {
+            uint8 interleaveBitsX : 1;
+            uint8 interleaveBitsY : 1;
+            uint8 reserved        : 6;
+        };
+        uint8 uAll;
+    } hasEntry;
+};
+#endif
+
 /// Abstracted graphics-only register values.
 struct GraphicsRegisterMetadata
 {
@@ -1692,6 +1739,9 @@ struct GraphicsRegisterMetadata
     /// - 8 - SINT16 ABGR Components
     /// - 9 - Can be FP32 or SINT32/UINT32 ABGR Components
     uint8                              spiShaderZFormat;
+#if PAL_BUILD_GFX12
+    SpiShaderGsMeshletCtrlMetadata     spiShaderGsMeshletCtrl;
+#endif
 
     union
     {
@@ -1800,7 +1850,11 @@ struct GraphicsRegisterMetadata
             uint64 spiPsInputAddr             : 1;
             uint64 spiShaderColFormat         : 1;
             uint64 spiShaderZFormat           : 1;
+#if PAL_BUILD_GFX12
+            uint64 spiShaderGsMeshletCtrl     : 1;
+#else
             uint64 placeholder0               : 1;
+#endif
             uint64 reserved                   : 63;
         };
         uint64 uAll[2];
@@ -1810,6 +1864,15 @@ struct GraphicsRegisterMetadata
 /// Abstracted compute-only register values.
 struct ComputeRegisterMetadata
 {
+#if PAL_BUILD_GFX12
+    /// Log2 X interleave size.
+    uint32 xInterleave;
+#endif
+
+#if PAL_BUILD_GFX12
+    /// Log2 Y interleave size.
+    uint32 yInterleave;
+#endif
 
     /// Specifies how many thread_id_in_group terms to write into VGPR.
     /// 0 = X, 1 = XY, 2 = XYZ
@@ -1827,7 +1890,12 @@ struct ComputeRegisterMetadata
             uint8 tgidZEn       : 1;
             /// Enables loading of threadgroup related info into SGPR.
             uint8 tgSizeEn      : 1;
+#if PAL_BUILD_GFX12
+            /// Enables dynamic vgpr mode.
+            uint8 dynamicVgprEn : 1;
+#else
             uint8 placeholder0  : 1;
+#endif
             uint8 reserved      : 3;
         };
         uint8 uAll;
@@ -1841,9 +1909,15 @@ struct ComputeRegisterMetadata
             uint8 tgidYEn       : 1;
             uint8 tgidZEn       : 1;
             uint8 tgSizeEn      : 1;
+#if PAL_BUILD_GFX12
+            uint8 dynamicVgprEn : 1;
+            uint8 xInterleave   : 1;
+            uint8 yInterleave   : 1;
+#else
             uint8 placeholder0  : 1;
             uint8 placeholder1  : 1;
             uint8 placeholder2  : 1;
+#endif
             uint8 tidigCompCnt  : 1;
         };
         uint8 uAll;
@@ -2040,6 +2114,17 @@ namespace ComputeRegisterMetadataKey
     static constexpr char TgidYEn[]       = ".tgid_y_en";
     static constexpr char TgidZEn[]       = ".tgid_z_en";
     static constexpr char TgSizeEn[]      = ".tg_size_en";
+#if PAL_BUILD_GFX12
+    static constexpr char DynamicVgprEn[] = ".dynamic_vgpr_en";
+#endif
+
+#if PAL_BUILD_GFX12
+    static constexpr char XInterleave[]   = ".x_interleave";
+#endif
+
+#if PAL_BUILD_GFX12
+    static constexpr char YInterleave[]   = ".y_interleave";
+#endif
 
     static constexpr char TidigCompCnt[]  = ".tidig_comp_cnt";
 };
@@ -2110,8 +2195,19 @@ namespace GraphicsRegisterMetadataKey
     static constexpr char SpiPsInputAddr[]             = ".spi_ps_input_addr";
     static constexpr char SpiShaderColFormat[]         = ".spi_shader_col_format";
     static constexpr char SpiShaderZFormat[]           = ".spi_shader_z_format";
+#if PAL_BUILD_GFX12
+    static constexpr char SpiShaderGsMeshletCtrl[]     = ".spi_shader_gs_meshlet_ctrl";
+#endif
 
 };
+
+#if PAL_BUILD_GFX12
+namespace SpiShaderGsMeshletCtrlMetadataKey
+{
+    static constexpr char InterleaveBitsX[] = ".interleave_bits_x";
+    static constexpr char InterleaveBitsY[] = ".interleave_bits_y";
+};
+#endif
 
 namespace SpiShaderColFormatMetadataKey
 {
@@ -2457,10 +2553,16 @@ namespace HardwareStageMetadataKey
     static constexpr char LdsSize[]                   = ".lds_size";
     static constexpr char PerfDataBufferSize[]        = ".perf_data_buffer_size";
     static constexpr char VgprCount[]                 = ".vgpr_count";
+#if PAL_BUILD_GFX12
+    static constexpr char DynamicVgprSavedCount[]     = ".dynamic_vgpr_saved_count";
+#endif
 
     static constexpr char SgprCount[]                 = ".sgpr_count";
     static constexpr char VgprLimit[]                 = ".vgpr_limit";
     static constexpr char SgprLimit[]                 = ".sgpr_limit";
+#if PAL_BUILD_GFX12
+    static constexpr char OutgoingVgprCount[]         = ".outgoing_vgpr_count";
+#endif
 
     static constexpr char ThreadgroupDimensions[]     = ".threadgroup_dimensions";
     static constexpr char OrigThreadgroupDimensions[] = ".orig_threadgroup_dimensions";
@@ -2490,6 +2592,9 @@ namespace HardwareStageMetadataKey
     static constexpr char WritesDepth[]               = ".writes_depth";
     static constexpr char UsesAppendConsume[]         = ".uses_append_consume";
     static constexpr char UsesPrimId[]                = ".uses_prim_id";
+#if PAL_BUILD_GFX12
+    static constexpr char WgRoundRobin[]              = ".wg_round_robin";
+#endif
 
 };
 

@@ -134,6 +134,32 @@ if(ADDR_GFX11_BUILD)
 endif()
 #endif
 
+#if ADDR_GFX12_BUILD
+if(ADDR_GFX12_BUILD)
+    target_sources(addrlib PRIVATE src/core/addrlib3.h
+                                   src/core/addrlib3.cpp
+                                   src/gfx12/gfx12SwizzlePattern.h
+                                   src/gfx12/gfx12addrlib.h
+                                   src/gfx12/gfx12addrlib.cpp)
+
+    target_include_directories(addrlib PRIVATE src/chip/gfx12)
+    target_compile_definitions(addrlib PUBLIC ADDR_GFX12_BUILD)
+#if ADDR3_SUPPORT
+    target_compile_definitions(addrlib PUBLIC ADDR3_SUPPORT)
+#endif
+
+    #if ADDR_GFX12_SHARED_BUILD
+    if (ADDR_GFX12_SHARED_BUILD)
+        target_sources(addrlib PRIVATE src/gfx12/shared/addr_shared.cpp
+                                       src/gfx12/shared/addr_shared.h)
+
+        target_compile_definitions(addrlib PUBLIC ADDR_SHARED)
+        target_compile_definitions(addrlib PUBLIC ADDR_GFX12_SHARED_BUILD)
+    endif()
+    #endif
+endif()
+#endif
+
 # Everybody requires addrlib's internal asic definitions header
 target_sources(addrlib PRIVATE src/amdgpu_asic_addr.h)
 

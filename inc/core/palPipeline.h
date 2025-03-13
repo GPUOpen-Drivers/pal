@@ -157,6 +157,15 @@ enum class LogicOp : uint32
 ///
 /// The 1D values are specified in Threads and the Threadgroups are walked in a 1D typewriter fashion.
 ///
+#if PAL_BUILD_GFX12
+/// The 2D values are specified in Threadgroups and also walked in typewriter fashion (in groups of the 2D pattern).
+///
+/// Clients should check for 1D and 2D support separately in:
+///   - DeviceProperties::gfxipProperties::flags::support1dDispatchInterleave
+///   - DeviceProperties::gfxipProperties::flags::support2dDispatchInterleave
+///
+/// Default will result in "Disable" for chips which do not support 1D or 2D.
+#endif
 /// Disable means that every Threadgroup is issued to the next SE.
 enum class DispatchInterleaveSize : uint32
 {
@@ -167,6 +176,28 @@ enum class DispatchInterleaveSize : uint32
     _1D_128_Threads,
     _1D_256_Threads,
     _1D_512_Threads,
+
+#if PAL_BUILD_GFX12
+    _2D_1x1_ThreadGroups,
+    _2D_1x2_ThreadGroups,
+    _2D_1x4_ThreadGroups,
+    _2D_1x8_ThreadGroups,
+    _2D_1x16_ThreadGroups,
+
+    _2D_2x1_ThreadGroups,
+    _2D_2x2_ThreadGroups,
+    _2D_2x4_ThreadGroups,
+    _2D_2x8_ThreadGroups,
+
+    _2D_4x1_ThreadGroups,
+    _2D_4x2_ThreadGroups,
+    _2D_4x4_ThreadGroups,
+
+    _2D_8x1_ThreadGroups,
+    _2D_8x2_ThreadGroups,
+
+    _2D_16x1_ThreadGroups,
+#endif
 
     Count,
 };
@@ -219,7 +250,15 @@ union PipelineCreateFlags
     struct
     {
         uint32 clientInternal              :  1; ///< Internal pipeline not created by the application.
+#if PAL_BUILD_GFX12
+        uint32 reverseWorkgroupOrder       :  1; ///< Indicates that any Dispatch using this pipeline should execute in
+                                                 ///  reverse workgroup order. This superceeds the flag on the
+                                                 ///  CommandBuffer (dispatchPingPongWalk) - always forcing
+                                                 ///  reverse workgroup order! This is a best effort as not all
+                                                 ///  implementations or Queues may support this.
+#else
         uint32 reserved1                   :  1; ///< Reserved.
+#endif
         uint32 reserved                    : 30; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
@@ -297,6 +336,11 @@ struct ComputePipelineCreateInfo
     /// This field is not supported on PAL ABI ELFs, it should be set to all zeros.
     Extent3d            threadsPerGroup;
 
+#if PAL_BUILD_GFX12
+    TriState groupLaunchGuarantee; ///< Force the group launch guarantee mechanism on or off. This feature will throttle
+                                   ///  issuing of low priority waves when it detects too many higher priority waves are
+                                   ///  failing to schedule due to resource contraints.
+#endif
     const char*         pKernelName; ///< When create pipeline with hsa ELF binary of multiple kernels, need to set one
                                      ///  kernel to create the pipeline. null means only one kernel in ELF binary.
 };
@@ -436,6 +480,13 @@ struct GraphicsPipelineCreateInfo
                                                    ///  SE before switching to the next one.
     LdsPsGroupSizeOverride ldsPsGroupSizeOverride; ///< Whether to override ldsPsGroupSize setting for pipeline.
 
+#if PAL_BUILD_GFX12
+    TriState groupLaunchGuarantee; ///< Force the group launch guarantee mechanism on or off. This feature will throttle
+                                   ///  issuing of low priority waves when it detects too many higher priority waves are
+                                   ///  failing to schedule due to resource contraints.
+    bool     noForceReZ;           ///< Disables the ability for PAL to force ReZ modes outside of what was chosen by
+                                   ///  the compiler for this pipeline.
+#endif
 };
 
 /// The graphic pipeline view instancing information. This is used to determine if hardware accelerated stereo rendering

@@ -2105,6 +2105,77 @@
       "Name": "TessFactorBufferSizePerSe"
     },
     {
+      "Description": "Bitmask applied to ADDR3_SWMODE_SET struct (output of Addr3GetPossibleSwizzleModes). Allows user to restrict which swizzle modes PAL can select from.",
+      "Tags": [
+        "General",
+        "Resource Settings"
+      ],
+      "Flags": {
+        "IsHex": true,
+        "IsBitmask": true
+      },
+      "Defaults": {
+        "Default": "Addr3AllowAllSwizzle"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "Name": "Addr3SelectSwizzleModes",
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Addr3AllowSwLinear",
+            "Value": 1,
+            "Description": "Allow ADDR3_LINEAR."
+          },
+          {
+            "Name": "Addr3AllowSw256B2D",
+            "Value": 2,
+            "Description": "Allow ADDR3_256B_2D."
+          },
+          {
+            "Name": "Addr3AllowSw4KB2D",
+            "Value": 4,
+            "Description": "Allow ADDR3_4KB_2D."
+          },
+          {
+            "Name": "Addr3AllowSw64KB2D",
+            "Value": 8,
+            "Description": "Allow ADDR3_64KB_2D."
+          },
+          {
+            "Name": "Addr3AllowSw256KB2D",
+            "Value": 16,
+            "Description": "Allow ADDR3_256KB_2D."
+          },
+          {
+            "Name": "Addr3AllowSw4KB3D",
+            "Value": 32,
+            "Description": "Allow ADDR3_4KB_3D."
+          },
+          {
+            "Name": "Addr3AllowSw64KB3D",
+            "Value": 64,
+            "Description": "Allow ADDR3_64KB_3D."
+          },
+          {
+            "Name": "Addr3AllowSw256KB3D",
+            "Value": 128,
+            "Description": "Allow ADDR3_256KB_3D."
+          },
+          {
+            "Name": "Addr3AllowAllSwizzle",
+            "Value": 1023,
+            "Description": "Allow all swizzle modes."
+          }
+        ],
+        "Name": "Addr3SelectSwizzleMask"
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX12"
+      ]
+    },
+    {
       "Name": "MemMgrPoolMaxSuballocSize",
       "Tags": [
         "General"

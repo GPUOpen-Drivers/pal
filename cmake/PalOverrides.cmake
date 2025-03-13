@@ -79,3 +79,17 @@ if(PAL_BUILD_GFX9)
 
 endif() # PAL_BUILD_GFX9
 
+#if PAL_BUILD_GFX12
+if(PAL_BUILD_GFX12)
+    pal_set_or(ADDR_GFX12_BUILD ${PAL_BUILD_GFX12})
+    set(PAL_SWD_BUILD_GFX12     ${PAL_BUILD_GFX12})
+
+#if PAL_BUILD_NAVI48
+    pal_set_or(ADDR_GFX12_BUILD     ${PAL_BUILD_NAVI48})
+    pal_set_or(PAL_SWD_BUILD_NAVI4X ${PAL_BUILD_NAVI48})
+    set(PAL_SWD_BUILD_NAVI48        ${PAL_BUILD_NAVI48})
+#endif
+
+endif() # PAL_BUILD_GFX12
+#endif
+

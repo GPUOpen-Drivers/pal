@@ -166,7 +166,11 @@ union GpuMemoryFlags
         uint32 kmdShareUmdSysMem        :  1; // GPU memory is shared with KMD
         uint32 deferCpuVaReservation    :  1; // GPU memory can be locked for read on CPU, but will not reserve CPU VA.
         uint32 placeholder1             :  1; // Placeholder.
+#if PAL_BUILD_GFX12
+        uint32 enableCompression        :  1; // Indicates the memory has distributed compression enabled.
+#else
         uint32 placeholder3             :  1;
+#endif
 #if PAL_AMDGPU_BUILD
         uint32 initializeToZero         :  1; // If set, PAL will request that the host OS zero-initializes
                                               // the allocation upon creation, currently, only GpuHeapLocal and
@@ -299,6 +303,10 @@ public:
     bool IsPrivPrimary()         const { return (m_flags.privPrimary              != 0); }
     bool IsKmdShareUmdSysMem()   const { return (m_flags.kmdShareUmdSysMem        != 0); }
     bool IsLockableOnDemand()    const { return (m_flags.deferCpuVaReservation    != 0); }
+#if PAL_BUILD_GFX12
+    bool IsCompressed()          const { return (m_flags.enableCompression        != 0); }
+    bool MaybeCompressed()       const { return (IsCompressed() || IsVirtual());         }
+#endif
 #if PAL_AMDGPU_BUILD
     bool IsDiscardable()         const { return (m_flags.isDiscardable            != 0); }
 #endif

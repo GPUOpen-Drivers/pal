@@ -1474,6 +1474,9 @@ Result Queue::BuildGpaSessionSampleConfig()
 
                 pSqttConfig->flags.enable                     = true;
                 pSqttConfig->flags.stallMode                  = m_pDevice->GetSqttStallMode();
+#if PAL_BUILD_GFX12
+                pSqttConfig->flags.stallAllSimds              = sqttSettings.stallAllSimds;
+#endif
                 pSqttConfig->flags.supressInstructionTokens   = sqttSettings.supressInstructionTokens;
                 pSqttConfig->flags.excludeNonDetailShaderData = sqttSettings.excludeNonDetailShaderData;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899

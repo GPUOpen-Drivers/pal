@@ -213,6 +213,9 @@ typedef enum SqttGfxIpLevel
     SQTT_GFXIP_LEVEL_GFXIP_10_3 = 0x9,
     SQTT_GFXIP_LEVEL_GFXIP_11_0 = 0xC,
     SQTT_GFXIP_LEVEL_GFXIP_11_5 = 0xD,
+#if PAL_BUILD_GFX12
+    SQTT_GFXIP_LEVEL_GFXIP_12   = 0x10,
+#endif
 } SqttGfxIpLevel;
 
 /** An enumeration of memory types.
@@ -394,6 +397,9 @@ typedef enum SqttVersion
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     SQTT_VERSION_3_0  = 0x7, /*!< TT 3.0 Navi1, Navi2 (GfxIp10-10.3). */
     SQTT_VERSION_3_2  = 0xB, /*!< TT 3.2 Navi3, Phoenix (GfxIp11). */
+#if PAL_BUILD_GFX12
+    SQTT_VERSION_3_3  = 0xC, /*!< TT 3.3 Navi4x (GfxIp12). */
+#endif
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     SQTT_VERSION_1_0          = 0x1,                        /*!< TT 1.0 Evergreen ("8xx"). */
     SQTT_VERSION_1_1          = 0x2,                        /*!< TT 1.1 Northern Islands ("9xx"). */
@@ -407,6 +413,9 @@ typedef enum SqttVersion
     SQTT_VERSION_RESERVED_0x9 = 0x9,                        /*!< Reserved. */
     SQTT_VERSION_RESERVED_0xA = 0xA,                        /*!< Reserved. */
     SQTT_VERSION_3_2          = 0xB,                        /*!< TT 3.2 */
+#if PAL_BUILD_GFX12
+    SQTT_VERSION_3_3          = 0xC,                        /*!< TT 3.3 Navi4x (GfxIp12). */
+#endif
 #endif
 } SqttVersion;
 
@@ -691,6 +700,14 @@ typedef enum SpmGpuBlock
     SPM_GPU_BLOCK_DFMALL  = 0x30,
     SPM_GPU_BLOCK_SQWGP   = 0x31,
     SPM_GPU_BLOCK_PC      = 0x32,
+#if PAL_BUILD_GFX12
+    SPM_GPU_BLOCK_GL1XA   = 0x33,
+    SPM_GPU_BLOCK_GL1XC   = 0x34,
+    SPM_GPU_BLOCK_WGS     = 0x35,
+    SPM_GPU_BLOCK_EACPWD  = 0x36,
+    SPM_GPU_BLOCK_EASE    = 0x37,
+    SPM_GPU_BLOCK_RLCUSER = 0x38,
+#endif
     SPM_GPU_BLOCK_COUNT
 } SpmGpuBlock;
 

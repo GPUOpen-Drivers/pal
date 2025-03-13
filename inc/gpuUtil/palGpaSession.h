@@ -275,7 +275,11 @@ struct GpaSampleConfig
                 Pal::uint32 supressInstructionTokens   :  1;  ///< Prevents capturing instruction-level SQTT tokens,
                                                               ///  significantly reducing the amount of sample data.
                 Pal::uint32 stallMode                  :  2;  ///< Describes behavior when buffer full
+#if PAL_BUILD_GFX12
+                Pal::uint32 stallAllSimds              :  1;  ///< Stall all SIMDs for thread trace stall.
+#else
                 Pal::uint32 placeholder1               :  1;
+#endif
                 Pal::uint32 excludeNonDetailShaderData :  1;  ///< Only emit shader tokens from the SIMD that have been
                                                               ///  selected for detail instruction tracing
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899

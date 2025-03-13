@@ -30,6 +30,9 @@
 #include "core/os/amdgpu/amdgpuSwapChain.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
+#if PAL_BUILD_GFX12
+#include "core/addrMgr/addrMgr3/addrMgr3.h"
+#endif
 #include "palFormatInfo.h"
 #include "palSysMemory.h"
 
@@ -227,6 +230,13 @@ Result Image::CreatePresentableImage(
                 internalInfo.displayDcc.value        = displayDcc.value;
                 internalInfo.displayDcc.enabled      = 1;
 
+#if PAL_BUILD_GFX12
+                if (IsGfx12Plus(*pDevice))
+                {
+                    imgCreateInfo.flags.optimalShareable = 0;
+                }
+                else
+#endif
                 {
                     imgCreateInfo.flags.optimalShareable = 1;
                 }
@@ -569,6 +579,24 @@ Result Image::GetExternalSharedImageCreateInfo(
 
             pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
 
+#if PAL_BUILD_GFX12
+            if (IsGfx12(device))
+            {
+                const auto swizzleMode =
+                    static_cast<Addr3SwizzleMode>(
+                        pCreateInfo->flags.sharedWithMesa
+                            ? AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, GFX12_SWIZZLE_MODE)
+                            : pMetadata->gfx12.swizzleMode);
+
+                pCreateInfo->tiling = AddrMgr3::IsLinearSwizzleMode(swizzleMode)
+                                        ? ImageTiling::Linear
+                                        : ImageTiling::Optimal;
+
+                pCreateInfo->flags.presentable =
+                    ((pCreateInfo->flags.hasModifier == 0) &&
+                     (AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SCANOUT) != 0));
+            }
+#endif
             if (IsGfx9Hwl(device))
             {
                 const auto swizzleMode =
@@ -600,6 +628,9 @@ Result Image::GetExternalSharedImageCreateInfo(
         pCreateInfo->flags.shareable = 1;
         pCreateInfo->viewFormatCount = AllCompatibleFormats;
 
+#if PAL_BUILD_GFX12
+        pCreateInfo->compressionMode = static_cast<CompressionMode>(pMetadata->flags.compression_mode);
+#endif
     }
 
     return result;
@@ -626,6 +657,49 @@ Result Image::CreateExternalSharedImage(
 
     ImageInternalCreateInfo internalCreateInfo = {};
 
+#if PAL_BUILD_GFX12
+    if (IsGfx12Plus(*pDevice))
+    {
+        if (hasMetadata == false)
+        {
+            internalCreateInfo.gfx12.sharedSwizzleMode = ADDR3_LINEAR;
+        }
+        else
+        {
+            const uint64 tilingInfo = sharedInfo.info.metadata.tiling_info;
+
+            if (IsMesaMetadata(sharedInfo.info.metadata))
+            {
+                internalCreateInfo.gfx12.sharedSwizzleMode = static_cast<Addr3SwizzleMode>
+                    (AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, GFX12_SWIZZLE_MODE));
+            }
+            else
+            {
+                internalCreateInfo.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
+                for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
+                {
+                    internalCreateInfo.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
+                }
+
+                internalCreateInfo.gfx12.sharedSwizzleMode = static_cast<Addr3SwizzleMode>(pMetadata->gfx12.swizzleMode);
+                PAL_ASSERT(AMDGPU_TILING_GET(tilingInfo, GFX12_SWIZZLE_MODE) == pMetadata->gfx12.swizzleMode);
+            }
+
+            internalCreateInfo.flags.useSharedDccState = 1;
+
+            DccControlBlockSize*const pDccControlBlockSize = &internalCreateInfo.gfx12.sharedDccControl;
+
+            pDccControlBlockSize->maxUncompressedBlockSizePlane0 =
+                pMetadata->shared_metadata_info.gfx12.tiling_info.dcc_max_compressed_block_size_block0;
+            pDccControlBlockSize->maxCompressedBlockSizePlane0 =
+                pMetadata->shared_metadata_info.gfx12.tiling_info.dcc_max_uncompressed_block_size_block0;
+            pDccControlBlockSize->maxUncompressedBlockSizePlane1 =
+                pMetadata->shared_metadata_info.gfx12.tiling_info.dcc_max_compressed_block_size_block1;
+            pDccControlBlockSize->maxCompressedBlockSizePlane1 =
+                pMetadata->shared_metadata_info.gfx12.tiling_info.dcc_max_uncompressed_block_size_block1;
+        }
+    }
+#endif
     if (IsGfx9Hwl(*pDevice))
     {
         if (hasMetadata == false)
@@ -689,6 +763,19 @@ Result Image::CreateExternalSharedImage(
 
             internalCreateInfo.sharedMetadata.numPlanes = 1;
 
+#if PAL_BUILD_GFX12
+            if (IsGfx12(*pDevice))
+            {
+                internalCreateInfo.sharedMetadata.hiZOffset = pUmdSharedMetadata->gfx12.hiZ_offset;
+                internalCreateInfo.sharedMetadata.hiSOffset = pUmdSharedMetadata->gfx12.hiS_offset;
+                internalCreateInfo.sharedMetadata.hiZSwizzleMode =
+                    static_cast<Addr3SwizzleMode>(pUmdSharedMetadata->gfx12.hiZ_swizzle_mode);
+                internalCreateInfo.sharedMetadata.hiSSwizzleMode =
+                    static_cast<Addr3SwizzleMode>(pUmdSharedMetadata->gfx12.hiS_swizzle_mode);
+
+                createInfo.flags.optimalShareable = 0;
+            }
+#endif
             if (IsGfx9Hwl(*pDevice))
             {
                 internalCreateInfo.sharedMetadata.dccOffset[0] = pUmdSharedMetadata->gfx9.dcc_offset;

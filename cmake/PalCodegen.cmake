@@ -214,6 +214,19 @@ function(pal_setup_generated_code)
                          INCLUDE_HEADERS    core/hw/gfxip/gfxDevice.h)
     endif()
 
+#if PAL_BUILD_GFX12
+    if (PAL_BUILD_GFX12)
+        pal_gen_settings(INPUT_JSON         src/core/hw/gfxip/gfx12/settings_gfx12.json
+                         GENERATED_FILENAME gfx12Settings
+                         HEADER_FILE        core/hw/gfxip/gfx12/gfx12SettingsLoader.h
+                         OUT_DIR            ${PAL_BINARY_DIR}/src/core/hw/gfxip/gfx12
+                         CLASS_NAME         SettingsLoader
+                         NAMESPACES         Pal Gfx12
+                         INCLUDE_HEADERS    core/hw/gfxip/gfxDevice.h
+                         INCLUDE_HEADERS    core/hw/gfxip/gfx12/chip/gfx12_merged_default.h)
+    endif()
+#endif
+
     pal_gen_formats()
 endfunction()
 
@@ -264,6 +277,13 @@ function(pal_gen_formats)
         set(NEEDS_CONFIG_GEN_STEP TRUE)
     endif()
 
+#if PAL_BUILD_GFX12
+    set(FORMAT_GFX12_HDR "${FORMAT_OUT_DIR}/src/core/hw/gfxip/gfx12/g_gfx12DataFormats.h")
+    if (NOT EXISTS ${FORMAT_GFX12_HDR})
+        set(NEEDS_CONFIG_GEN_STEP TRUE)
+    endif()
+#endif
+
     if (NEEDS_CONFIG_GEN_STEP)
         # Generate these during configuration so that they are guaranteed to exist.
         execute_process(
@@ -277,6 +297,9 @@ function(pal_gen_formats)
     add_custom_command(
         OUTPUT  ${FORMAT_INDEPENDENT_HDR}
                 ${FORMAT_GFX9_HDR}
+#if PAL_BUILD_GFX12
+                ${FORMAT_GFX12_HDR}
+#endif
         COMMAND ${Python3_EXECUTABLE} ${FORMAT_GEN_DIR}/main.py
                 ${FORMAT_OUT_DIR}
         COMMENT "Generating formats from ${FORMAT_GEN_DIR}/..."
@@ -285,6 +308,9 @@ function(pal_gen_formats)
                 ${FORMAT_GEN_DIR}/data/gfx10.yaml
                 ${FORMAT_GEN_DIR}/data/gfx10_3.yaml
                 ${FORMAT_GEN_DIR}/data/gfx11.yaml
+#if PAL_BUILD_GFX12
+                ${FORMAT_GEN_DIR}/data/gfx12.yaml
+#endif
                 ${FORMAT_GEN_DIR}/shared/structs.py
                 ${FORMAT_GEN_DIR}/shared/template_hwl.h.j2
                 ${FORMAT_GEN_DIR}/shared/template_independent.h.j2
@@ -295,8 +321,14 @@ function(pal_gen_formats)
     add_custom_target(pal_generate_formats
         DEPENDS ${FORMAT_INDEPENDENT_HDR}
                 ${FORMAT_GFX9_HDR}
+#if PAL_BUILD_GFX12
+                ${FORMAT_GFX12_HDR}
+#endif
         SOURCES ${FORMAT_INDEPENDENT_HDR}
                 ${FORMAT_GFX9_HDR}
+#if PAL_BUILD_GFX12
+                ${FORMAT_GFX12_HDR}
+#endif
     )
     target_include_directories(pal PRIVATE ${FORMAT_OUT_DIR}/src)
     add_dependencies(pal pal_generate_formats)
@@ -310,5 +342,8 @@ function(pal_gen_formats)
         FILES
             ${FORMAT_INDEPENDENT_HDR}
             ${FORMAT_GFX9_HDR}
+#if PAL_BUILD_GFX12
+            ${FORMAT_GFX12_HDR}
+#endif
     )
 endfunction()

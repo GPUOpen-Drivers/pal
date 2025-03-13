@@ -751,6 +751,13 @@ public:
 
     virtual void DisableImageViewSrdEdgeClamp(uint32 count, void* pImageSrds) const {   }
 
+#if PAL_BUILD_GFX12
+    virtual bool CompressGpuMemory(
+        const GpuMemoryCreateInfo& gpuMemCreateInfo,
+        bool                       isCpuVisible,
+        bool                       isClient) const { return false; }
+#endif
+
     virtual bool DisableAc01ClearCodes() const { return true; };
 
     virtual void UpdateDisplayDcc(
@@ -849,6 +856,19 @@ extern Result CreateDevice(
 // Creates SettingsLoader object for Gfx9/10 hardware layer
 extern DevDriver::SettingsBase* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx9
+
+#if PAL_BUILD_GFX12
+namespace Gfx12
+{
+extern size_t GetDeviceSize();
+extern Result CreateDevice(
+    Device*                  pDevice,
+    void*                    pPlacementAddr,
+    DeviceInterfacePfnTable* pPfnTable,
+    GfxDevice**              ppGfxDevice);
+extern DevDriver::SettingsBase* CreateSettingsLoader(Pal::Device* pDevice);
+} // Gfx12
+#endif
 
 } // Pal
 

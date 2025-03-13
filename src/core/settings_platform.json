@@ -1325,6 +1325,14 @@
                 "Name": "TokenTypeUtilCounter",
                 "Value": 4194304,
                 "Description": "A new set of utilization counter values. TT 3.0"
+              },
+              {
+                "Name": "TokenTypeRealTime",
+                "Value": 8388608,
+                "Description": "Output realtime. TT 3.3",
+                "BuildTypes": [
+                  "PAL_BUILD_GFX12"
+                ]
               }
             ],
             "Name": "TokenType",
@@ -1603,6 +1611,17 @@
           },
           "Type": "enum",
           "Description": "Behavior to take when trace buffer is full."
+        },
+        {
+          "Name": "StallAllSimds",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "Description": "If true, stall all SIMDs on the shader engine for thread trace stall. If false, only stall the detail and its pair SIMD. This setting only takes effect on GFX12 for Thread Trace 3.3.",
+          "BuildTypes": [
+            "PAL_BUILD_GFX12"
+          ]
         },
         {
           "Name": "AllowIssueMarkerEvent",

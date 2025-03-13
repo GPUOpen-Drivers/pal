@@ -135,6 +135,12 @@ Pal::Result CreateMlaaComputePipelines(
         break;
 #endif
 
+#if PAL_BUILD_GFX12 && PAL_BUILD_NAVI48
+    case Pal::IpTriple({ 12, 0, 1 }):
+        pTable = mlaaComputeBinaryTable12_0_1;
+        break;
+#endif
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

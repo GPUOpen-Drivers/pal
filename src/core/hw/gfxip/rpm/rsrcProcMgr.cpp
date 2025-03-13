@@ -242,8 +242,13 @@ void RsrcProcMgr::CopyMemoryCs(
                  regionCount,
                  pRegions,
                  preferWideFormatCopy,
+#if PAL_BUILD_GFX12
+                 srcGpuMemory.MaybeCompressed(),
+                 dstGpuMemory.MaybeCompressed()
+#else
                 false,
                 false
+#endif
                  );
 }
 
@@ -1317,6 +1322,16 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
                                                           RpmViewsBypassMallOnRead);
         bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                           RpmViewsBypassMallOnWrite);
+#if PAL_BUILD_GFX12
+        if (gpuMemory.MaybeCompressed())
+        {
+            bufferView.compressionMode = CompressionMode::ReadEnableWriteDisable;
+        }
+        else
+        {
+            bufferView.compressionMode = CompressionMode::ReadBypassWriteDisable;
+        }
+#endif
 
         for (;
             copyRegion.imageSubres.arraySlice <= lastArraySlice;
@@ -1528,6 +1543,16 @@ void RsrcProcMgr::CopyBetweenTypedBufferAndImage(
                                                           RpmViewsBypassMallOnRead);
         bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                           RpmViewsBypassMallOnWrite);
+#if PAL_BUILD_GFX12
+        if (gpuMemory.MaybeCompressed())
+        {
+            bufferView.compressionMode   = CompressionMode::ReadEnableWriteDisable;
+        }
+        else
+        {
+            bufferView.compressionMode   = CompressionMode::ReadBypassWriteDisable;
+        }
+#endif
 
         // Create an embedded user-data table to contain the Image SRD's. It will be bound to entry 0.
         uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -1676,11 +1701,31 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
                                                           RpmViewsBypassMallOnRead);
         bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                           RpmViewsBypassMallOnWrite);
+#if PAL_BUILD_GFX12
+        if (dstGpuMemory.MaybeCompressed())
+        {
+            bufferView.compressionMode   = CompressionMode::ReadEnableWriteDisable;
+        }
+        else
+        {
+            bufferView.compressionMode   = CompressionMode::ReadBypassWriteDisable;
+        }
+#endif
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserDataTable);
         pUserDataTable += SrdDwordAlignment();
 
         bufferView.gpuAddr        = srcGpuMemory.Desc().gpuVirtAddr + srcInfo.offset;
         bufferView.range          = ComputeTypedBufferRange(copyExtent, rawBpp, srcInfo.rowPitch, srcInfo.depthPitch);
+#if PAL_BUILD_GFX12
+        if (srcGpuMemory.MaybeCompressed())
+        {
+            bufferView.compressionMode = CompressionMode::ReadEnableWriteDisable;
+        }
+        else
+        {
+            bufferView.compressionMode = CompressionMode::ReadBypassWriteDisable;
+        }
+#endif
 
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserDataTable);
 
@@ -2084,6 +2129,9 @@ void RsrcProcMgr::GenerateMipmapsFast(
                                                                   RpmViewsBypassMallOnRead);
                 bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                                   RpmViewsBypassMallOnWrite);
+#if PAL_BUILD_GFX12
+                bufferView.compressionMode = CompressionMode::ReadEnableWriteDisable;
+#endif
                 device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
 
                 // Execute the dispatch.
@@ -3127,6 +3175,9 @@ void RsrcProcMgr::CmdFillMemory(
     gpusize         dstGpuVirtAddr,
     gpusize         fillSize,
     uint32          data
+#if PAL_BUILD_GFX12
+    , CompressionMode compressionMode
+#endif
     ) const
 {
     if (saveRestoreComputeState)
@@ -3156,7 +3207,11 @@ void RsrcProcMgr::CmdFillMemory(
         constexpr gpusize AlignedMask = (4ull * sizeof(uint32)) - 1ull;
         const gpusize     alignedSize = fillSize & ~AlignedMask;
 
+#if PAL_BUILD_GFX12
+        FillMem32Bit(pCmdBuffer, compressionMode, dstGpuVirtAddr, alignedSize, data);
+#else
         FillMem32Bit(pCmdBuffer, dstGpuVirtAddr, alignedSize, data);
+#endif
 
         dstGpuVirtAddr += alignedSize;
         fillSize       -= alignedSize;
@@ -3164,7 +3219,11 @@ void RsrcProcMgr::CmdFillMemory(
 
     if (fillSize > 0)
     {
+#if PAL_BUILD_GFX12
+        FillMem32Bit(pCmdBuffer, compressionMode, dstGpuVirtAddr, fillSize, data);
+#else
         FillMem32Bit(pCmdBuffer, dstGpuVirtAddr, fillSize, data);
+#endif
     }
 
     if (saveRestoreComputeState)
@@ -3182,6 +3241,9 @@ void RsrcProcMgr::CmdFillMemory(
 // This function does not save or restore the Command Buffer's state, that responsibility lies with the caller!
 void RsrcProcMgr::FillMem32Bit(
     GfxCmdBuffer*   pCmdBuffer,
+#if PAL_BUILD_GFX12
+    CompressionMode compressionMode,
+#endif
     gpusize         dstGpuVirtAddr,
     gpusize         fillSize,
     uint32          data
@@ -3197,6 +3259,9 @@ void RsrcProcMgr::FillMem32Bit(
     BufferViewInfo dstBufferView = {};
     dstBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, RpmViewsBypassMallOnRead);
     dstBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
+#if PAL_BUILD_GFX12
+    dstBufferView.compressionMode       = compressionMode;
+#endif
 
     // If the size is 16-byte aligned we can run the "4x" shader which writes four 32-bit values per thread.
     RpmComputePipeline pipelineEnum  = RpmComputePipeline::FillMemDword;
@@ -3204,6 +3269,14 @@ void RsrcProcMgr::FillMem32Bit(
 
     if (is4xOptimized)
     {
+#if PAL_BUILD_GFX12
+        // The texture unit changed behavior in gfx12. If the shader contains a buffer_store_format_x but the SRD's
+        // swizzled format does a four-component X32Y32Z32W32 store, then the texture unit broadcasts the single
+        // stored value to all four channels. This means we can use the FillMemDword shader for both paths, we just
+        // need to change the SRD programming to switch between one 32-bit write and four 32-bit writes. As a result
+        // the FillMem4xDword shader is not compiled for gfx12 so gfx12 must always bind FillMemDword.
+        if (IsGfx12Plus(device) == false)
+#endif
         {
             pipelineEnum = RpmComputePipeline::FillMem4xDword;
         }
@@ -4050,6 +4123,16 @@ void RsrcProcMgr::CmdClearColorBuffer(
             dstViewInfo.swizzledFormat = texelScaleOne ? rawFormat : UndefinedSwizzledFormat;
             dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(rpmMallFlags, RpmViewsBypassMallOnRead);
             dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(rpmMallFlags, RpmViewsBypassMallOnWrite);
+#if PAL_BUILD_GFX12
+            if (static_cast<const GpuMemory &>(dstGpuMemory).MaybeCompressed())
+            {
+                dstViewInfo.compressionMode = CompressionMode::ReadEnableWriteDisable;
+            }
+            else
+            {
+                dstViewInfo.compressionMode = CompressionMode::ReadBypassWriteDisable;
+            }
+#endif
 
             if (texelScaleOne)
             {
@@ -6182,6 +6265,9 @@ void RsrcProcMgr::SlowClearGraphics(
         colorViewInfo.flags.imageVaLocked             = 1;
         colorViewInfo.flags.bypassMall                = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                                        RpmViewsBypassMallOnCbDbWrite);
+#if PAL_BUILD_GFX12
+        colorViewInfo.compressionMode                 = CompressionMode::Default;
+#endif
 
         BindTargetParams bindTargetsInfo = { };
         bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
@@ -8718,6 +8804,11 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
     const auto& createInfo = dstImage.GetImageCreateInfo();
     const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
     ColorTargetViewInternalCreateInfo colorViewInfoInternal = {};
+#if PAL_BUILD_GFX12 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 876
+    colorViewInfoInternal.flags.disableClientCompression =
+        (createInfo.clientCompressionMode == ClientCompressionMode::Disable) ||
+        (createInfo.clientCompressionMode == ClientCompressionMode::DisableClearOnly);
+#endif
 
     const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
 

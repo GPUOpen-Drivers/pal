@@ -173,7 +173,17 @@ union DisplayDccCaps
         uint32 dcc_256_128_128           : 1;
         uint32 dcc_128_128_unconstrained : 1;
         uint32 dcc_256_64_64             : 1;
+#if PAL_BUILD_GFX12
+        // New DCC fields for DCN4.0
+        uint32 dcc_256_256_plane0        : 1;
+        uint32 dcc_256_128_plane0        : 1;
+        uint32 dcc_256_64_plane0         : 1;
+        uint32 dcc_256_256_plane1        : 1;
+        uint32 dcc_256_128_plane1        : 1;
+        uint32 dcc_256_64_plane1         : 1;
+#else
         uint32 reserved1                 : 6;
+#endif
         uint32 reserved                  : 19;
     };
     uint32 value;
@@ -196,6 +206,13 @@ struct ImageInternalCreateInfo
             uint32              sharedPipeBankXorFmask; // Pipe-bank-xor setting for fmask
             DccState            sharedDccState;         // DCC state shared
         } gfx9;
+#if PAL_BUILD_GFX12
+        struct
+        {
+            Addr3SwizzleMode    sharedSwizzleMode;      // Swizzle mode for shared image
+            DccControlBlockSize sharedDccControl;       // DCC control settings shared
+        } gfx12;
+#endif
     };
 
     const Image*       pOriginalImage;       // Original image (peer image)

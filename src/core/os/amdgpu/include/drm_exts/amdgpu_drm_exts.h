@@ -258,6 +258,10 @@ int amdgpu_cs_unreserved_vmid(amdgpu_device_handle dev);
 
 // =====================================================================================================================
 // Memory alloc flags
+#if PAL_BUILD_GFX12
+/* Set PTE.D and recompress during GTT->VRAM moves according to TILING flags. */
+#define AMDGPU_GEM_CREATE_GFX12_DCC		(1 << 16)
+#endif
 /* hybrid specific */
 /* Flag that the memory should be in SPARSE resource */
 #define AMDGPU_GEM_CREATE_SPARSE		(1ULL << 29)
@@ -313,3 +317,31 @@ struct drm_amdgpu_capability {
 #define AMDGPU_TILING_DCC_MAX_UNCOMPRESSED_BLOCK_SIZE_SHIFT  47
 #define AMDGPU_TILING_DCC_MAX_UNCOMPRESSED_BLOCK_SIZE_MASK   0x3
 
+#if PAL_BUILD_GFX12
+/* GFX12 and later: */
+#define AMDGPU_TILING_GFX12_SWIZZLE_MODE_SHIFT			0
+#define AMDGPU_TILING_GFX12_SWIZZLE_MODE_MASK			0x7
+/* These are DCC recompression setting for memory management: */
+#define AMDGPU_TILING_GFX12_DCC_MAX_COMPRESSED_BLOCK_SHIFT	3
+#define AMDGPU_TILING_GFX12_DCC_MAX_COMPRESSED_BLOCK_MASK	0x3 /* 0:64B, 1:128B, 2:256B */
+#define AMDGPU_TILING_GFX12_DCC_NUMBER_TYPE_SHIFT		5
+#define AMDGPU_TILING_GFX12_DCC_NUMBER_TYPE_MASK		0x7 /* CB_COLOR0_INFO.NUMBER_TYPE */
+#define AMDGPU_TILING_GFX12_DCC_DATA_FORMAT_SHIFT		8
+#define AMDGPU_TILING_GFX12_DCC_DATA_FORMAT_MASK		0x3f /* [0:4]:CB_COLOR0_INFO.FORMAT, [5]:MM */
+
+#define AMD_FMT_MOD_TILE_VER_GFX12 5
+/* Gfx12 swizzle modes:
+ *    0 - LINEAR
+ *    1 - 256B_2D  - 2D block dimensions
+ *    2 - 4KB_2D
+ *    3 - 64KB_2D
+ *    4 - 256KB_2D
+ *    5 - 4KB_3D   - 3D block dimensions
+ *    6 - 64KB_3D
+ *    7 - 256KB_3D
+ */
+/*
+ * 64K_D_2D on GFX12 is identical to 64K_D on GFX11.
+ */
+#define AMD_FMT_MOD_TILE_GFX12_64K_2D 3
+#endif

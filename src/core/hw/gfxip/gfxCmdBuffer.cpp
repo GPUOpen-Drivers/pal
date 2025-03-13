@@ -74,7 +74,11 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_computeStateFlags(0),
     m_pDfSpmPerfmonInfo(nullptr),
     m_cmdBufPerfExptFlags{},
+#if PAL_BUILD_GFX12
+    m_splitBarriers(IsGfx12Plus(m_gfxIpLevel) == false),
+#else
     m_splitBarriers(true),
+#endif
     m_timestampGpuVa(0),
     m_fceRefCountVec(device.GetPlatform()),
     m_cmdBufState{},
@@ -281,6 +285,14 @@ void GfxCmdBuffer::ResetState()
     m_cmdBufState.flags.csBltDirectWriteMisalignedMdDirty   = 1;
     m_cmdBufState.flags.csBltIndirectWriteMisalignedMdDirty = 1;
 
+#if PAL_BUILD_GFX12
+    if (IsGfx12(m_gfxIpLevel))
+    {
+        // On GFX12, CP is connected to mall/memory directly. CP writes to memory may require a GL2 invalidation.
+        m_cmdBufState.flags.cpMemoryWriteL2CacheStale = 1;
+    }
+    else
+#endif
     {
         // PAL sends CP reads and writes through the GL2 by default, we'll need GL2 flushes.
         m_cmdBufState.flags.cpWriteCachesDirty = 1;
@@ -997,6 +1009,14 @@ void GfxCmdBuffer::CmdClearDepthStencil(
     const SubresRange* pSplitRanges = nullptr;
     Result result = Result::Success;
 
+#if PAL_BUILD_GFX12
+    if (m_gfxIpLevel == GfxIpLevel::GfxIp12)
+    {
+        splitRangeCount = rangeCount;
+        pSplitRanges    = pRanges;
+    }
+    else
+#endif
     {
         result = m_device.Parent()->SplitSubresRanges(rangeCount,
                                                       pRanges,

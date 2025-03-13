@@ -277,6 +277,15 @@ struct GpuMemoryCreateInfo
                                                       ///  bound to.  It must be specified in special cases where a
                                                       ///  memory object is permanently linked to an Image such as
                                                       ///  presentable images or shared resources on Windows.
+#if PAL_BUILD_GFX12
+                                                      ///  For other cases, it's highly encouraged to provide the image
+                                                      ///  object pointer. When @ref compression is set to Default,
+                                                      ///  clients can benefit from PAL's internal logic to choose the
+                                                      ///  optimal GFX12-style distributed compression setting (enabled
+                                                      ///  or disabled) based on properties of this image (e.g., usage
+                                                      ///  flags); otherwise PAL will disable the compression by default
+                                                      ///  when detecting nullptr @pImage.
+#endif
     TypedBufferCreateInfo        typedBufferInfo;     ///< If typedBuffer is set this GPU memory will be permanently
                                                       ///  considered a typed buffer.
 
@@ -288,6 +297,27 @@ struct GpuMemoryCreateInfo
                                                       ///  1. Write to marker 2.Let GPU wait until a value is written
                                                       ///  to marker before issuing next command.
                                                       ///  Only valid when GpuMemoryCreateFlags::sdiExternal is set.
+#if PAL_BUILD_GFX12
+    /// Client override for GFX12-style distributed compression. Only meaningful on devices that set the
+    /// supportDistributedCompression DeviceProperties flag. By default, PAL will apply a heuristic to determine
+    /// whether or not to enable compression based on properties of the memory allocation (e.g., CPU-visibility or
+    /// properties of the attached pImage). This mode does not apply to virtual IGpuMemory objects (such object
+    /// inherit their compression behavior from their backing physical memory on a page-by-page basis).
+    ///
+    /// @note If allocating memory intended to back multiple resources (e.g., a heap for DX12 "placed resources") where
+    /// pImage is nullptr, the client should set compression to Enable then rely on per-resource or per-view controls to
+    /// disable compression for resources as needed (use compressionMode fields in ImageCreateInfo, BufferViewInfo,
+    /// ImageViewInfo, etc.).
+    ///
+    /// If clients intends to enable distributed compression on buffers, buffer base alignment and size should be
+    /// aligned to DCC minimum compression unit size (256 bytes); otherwise there is potential corruption issue.
+    /// e.g. An allocation holding two buffers (placed resource or driver suballocation). Suppose the first buffer has
+    /// size 4Kibytes+128 bytes with compression enabled and the second buffer has size 128bytes with compression
+    /// disabled (buffer view compressionMode is ReadBypassWriteDisable). When compressing the trailing 128bytes of
+    /// the first buffer, it will compress the second buffer as well. Reading the second buffer will result in corrupted
+    /// content.
+    TriState                     compression;
+#endif
 };
 
 /// Specifies properties for @ref IGpuMemory creation.  Input structure to IDevice::CreatePinnedGpuMemory().
@@ -406,7 +436,12 @@ struct GpuMemoryDesc
             uint32 isExecutable :  1;  ///< GPU memory is used for execution. Valid only when IOMMUv2 is supported
             uint32 isExternPhys :  1;  ///< GPU memory is External Physical memory
             uint32 placeholder0         :   1; ///< Reserved for future memory flag
+#if PAL_BUILD_GFX12
+            uint32 isCompressed         :   1; ///< Set for physical allocations where UMD requested PTE.D=1 to enable
+                                               ///  GFX12-style distributed compression.
+#else
             uint32 placeholder1         :   1; ///< Reserved for future memory flag
+#endif
             uint32 reserved             :  23; ///< Reserved for future use
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.

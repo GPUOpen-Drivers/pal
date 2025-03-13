@@ -150,6 +150,24 @@ enum class RpmComputePipeline : uint32
     Gfx10PrtPlusResolveSamplingStatusMap  = 111,
     Gfx10VrsHtile                         = 112,
     Gfx11GenerateCmdDispatchTaskMesh      = 113,
+#if PAL_BUILD_GFX12&& ((0 && 0) || (PAL_BUILD_NAVI48&& 0)  || PAL_BUILD_NAVI48)
+    Gfx12EchoGlobalTable                  = 114,
+#endif
+#if PAL_BUILD_GFX12&& ((0 && 0) || (PAL_BUILD_NAVI48&& 0)  || PAL_BUILD_NAVI48)
+    Gfx12FillMem128b                      = 115,
+#endif
+#if PAL_BUILD_GFX12&& ((0 && 0) || (PAL_BUILD_NAVI48&& 0)  || PAL_BUILD_NAVI48)
+    Gfx12FillMem128bNoalloc               = 116,
+#endif
+#if PAL_BUILD_GFX12&& ((0 && 0) || (PAL_BUILD_NAVI48&& 0)  || PAL_BUILD_NAVI48)
+    Gfx12ResolveOcclusionQuery            = 117,
+#endif
+#if PAL_BUILD_GFX12&& ((0 && 0) || (PAL_BUILD_NAVI48&& 0)  || PAL_BUILD_NAVI48)
+    Gfx12ResolvePipelineStatsQuery        = 118,
+#endif
+#if PAL_BUILD_GFX12&& ((0 && 0) || (PAL_BUILD_NAVI48&& 0)  || PAL_BUILD_NAVI48)
+    Gfx12ResolveStreamoutStatsQuery       = 119,
+#endif
     Count
 };
 

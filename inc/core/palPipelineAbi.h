@@ -102,6 +102,9 @@ enum class AmdGpuMachineType : uint8
 #if PAL_BUILD_STRIX_HALO
     Gfx1151 = 0x4A,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1151
 #endif
+#if PAL_BUILD_NAVI48
+    Gfx1201   = 0x4E,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1200
+#endif
 };
 
 /// AmdGpuFeatureV4Type for the feature selection mask bits in e_flags.
@@ -178,6 +181,9 @@ enum GfxIpStepping : uint16
     GfxIpSteppingStrixHalo     = 1,
 #endif
 
+#if PAL_BUILD_NAVI48
+    GfxIpSteppingNavi48        = 1,
+#endif
 };
 
 /// Name of the section where our pipeline binaries store the disassembly for all shader stages.
