@@ -766,6 +766,9 @@ Result TraceSession::CollectTrace(
         result = Result::ErrorUnavailable;
         break;
     }
+    case TraceSessionState::Count:
+      PAL_ASSERT_ALWAYS();
+      break;
     }
 
     return result;

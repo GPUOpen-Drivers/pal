@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,21 +23,28 @@
  #
  #######################################################################################################################
 
-include_guard()
+devdriver_library(rgd_mgr STATIC)
 
-# All options/cache variables should have the prefix "PAL_" this serves two main purposes
-# - Name collision issues
-# - cmake-gui allows grouping of variables based on prefixes, which then makes it clear what options PAL defined
+target_include_directories(rgd_mgr PUBLIC inc)
 
-option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?")
-option(PAL_ENABLE_PRINTS_ASSERTS_DEBUG "Enable print assertions on debug builds?" ON)
+target_sources(rgd_mgr
+    PUBLIC
+        inc/RgdMgr.h
+    PRIVATE
+        src/RgdMgr.cpp
+)
 
-option(PAL_ENABLE_DEBUG_BREAK "Enable debug break?")
-
-option(PAL_ENABLE_LOGGING "Enable debug logging?")
-
-option(PAL_MEMTRACK "Enable PAL memory tracker?")
-
-option(PAL_64BIT_ARCHIVE_FILE_FMT "DXCP requires 64-bit file archives to allow creation of files >4GB. Vulkan requires 32-bit file archives for backwards compatibility. Clients may choose your preference here. 32-bit by default." OFF)
-
-option(PAL_PRECOMPILED_HEADERS  "If set, enables precompiled headers to reduce compilation times" OFF)
+target_link_libraries(rgd_mgr
+    PUBLIC
+        ddRouter
+        ddCommon
+        dd_tools
+        ddRdf
+        rdf
+        devdriver
+    PRIVATE
+        ddNet
+        ddRouterUtils
+        ddRdfEventStreamer
+        SystemTraceModuleStatic
+)

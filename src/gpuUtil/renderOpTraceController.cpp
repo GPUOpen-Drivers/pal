@@ -578,7 +578,7 @@ Result RenderOpTraceController::CreateCommandBuffer(
     return result;
 }
 
-#if PAL_CLIENT_MAJOR_INTERFACE_VERSION < 896
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 896
 // =====================================================================================================================
 void RenderOpTraceController::RecordRenderOp(
     Pal::IQueue* pQueue,

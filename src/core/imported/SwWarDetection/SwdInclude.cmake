@@ -37,6 +37,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/SwdHelper.cmake)
 function(swd_add_to_target TARGET PREFIX)
     target_include_directories(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc)
 
+#if SWD_STRINGIFY
+    swd_bp(${PREFIX}_SWD_STRINGIFY OFF)
+    target_compile_definitions(${TARGET} PRIVATE SWD_STRINGIFY=$<BOOL:${${PREFIX}_SWD_STRINGIFY}>)
+#endif
+
 #if SWD_BUILD_PHX2
     swd_bp(${PREFIX}_SWD_BUILD_PHX2 OFF)
     target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_PHX2=$<BOOL:${${PREFIX}_SWD_BUILD_PHX2}>)

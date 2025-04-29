@@ -232,6 +232,13 @@ Result SwapChain::ReclaimUnusedImages(
         ComputeTimeoutExpiration(&stopTime, timeout.count());
     }
 
+    const bool blockMode = m_pWindowSystem->SupportWaitingOnCompletion() &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 863
+                           (timeout == std::chrono::nanoseconds::max());
+#else
+                           (timeout == UINT64_MAX);
+#endif
+
     // Note that we don't need to take the unused image lock because this is the only thread that should be looking at
     // the unused image state in mailbox mode.
     while (m_unusedImageCount == 0)
@@ -241,7 +248,16 @@ Result SwapChain::ReclaimUnusedImages(
         for (uint32 idx = 0; idx < m_mailedImageCount; )
         {
             PresentFence*const pFence = m_pPresentIdle[m_mailedImageList[idx]];
-            const Result       status = pFence->WaitForCompletion(false);
+            Result status = Result::Success;
+
+            if (blockMode == false)
+            {
+                status = pFence->WaitForCompletion(false);
+            }
+            else
+            {
+                status = pFence->IsIdle() ? Result::Success : Result::NotReady;
+            }
 
             if (status == Result::NotReady)
             {
@@ -275,14 +291,21 @@ Result SwapChain::ReclaimUnusedImages(
         // If none of the mailbox images were ready we should sleep for a bit and try again.
         if (m_unusedImageCount == 0)
         {
-            if ((timeout == 0ns) || IsTimeoutExpired(&stopTime))
+            if (blockMode)
             {
-                result = CollapseResults(result, Result::Timeout);
-                break;
+                m_pWindowSystem->WaitOnCompletion();
             }
             else
             {
-                YieldThread();
+                if ((timeout == 0ns) || IsTimeoutExpired(&stopTime))
+                {
+                    result = CollapseResults(result, Result::Timeout);
+                    break;
+                }
+                else
+                {
+                    YieldThread();
+                }
             }
         }
     }

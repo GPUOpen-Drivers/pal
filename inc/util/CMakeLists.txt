@@ -56,7 +56,6 @@ target_sources(palUtil PRIVATE
     palFunctionRef.h
     palHashBase.h
     palHashBaseImpl.h
-    palHashLiteralString.h
     palHashMap.h
     palHashMapImpl.h
     palHashProvider.h

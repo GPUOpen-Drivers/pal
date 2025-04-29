@@ -171,29 +171,6 @@ public:
         PAL_NOT_IMPLEMENTED();
     }
 
-    virtual void HwlFastColorClear(
-        GfxCmdBuffer*         pCmdBuffer,
-        const GfxImage&       dstImage,
-        const uint32*         pConvertedColor,
-        const SwizzledFormat& clearFormat,
-        const SubresRange&    clearRange,
-        bool                  trackBltActiveFlags) const override { }
-
-    virtual void HwlDepthStencilClear(
-        GfxCmdBuffer*      pCmdBuffer,
-        const GfxImage&    dstImage,
-        ImageLayout        depthLayout,
-        ImageLayout        stencilLayout,
-        float              depth,
-        uint8              stencil,
-        uint8              stencilWriteMask,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        bool               fastClear,
-        bool               needComputeSync,
-        uint32             boxCnt,
-        const Box*         pBox) const override { }
-
     virtual bool IsAc01ColorClearCode(
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,

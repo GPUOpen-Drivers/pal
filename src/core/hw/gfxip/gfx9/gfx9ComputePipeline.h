@@ -48,6 +48,7 @@ public:
     ComputePipeline(Device* pDevice, bool isInternal);
     virtual ~ComputePipeline() { }
 
+    template <bool IsAce>
     uint32* WriteCommands(
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
@@ -108,7 +109,6 @@ private:
     ComputePipelineSignature m_signature;
     size_t                   m_ringSizeComputeScratch;
     PipelineChunkCs          m_chunkCs;
-    const bool               m_shPairsPacketSupportedCs;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);

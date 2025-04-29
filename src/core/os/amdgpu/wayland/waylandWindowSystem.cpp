@@ -671,6 +671,19 @@ Result WaylandPresentFence::Trigger()
 }
 
 // =====================================================================================================================
+bool WaylandPresentFence::IsIdle()
+{
+    bool ret = true;
+
+    if (m_pImage)
+    {
+        ret = m_pImage->GetIdle();
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
 // Wait for the image release by Wayland server. After that the image can be reused.
 Result WaylandPresentFence::WaitForCompletion(
     bool doWait)
@@ -1626,6 +1639,14 @@ void WaylandWindowSystem::DestroyExplicitSyncObject(
 
     // Destroy common objects
     WindowSystem::DestroyExplicitSyncObject(pSyncObject);
+}
+
+// =====================================================================================================================
+// The caller thread will be blocked in this method until any image is released by the wayland server.
+// This method is only applicable in the implicit sync mode.
+void WaylandWindowSystem::WaitOnCompletion()
+{
+    m_waylandProcs.pfnWlDisplayDispatchQueue(m_pDisplay, m_pEventQueue);
 }
 
 } // Amdgpu

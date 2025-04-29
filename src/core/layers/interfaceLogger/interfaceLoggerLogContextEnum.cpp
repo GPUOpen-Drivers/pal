@@ -488,6 +488,28 @@ void LogContext::Enum(
         "Y210",
         "Y416",
         "Y410",
+        "_ReservedBE",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        "P216",
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        "YUV_420P10",
+        "YUV_422P10",
+        "YUV_444P10",
+        "YUV_420P12",
+        "YUV_422P12",
+        "YUV_444P12",
+        "YUV_420P16",
+        "YUV_422P16",
+        "YUV_444P16",
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        "YV16",
+        "YV24",
+        "NV24",
+        "P410",
+        "P416",
+#endif
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(ChNumFormat::Count),

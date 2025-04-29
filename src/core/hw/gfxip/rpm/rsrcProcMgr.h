@@ -277,7 +277,7 @@ public:
         const SubresRange* pRanges,
         uint32             rectCount,
         const Rect*        pRects,
-        uint32             flags) const;
+        uint32             flags) const = 0;
 
     void CmdClearColorBuffer(
         GfxCmdBuffer*     pCmdBuffer,
@@ -306,7 +306,7 @@ public:
         const SubresRange*    pRanges,
         uint32                boxCount,
         const Box*            pBoxes,
-        uint32                flags) const;
+        uint32                flags) const = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     void CmdClearBufferView(
@@ -637,32 +637,6 @@ protected:
         const ImageResolveRegion* pRegions,
         uint32                    flags) const;
 
-    static void PreComputeColorClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const IImage*      pImage,
-        const SubresRange& subres,
-        ImageLayout        layout);
-
-    static void PostComputeColorClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const IImage*      pImage,
-        const SubresRange& subres,
-        ImageLayout        layout,
-        bool               csFastClear);
-
-    static void PreComputeDepthStencilClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const GfxImage&    gfxImage,
-        const SubresRange& subres,
-        ImageLayout        layout);
-
-    static void PostComputeDepthStencilClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const GfxImage&    gfxImage,
-        const SubresRange& subres,
-        ImageLayout        layout,
-        bool               csFastClear);
-
     static bool BoxesCoverWholeExtent(
         const Extent3d& extent,
         uint32          boxCount,
@@ -701,34 +675,11 @@ private:
 
     virtual void HwlEndGraphicsCopy(GfxCmdStream* pCmdStream, uint32 restoreMask) const = 0;
 
-    virtual void HwlFastColorClear(
-        GfxCmdBuffer*         pCmdBuffer,
-        const GfxImage&       dstImage,
-        const uint32*         pConvertedColor,
-        const SwizzledFormat& clearFormat,
-        const SubresRange&    clearRange,
-        bool                  trackBltActiveFlags) const = 0;
-
     virtual bool IsAc01ColorClearCode(
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,
         const SwizzledFormat& clearFormat,
         const SubresRange&    clearRange) const = 0;
-
-    virtual void HwlDepthStencilClear(
-        GfxCmdBuffer*      pCmdBuffer,
-        const GfxImage&    dstImage,
-        ImageLayout        depthLayout,
-        ImageLayout        stencilLayout,
-        float              depth,
-        uint8              stencil,
-        uint8              stencilWriteMask,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        bool               fastClear,
-        bool               clearAutoSync,
-        uint32             boxCnt,
-        const Box*         pBox) const = 0;
 
     virtual void HwlImageToImageMissingPixelCopy(
         GfxCmdBuffer*          pCmdBuffer,

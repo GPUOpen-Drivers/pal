@@ -779,6 +779,21 @@ static void Gfx12InitBasicBlockInfo(
         { mmPC_PERFCOUNTER3_SELECT, mmPC_PERFCOUNTER3_SELECT1, mmPC_PERFCOUNTER3_LO, mmPC_PERFCOUNTER3_HI },
     }};
 
+    // The Work-Graph Scheduler (WGS). One Asynchronous Compute Engine (ACE) is instanced in each SED as this new block.
+    PerfCounterBlockInfo*const pWgs = &pInfo->block[static_cast<uint32>(GpuBlock::Wgs)];
+    pWgs->distribution              = PerfCounterDistribution::PerShaderEngine;
+    pWgs->numScopedInstances        = 1;
+    pWgs->numGenericSpmModules      = 1; // WGS_PERFCOUNTER0
+    pWgs->numGenericLegacyModules   = 1; // WGS_PERFCOUNTER1
+    pWgs->numSpmWires               = 2;
+    pWgs->spmBlockSelect            = Gfx12SpmSeBlockSelectWgs;
+    pWgs->maxEventId                = maxIds[WgsPerfcountSelId];
+
+    pWgs->regAddr = { 0, {
+        { mmWGS_PERFCOUNTER0_SELECT, mmWGS_PERFCOUNTER0_SELECT1, mmWGS_PERFCOUNTER0_LO, mmWGS_PERFCOUNTER0_HI },
+        { mmWGS_PERFCOUNTER1_SELECT, 0,                          mmWGS_PERFCOUNTER1_LO, mmWGS_PERFCOUNTER1_HI },
+    }};
+
     // RLC User data supplied "counters" that are updated by CP
     PerfCounterBlockInfo* const pRlcUser = &pInfo->block[static_cast<uint32>(GpuBlock::RlcUser)];
     pRlcUser->distribution        = PerfCounterDistribution::GlobalBlock;

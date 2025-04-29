@@ -54,7 +54,8 @@ CmdStream::CmdStream(
                  isNested),
     m_cmdUtil(device.CmdUtil()),
     m_perfCounterWindowEnabled(false),
-    m_pPerfCounterWindowLastPacket(nullptr)
+    m_pPerfCounterWindowLastPacket(nullptr),
+    m_usePerfCounterWindow(device.Settings().gfx12EnablePerfCounterWindow)
 {
 }
 
@@ -562,18 +563,24 @@ uint32* CmdStream::WritePerfCounterWindow(
     bool    enableWindow,
     uint32* pCmdSpace)
 {
-    m_perfCounterWindowEnabled = enableWindow;
+    if (enableWindow != m_perfCounterWindowEnabled)
+    {
+        m_perfCounterWindowEnabled = enableWindow;
 
-    // If the perf counter window was changed back to back, update to only latest state by overwriting the previous
-    // packet. Basically a low pass filter
-    if ((m_pPerfCounterWindowLastPacket + CmdUtil::PerfCounterWindowSizeDwords) == pCmdSpace)
-    {
-        m_cmdUtil.BuildPerfCounterWindow(GetEngineType(), enableWindow, m_pPerfCounterWindowLastPacket);
-    }
-    else
-    {
-        m_pPerfCounterWindowLastPacket = pCmdSpace;
-        pCmdSpace += m_cmdUtil.BuildPerfCounterWindow(GetEngineType(), enableWindow, pCmdSpace);
+        if (m_usePerfCounterWindow)
+        {
+            // If the perf counter window was changed back to back, update to only latest state by overwriting the previous
+            // packet. Basically a low pass filter
+            if ((m_pPerfCounterWindowLastPacket + CmdUtil::PerfCounterWindowSizeDwords) == pCmdSpace)
+            {
+                m_cmdUtil.BuildPerfCounterWindow(GetEngineType(), enableWindow, m_pPerfCounterWindowLastPacket);
+            }
+            else
+            {
+                m_pPerfCounterWindowLastPacket = pCmdSpace;
+                pCmdSpace += m_cmdUtil.BuildPerfCounterWindow(GetEngineType(), enableWindow, pCmdSpace);
+            }
+        }
     }
 
     return pCmdSpace;

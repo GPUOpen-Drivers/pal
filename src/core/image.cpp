@@ -53,8 +53,30 @@ static uint32 PlaneCount(
     }
     else if (IsYuvPlanar(createInfo.swizzledFormat.format))
     {
-        planes = (((createInfo.swizzledFormat.format == ChNumFormat::YV12) ||
-                   (createInfo.swizzledFormat.format == ChNumFormat::P412))) ? 3 : 2;
+        switch (createInfo.swizzledFormat.format)
+        {
+        case ChNumFormat::YV12:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        case ChNumFormat::YUV_420P10:
+        case ChNumFormat::YUV_422P10:
+        case ChNumFormat::YUV_444P10:
+        case ChNumFormat::YUV_420P12:
+        case ChNumFormat::YUV_422P12:
+        case ChNumFormat::YUV_444P12:
+        case ChNumFormat::YUV_420P16:
+        case ChNumFormat::YUV_422P16:
+        case ChNumFormat::YUV_444P16:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        case ChNumFormat::YV16:
+        case ChNumFormat::YV24:
+#endif
+            planes = 3;
+            break;
+        default:
+            planes = 2;
+            break;
+        }
     }
 
     return planes;
@@ -183,7 +205,6 @@ Result Image::ValidateCreateInfo(
     const bool  depthStencilUsage    = (imageInfo.usageFlags.depthStencil != 0);
     const bool  windowedPresentUsage = ((imageInfo.flags.presentable != 0) &&
                                         (imageInfo.flags.flippable == 0));
-    const bool  isYuvFormat          = IsYuv(imageInfo.swizzledFormat.format);
 
     // An image's format cannot be undefined.
     if (IsUndefined(imageInfo.swizzledFormat.format))
@@ -294,7 +315,7 @@ Result Image::ValidateCreateInfo(
             ret = Result::ErrorInvalidCompressedImageType;
         }
         // Check image properties and YUV format usage
-        else if ((imageInfo.imageType != ImageType::Tex2d) && isYuvFormat)
+        else if ((imageInfo.imageType != ImageType::Tex2d) && IsYuv(imageInfo.swizzledFormat.format))
         {
             // YUV formats are only supported for 2D Images.
             ret = Result::ErrorInvalidYuvImageType;
@@ -409,7 +430,8 @@ Result Image::ValidateCreateInfo(
             {
                 ret = Result::ErrorInvalidMipCount;
             }
-            else if ((imageInfo.mipLevels > 1) && isYuvFormat)
+            // Planar YUV formats can't use mipmaps but packed YUV can (AYUV needs this on DX)
+            else if ((imageInfo.mipLevels > 1) && IsYuvPlanar(imageInfo.swizzledFormat.format))
             {
                 ret = Result::ErrorInvalidMipCount;
             }
@@ -510,13 +532,10 @@ bool Image::UsesMmFormat() const
                                      (firstBitCount == 8));
     const bool uses10BitMmFormats = (m_pDevice->SupportsFormat(ChNumFormat::X16_MM10_Uint)    &&
                                      m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM10_Uint) &&
-                                     ((format == ChNumFormat::P010) ||
-                                      (format == ChNumFormat::P210)));
+                                     IsMm10Format(format));
     const bool uses12BitMmFormats = (m_pDevice->SupportsFormat(ChNumFormat::X16_MM12_Uint)    &&
                                      m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM12_Uint) &&
-                                     ((format == ChNumFormat::P012) ||
-                                      (format == ChNumFormat::P212) ||
-                                      (format == ChNumFormat::P412)));
+                                     IsMm12Format(format));
     return (uses8BitMmFormats || uses10BitMmFormats || uses12BitMmFormats);
 }
 
@@ -563,8 +582,8 @@ void Image::DetermineFormatForPlane(
         // If the device supports MM formats, then we should use them instead.
         const bool supportsX8Mm       = m_pDevice->SupportsFormat(ChNumFormat::X8_MM_Uint);
         const bool supportsX8Y8Mm     = m_pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Uint);
-        const bool supportsX16Mm      = m_pDevice->SupportsFormat(ChNumFormat::X16_MM10_Uint);
-        const bool supportsX16Y16Mm   = m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM10_Uint);
+        const bool supportsX16Mm10    = m_pDevice->SupportsFormat(ChNumFormat::X16_MM10_Uint);
+        const bool supportsX16Y16Mm10 = m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM10_Uint);
         const bool supportsX16Mm12    = m_pDevice->SupportsFormat(ChNumFormat::X16_MM12_Uint);
         const bool supportsX16Y16Mm12 = m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM12_Uint);
 
@@ -574,17 +593,41 @@ void Image::DetermineFormatForPlane(
                 { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
             switch (format.format)
             {
-            case ChNumFormat::P016:
-                pFormat->format = ChNumFormat::X16_Uint;
-                break;
             case ChNumFormat::P010:
             case ChNumFormat::P210:
-                pFormat->format = supportsX16Mm ? ChNumFormat::X16_MM10_Uint : ChNumFormat::X16_Uint;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+            case ChNumFormat::YUV_420P10:
+            case ChNumFormat::YUV_422P10:
+            case ChNumFormat::YUV_444P10:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+            case ChNumFormat::P410:
+#endif
+                pFormat->format = supportsX16Mm10 ? ChNumFormat::X16_MM10_Uint : ChNumFormat::X16_Uint;
                 break;
             case ChNumFormat::P012:
             case ChNumFormat::P212:
             case ChNumFormat::P412:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+            case ChNumFormat::YUV_420P12:
+            case ChNumFormat::YUV_422P12:
+            case ChNumFormat::YUV_444P12:
+#endif
                 pFormat->format = supportsX16Mm12 ? ChNumFormat::X16_MM12_Uint : ChNumFormat::X16_Uint;
+                break;
+            case ChNumFormat::P016:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+            case ChNumFormat::P216:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+            case ChNumFormat::YUV_420P16:
+            case ChNumFormat::YUV_422P16:
+            case ChNumFormat::YUV_444P16:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+            case ChNumFormat::P416:
+#endif
+                pFormat->format = ChNumFormat::X16_Uint;
                 break;
             default:
                 pFormat->format = supportsX8Mm ? ChNumFormat::X8_MM_Uint  : ChNumFormat::X8_Uint;
@@ -598,40 +641,74 @@ void Image::DetermineFormatForPlane(
             case ChNumFormat::NV11:
             case ChNumFormat::NV12:
             case ChNumFormat::NV21:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+            case ChNumFormat::NV24:
+#endif
             case ChNumFormat::P208:
                 pFormat->format  = supportsX8Y8Mm ? ChNumFormat::X8Y8_MM_Uint : ChNumFormat::X8Y8_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 break;
             case ChNumFormat::P016:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+            case ChNumFormat::P216:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+            case ChNumFormat::P416:
+#endif
                 pFormat->format  = ChNumFormat::X16Y16_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 break;
             case ChNumFormat::P010:
             case ChNumFormat::P210:
-                pFormat->format  = supportsX16Y16Mm ? ChNumFormat::X16Y16_MM10_Uint : ChNumFormat::X16Y16_Uint;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+            case ChNumFormat::P410:
+#endif
+                pFormat->format  = supportsX16Y16Mm10 ? ChNumFormat::X16Y16_MM10_Uint : ChNumFormat::X16Y16_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 break;
             case ChNumFormat::P012:
             case ChNumFormat::P212:
+            case ChNumFormat::P412:
                 pFormat->format  = supportsX16Y16Mm12 ? ChNumFormat::X16Y16_MM12_Uint : ChNumFormat::X16Y16_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 break;
-            case ChNumFormat::P412:
-                // The U and V planes in any 4:4:4 format are separate so use a format that only has one channel.
-                pFormat->format = supportsX16Mm12 ? ChNumFormat::X16_MM12_Uint : ChNumFormat::X16_Uint;
-                pFormat->swizzle =
-                    { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-                break;
             case ChNumFormat::YV12:
-                // The U and V planes in YV12 are separate so use a format that only has one channel for this.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+            case ChNumFormat::YV16:
+            case ChNumFormat::YV24:
+#endif
+                // The U and V planes in these formats are separate so use a format that only has one channel for this.
                 pFormat->format  = supportsX8Mm ? ChNumFormat::X8_MM_Uint : ChNumFormat::X8_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 break;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+            case ChNumFormat::YUV_420P10:
+            case ChNumFormat::YUV_422P10:
+            case ChNumFormat::YUV_444P10:
+                pFormat->format  = supportsX16Mm10 ? ChNumFormat::X16_MM10_Uint : ChNumFormat::X16_Uint;
+                pFormat->swizzle =
+                    { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                break;
+            case ChNumFormat::YUV_420P12:
+            case ChNumFormat::YUV_422P12:
+            case ChNumFormat::YUV_444P12:
+                pFormat->format  = supportsX16Mm12 ? ChNumFormat::X16_MM12_Uint : ChNumFormat::X16_Uint;
+                pFormat->swizzle =
+                    { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                break;
+            case ChNumFormat::YUV_420P16:
+            case ChNumFormat::YUV_422P16:
+            case ChNumFormat::YUV_444P16:
+                pFormat->format  = ChNumFormat::X16_Uint;
+                pFormat->swizzle =
+                    { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                break;
+#endif
             default:
                 PAL_ASSERT_ALWAYS();
                 break;

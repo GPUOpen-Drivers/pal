@@ -558,6 +558,16 @@ enum class UserDataMapping : uint32
     CompositeData           = 0x10000023, ///< The composite structure that includes sample info, DynamicDualSrcBlendInfo
                                           ///   and topology. It can be valid for various shader stages.
 
+    // Range of values for a user data PAL metadata register to be resolved at pipeline create time in PAL.
+    // PipelineLinkStart+N is initialized by PAL to the (low 32 bits of the) address of symbol _amdgpu_pipelineLinkN
+    // in any ELF piece of the pipeline. For odd N, the symbol is optional; if it is not present, the register is
+    // initialized to 0. For even N, the symbol is not optional; if it is not present, PAL pipeline creation fails
+    // with an error.
+    // The semantics of the various values of N are internal to the compiler implementation, as it generates both
+    // the ELF defining the symbol and the ELF using the user data SGPR.
+    PipelineLinkStart      = 0x10001000,
+    PipelineLinkEnd        = 0x100010FF,
+
     NotMapped              = 0xFFFFFFFF,  ///< Register is not mapped to any user-data entry.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
@@ -574,6 +584,9 @@ enum class UserDataMapping : uint32
                                     ///  address of the indirect user data table.
                                     ///  Subtract 0x20000000.
 };
+
+// Symbol name prefix for pipeline link symbol.
+static constexpr char AmdGpuPipelineLinkPrefix[] = "_amdgpu_pipelineLink";
 
 /// The ABI section type.  The Code (.text), and Data (.data)
 /// sections are the main sections interacted with in the Pipeline ABI.

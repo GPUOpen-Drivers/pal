@@ -1,3 +1,4 @@
+# Copyright (c) 2025 Advanced Micro Devices, Inc. All rights reserved.
 # The proc list which is supposed to be hooked by the loader.
 # LibraryName       type    returnType            functionName       ParameterList
 # Please note:

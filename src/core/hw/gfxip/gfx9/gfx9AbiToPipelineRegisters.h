@@ -915,10 +915,9 @@ static uint32 SpiShaderPgmRsrc3Hs(
 
 // =====================================================================================================================
 static uint32 SpiShaderPgmRsrc4Hs(
-    const Util::PalAbi::CodeObjectMetadata& metadata,
-    const Device&                           device,
-    GfxIpLevel                              gfxLevel,
-    size_t                                  codeLength)
+    const Device& device,
+    GfxIpLevel    gfxLevel,
+    size_t        codeLength)
 {
     SPI_SHADER_PGM_RSRC4_HS spiShaderPgmRsrc4Hs = {};
     spiShaderPgmRsrc4Hs.bits.CU_EN = device.GetCuEnableMaskHi(0, UINT_MAX);
@@ -1068,10 +1067,9 @@ static uint32 SpiShaderPgmRsrc3Ps(
 
 // =====================================================================================================================
 static uint32 SpiShaderPgmRsrc4Ps(
-    const Util::PalAbi::CodeObjectMetadata& metadata,
-    const Device&                           device,
-    GfxIpLevel                              gfxLevel,
-    size_t                                  codeLength)
+    const Device& device,
+    GfxIpLevel    gfxLevel,
+    size_t        codeLength)
 {
     SPI_SHADER_PGM_RSRC4_PS spiShaderPgmRsrc4Ps = {};
     spiShaderPgmRsrc4Ps.bits.CU_EN = device.GetCuEnableMaskHi(0, device.Settings().psCuEnLimitMask);
@@ -1203,8 +1201,7 @@ static uint32 SpiShaderPgmRsrc3Vs(
 
 // =====================================================================================================================
 static uint32 SpiShaderPgmRsrc4Vs(
-    const Util::PalAbi::CodeObjectMetadata& metadata,
-    const Device&                           device)
+    const Device& device)
 {
     constexpr uint16 VsCuDisableMaskHi = 0;
 

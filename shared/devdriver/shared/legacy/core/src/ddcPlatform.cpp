@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -31,8 +31,6 @@
 #endif
 
 #include <stb_sprintf.h>
-
-#include <util/vector.h>
 
 namespace DevDriver
 {
@@ -125,39 +123,63 @@ namespace DevDriver
             //      2. Call a second time to do the actual formatting
             // We'll need two va_lists for this, since each execution of vsnprintf consumes its va_list
 
-            // This buffer has a fixed amount stack-allocated for the common case
-            // It's pretty rare that we need to spill onto the heap.
-            Vector<char, 128> buffer(GenericAllocCb);
             va_list args;
+            // 1. Dry run format to get the required buffer size
+            va_list dryRunArgs;
+            va_start(dryRunArgs, pFormat);
+            va_copy(args, dryRunArgs);
+
+            // This is the buffer requirement including the NULL terminator,
+            int32 requiredSize = Platform::Vsnprintf(nullptr, 0, pFormat, dryRunArgs);
+            va_end(dryRunArgs);
+
+            // if requiredSize < 0 then Platform::Vsnprintf failed.
+            if (requiredSize >= 0)
             {
-                // 1. Dry run format to get the required buffer size
-                va_list dryRunArgs;
-                va_start(dryRunArgs, pFormat);
-                va_copy(args, dryRunArgs);
+                // This buffer has a fixed amount stack-allocated for the common case
+                // It's pretty rare that we need to spill onto the heap.
+                char    stackBuffer[128];
+                char*   heapBuffer = nullptr;
+                // default to using the stack buffer unless we need more space
+                char*   bufferToUse = stackBuffer;
 
-                // This is the buffer requirement including the NULL terminator.
-                const int requiredSize = Platform::Vsnprintf(nullptr, 0, pFormat, dryRunArgs);
-                va_end(dryRunArgs);
+                // add 1 for trailing newline character
+                requiredSize++;
 
-                // Reserve enough space for the fully formatted output and a trailing newline.
-                buffer.ResizeAndZero(requiredSize + 1);
-            }
+                if (requiredSize > static_cast<int32>(sizeof(stackBuffer)))
+                {
+                    heapBuffer = static_cast<char*>(AllocateMemory(requiredSize, 1, true));
 
-            // 2. Do the actual formatting
-            Platform::Vsnprintf(buffer.Data(), buffer.Size(), pFormat, args);
-            va_end(args);
+                    if (heapBuffer == nullptr)
+                    {
+                        // early exit if memory alloc failed
+                        return;
+                    }
 
-            // Append a newline - This keeps consecutive messages clearly delimited.
-            Platform::Strncat(buffer.Data(), "\n", buffer.Size());
+                    bufferToUse = heapBuffer;
+                }
+
+                // 2. Do the actual formatting
+                Platform::Vsnprintf(bufferToUse, requiredSize, pFormat, args);
+                va_end(args);
+
+                bufferToUse[requiredSize - 2] = '\n';
+                bufferToUse[requiredSize - 1] = '\0';
 
 #if DD_PLATFORM_IS_UM
-            printf("[DevDriver] %s", buffer.Data());
+                printf("[DevDriver] %s", bufferToUse);
 #else
-            // On Kernel mode platforms, printf() isn't available, so we skip it and let PlatformDebugPrint handle output
+                // On Kernel mode platforms, printf() isn't available, so we skip it and let PlatformDebugPrint handle output
 #endif
 
-            // Platforms may have additional logging to do - e.g. system logging frameworks like OutputDebugStringA().
-            PlatformDebugPrint(lvl, buffer.Data());
+                // Platforms may have additional logging to do - e.g. system logging frameworks like OutputDebugStringA().
+                PlatformDebugPrint(lvl, bufferToUse);
+
+                if (heapBuffer != nullptr)
+                {
+                    FreeMemory(heapBuffer);
+                }
+            }
         }
 
         ThreadReturnType Thread::ThreadShim(void* pShimParam)

@@ -49,6 +49,7 @@ constexpr uint32 DefaultSpmMemoryLimitInMb      = 128;
 constexpr uint32 DefaultSampleFrequency         = 4096;
 constexpr uint32 DefaultSeMask                  = 0;
 constexpr bool   DefaultEnableInstructionTokens = false;
+constexpr bool   DefaultEnableExecPopTokens     = false;
 
 constexpr uint32 InstrumentationSpecVersion     = 1;
 
@@ -88,7 +89,8 @@ GpuPerfExperimentTraceSource::GpuPerfExperimentTraceSource(
             .enabled = false,
             .memoryLimitInMb = DefaultSqttMemoryLimitInMb,
             .enableInstructionTokens = DefaultEnableInstructionTokens,
-            .seMask = DefaultSeMask
+            .enableExecPopTokens = DefaultEnableExecPopTokens,
+            .seMask = DefaultSeMask,
         }
     ),
     m_spmTraceConfig(
@@ -197,10 +199,11 @@ void GpuPerfExperimentTraceSource::OnTraceAccepted(
             // Configure SQTT
             if (m_sqttTraceConfig.enabled)
             {
-                sampleConfig.sqtt.seDetailedMask = m_sqttTraceConfig.seMask;
-                sampleConfig.sqtt.gpuMemoryLimit = m_sqttTraceConfig.memoryLimitInMb * 1_MiB;
-                sampleConfig.sqtt.tokenMask = ThreadTraceTokenTypeFlags::All;
-                sampleConfig.sqtt.flags.enable = true;
+                sampleConfig.sqtt.seDetailedMask                 = m_sqttTraceConfig.seMask;
+                sampleConfig.sqtt.gpuMemoryLimit                 = m_sqttTraceConfig.memoryLimitInMb * 1_MiB;
+                sampleConfig.sqtt.tokenMask                      = ThreadTraceTokenTypeFlags::All;
+                sampleConfig.sqtt.flags.enable                   = true;
+                sampleConfig.sqtt.flags.enableExecPopTokens      = m_sqttTraceConfig.enableExecPopTokens;
                 sampleConfig.sqtt.flags.supressInstructionTokens =
                     (m_sqttTraceConfig.enableInstructionTokens == false);
             }
@@ -208,10 +211,10 @@ void GpuPerfExperimentTraceSource::OnTraceAccepted(
             // Configure SPM
             if (m_spmTraceConfig.enabled)
             {
-                sampleConfig.perfCounters.numCounters = m_spmTraceConfig.perfCounterIds.NumElements();
-                sampleConfig.perfCounters.pIds = m_spmTraceConfig.perfCounterIds.Data();
+                sampleConfig.perfCounters.numCounters            = m_spmTraceConfig.perfCounterIds.NumElements();
+                sampleConfig.perfCounters.pIds                   = m_spmTraceConfig.perfCounterIds.Data();
                 sampleConfig.perfCounters.spmTraceSampleInterval = m_spmTraceConfig.sampleFrequency;
-                sampleConfig.perfCounters.gpuMemoryLimit = m_spmTraceConfig.memoryLimitInMb * 1_MiB;
+                sampleConfig.perfCounters.gpuMemoryLimit         = m_spmTraceConfig.memoryLimitInMb * 1_MiB;
             }
 
             // Begin the trace
@@ -355,6 +358,13 @@ void GpuPerfExperimentTraceSource::OnSqttConfigUpdated(
     {
         m_sqttTraceConfig.enableInstructionTokens = value.GetBoolOr(DefaultEnableInstructionTokens);
     }
+
+#if (PAL_BUILD_BRANCH >= 2520)
+    if (pJsonConfig->GetValueByKey("enableExecPopTokens", &value))
+    {
+        m_sqttTraceConfig.enableExecPopTokens = value.GetBoolOr(DefaultEnableExecPopTokens);
+    }
+#endif
 
     if (pJsonConfig->GetValueByKey("seMask", &value))
     {
@@ -525,8 +535,8 @@ void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
                         .wgpIndex                   = traceInfo.computeUnit,
                         .traceBufferSize            = traceInfo.bufferSize,
                         .instructionTimingEnabled   = m_sqttTraceConfig.enableInstructionTokens &&
-                                                      TestSeMask(m_sqttTraceConfig.seMask,
-                                                                 traceInfo.shaderEngine)
+                                                      TestSeMask(m_sqttTraceConfig.seMask, traceInfo.shaderEngine),
+                        .execPopTokensEnabled       = m_sqttTraceConfig.enableExecPopTokens
                     };
 
                     TraceChunkInfo info = { };

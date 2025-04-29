@@ -73,6 +73,40 @@ public:
     /// Moves the iterator back to the start of the list.
     void Restart() { m_pCurrent = m_pList->m_header.pNext; }
 
+    ///@{
+    /// @internal satisfies C++ iterator concepts
+    ///
+    /// These are a convenience intended to be used by c++ language features such as range-based-for-loops.
+    [[nodiscard]] T& operator*()  const noexcept { return *Get(); }
+    [[nodiscard]] T* operator->() const noexcept { return  Get(); }
+
+    ListIterator& operator++() noexcept
+    {
+        Next();
+        return *this;
+    }
+
+    ListIterator operator++(int) noexcept
+    {
+        const ListIterator ret = *this;
+        Next();
+        return ret;
+    }
+
+    ListIterator& operator--() noexcept
+    {
+        Prev();
+        return *this;
+    }
+
+    ListIterator operator--(int) noexcept
+    {
+        const ListIterator ret = *this;
+        Prev();
+        return ret;
+    }
+    ///@}
+
     /// Equality operator. Returns true if two iterators point to the same position in the list.
     bool operator ==(const ListIterator<T, Allocator>& listIterator) const
     {
@@ -160,7 +194,7 @@ public:
     ///
     /// @returns @ref Success if the value was successfully added to the list or @ref ErrorOutOfMemory if the operation
     ///          failed because of an internal failure to allocate system memory.
-    Result PushBack(const T& data)  { return InsertBefore(&m_footer, data); }
+    Result PushBack(const T& data) { return InsertBefore(&m_footer, data); }
 
     /// Inserts the specified data before a particular node in a list.
     ///
@@ -185,6 +219,28 @@ public:
     ///                           removes the final remaining node in the list then the iterator will point at the
     ///                           End() footer.
     void Erase(ListIterator<T, Allocator>* pIterator);
+
+    ///@{
+    /// @internal Satisfies concept `range_expression`
+    ///
+    /// These are a convenience intended to be used by c++ language features such as range-based-for-loops.
+    using value_type      = T;
+    using reference       = T&;
+    using const_reference = const T&;
+    using iterator        = ListIterator<T, Allocator>;
+    using const_iterator  = const iterator;
+    using difference_type = ptrdiff_t;
+    using size_type       = size_t;
+
+    iterator           begin()        noexcept { return Begin(); }
+    iterator           end()          noexcept { return End(); }
+    const_iterator     begin()  const noexcept { return Begin(); }
+    const_iterator     end()    const noexcept { return End(); }
+    const_iterator     cbegin() const noexcept { return Begin(); }
+    const_iterator     cend()   const noexcept { return End(); }
+    [[nodiscard]] bool empty()  const noexcept { return NumElements() == 0; }
+    size_type          size()   const noexcept { return NumElements(); }
+    ///@}
 
 private:
     void   Erase(ListNode<T>* pNode);

@@ -526,6 +526,11 @@ struct BindPipelineData
     ICmdBuffer*       pCmdBuffer; ///< The command buffer that is recording this command
     uint64            apiPsoHash; ///< The hash to correlate APIs and corresponding PSOs.
     PipelineBindPoint bindPoint;  ///< The bind point of the pipeline within a queue.
+
+    /// If the handler of this callback inserts an RGP trace marker using ICmdBuffer::CmdInsertRgpTraceMarker(),
+    /// these flags should be passed to that call to control which sub-queue(s) in the command buffer should insert
+    /// the marker.
+    RgpMarkerSubQueueFlags subQueueFlags;
 };
 
 #if PAL_DEVELOPER_BUILD

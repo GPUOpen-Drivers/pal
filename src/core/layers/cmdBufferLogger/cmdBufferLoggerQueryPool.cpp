@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,38 @@
  *
  **********************************************************************************************************************/
 
-namespace DevDriver
+#if PAL_DEVELOPER_BUILD
+
+#include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
+#include "core/layers/cmdBufferLogger/cmdBufferLoggerQueryPool.h"
+
+namespace Pal
+{
+namespace CmdBufferLogger
 {
 
-// Returns the version string associated with the current release
-const char* GetVersionString();
+// =====================================================================================================================
+QueryPool::QueryPool(
+    IQueryPool*   pNextPool,
+    const Device* pDevice)
+    :
+    QueryPoolDecorator(pNextPool, pDevice),
+    m_pBoundMemObj(nullptr),
+    m_boundMemOffset(0)
+{
+}
 
-} // DevDriver
+// =====================================================================================================================
+Result QueryPool::BindGpuMemory(
+    IGpuMemory* pGpuMemory,
+    gpusize     offset)
+{
+    m_pBoundMemObj   = pGpuMemory;
+    m_boundMemOffset = offset;
+    return m_pNextLayer->BindGpuMemory(NextGpuMemory(pGpuMemory), offset);
+}
+
+} // CmdBufferLogger
+} // Pal
+
+#endif

@@ -1245,19 +1245,6 @@
       "Description": "Controls fine-grained optimization of each command buffer's PM4 stream. Can improve performance of CP-bound applications that have CPU cycles to spare."
     },
     {
-      "Name": "CmdBufOptimizePm4Split",
-      "Tags": [
-        "Command Buffer",
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "Description": "Controls fine-grained optimization of each command buffer's PM4 stream. If set, prioritizes reducing register writes over CP overhead by splitting packets."
-    },
-    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [

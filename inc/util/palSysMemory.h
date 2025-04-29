@@ -540,12 +540,12 @@ public:
     /// @param [in] allocInfo Contains information about the requested allocation.
     ///
     /// @returns Pointer to the allocated memory, nullptr if the allocation failed.
-    void* Alloc(const AllocInfo& allocInfo);
+    static void* Alloc(const AllocInfo& allocInfo);
 
     /// Frees memory.
     ///
     /// @param [in] freeInfo Contains information about the requested free.
-    void Free(const FreeInfo& freeInfo);
+    static void Free(const FreeInfo& freeInfo);
 };
 
 /**

@@ -94,13 +94,13 @@ Result ComputeShaderLibrary::PostInit(
                         {
                             switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
                             {
-                            case HashLiteralString(".stack_frame_size_in_bytes"):
+                            case CompileTimeHashString(".stack_frame_size_in_bytes"):
                             {
                                 result = pReader->UnpackNext(&stats.stackFrameSizeInBytes);
                                 m_maxStackSizeInBytes = Max(m_maxStackSizeInBytes, stats.stackFrameSizeInBytes);
                                 break;
                             }
-                            case HashLiteralString(".shader_subtype"):
+                            case CompileTimeHashString(".shader_subtype"):
                             {
                                 Util::Abi::ApiShaderSubType shaderSubType;
                                 Util::PalAbi::Metadata::DeserializeEnum(pReader, &shaderSubType);

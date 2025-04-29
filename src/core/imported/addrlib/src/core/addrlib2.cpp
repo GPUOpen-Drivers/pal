@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -408,7 +408,7 @@ ADDR_E_RETURNCODE Lib::CopyLinearSurface(
 {
     ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
     ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
-    ADDR2_MIP_INFO                    mipInfo[MaxMipLevels] = {0};
+    ADDR2_MIP_INFO                    mipInfo[MaxMipLevels] = {{0}};
     ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 

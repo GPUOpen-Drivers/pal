@@ -311,6 +311,7 @@ ColorBlendState::ColorBlendState(
         pCbBlendControl->bits.ALPHA_DESTBLEND      = HwBlendOp(mrtInfo.dstBlendAlpha);
         pCbBlendControl->bits.COLOR_COMB_FCN       = HwBlendFunc(mrtInfo.blendFuncColor);
         pCbBlendControl->bits.ALPHA_COMB_FCN       = HwBlendFunc(mrtInfo.blendFuncAlpha);
+        pCbBlendControl->bits.DISABLE_ROP3         = mrtInfo.disableLogicOp;
 
         // BlendOps are forced to ONE for MIN/MAX blend funcs
         if ((mrtInfo.blendFuncColor == Pal::BlendFunc::Min) || (mrtInfo.blendFuncColor == Pal::BlendFunc::Max))

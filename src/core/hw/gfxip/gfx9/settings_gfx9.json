@@ -2927,20 +2927,6 @@
       "Description": "On WGP harvesting asymmetric configuration, we scan all of the SAs to find the minimal number of WGPs to override the psCuEnLimitMask setting for performance."
     },
     {
-      "Name": "EnableHoleyOptimization",
-      "Tags": [
-        "General",
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Description": "Enable the 'holey' optimization to minimize CP overhead. Unnecessary for ASICs running F32 cores."
-    },
-    {
       "Name": "Gfx11EnableContextRegPairOptimization",
       "Tags": [
         "General",

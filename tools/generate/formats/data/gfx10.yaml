@@ -23,7 +23,6 @@
  #
  #######################################################################################################################
 
-
 config:
   ifdefs: []
   name: Gfx10
@@ -2152,3 +2151,185 @@ hwFormats:
       numFmtEnum: NUMBER_FLOAT
       blend: false
       emulatedMrt: true
+  _ReservedBE:
+    <<: *hwDefaults
+  P216:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 923
+  YUV_420P10:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YUV_422P10:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YUV_444P10:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YUV_420P12:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YUV_422P12:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YUV_444P12:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YUV_420P16:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YUV_422P16:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YUV_444P16:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 924
+  YV16:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 925
+  YV24:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 925
+  NV24:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 925
+  P410:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 925
+  P416:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+    versioning: 925

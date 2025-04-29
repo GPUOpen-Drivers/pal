@@ -52,8 +52,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const Device&              device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::ComputeCmdBuffer(device, createInfo, device.BarrierMgr(), &m_cmdStream,
-                          device.Settings().gfx11EnableShRegPairOptimizationCs),
+    Pal::ComputeCmdBuffer(device, createInfo, device.BarrierMgr(), &m_cmdStream, false),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_issueSqttMarkerEvent(device.Parent()->IssueSqttMarkerEvents()),
@@ -64,19 +63,12 @@ ComputeCmdBuffer::ComputeCmdBuffer(
                 CmdStreamUsage::Workload,
                 IsNested()),
     m_pSignatureCs(&device.GetNullCsSignature()),
-    m_baseUserDataRegCs(Device::GetBaseUserDataReg(HwShaderStage::Cs)),
-    m_supportsShPairsPacketCs(device.Settings().gfx11EnableShRegPairOptimizationCs),
-    m_validUserEntryRegPairsCs{},
-    m_numValidUserEntriesCs(0),
-    m_minValidUserEntryLookupValueCs(1),
     m_ringSizeComputeScratch(0)
 {
     const PalPlatformSettings& platformSettings = device.Parent()->GetPlatform()->PlatformSettings();
     m_describeDispatch                          = (device.Parent()->IssueSqttMarkerEvents() ||
                                                    device.Parent()->IssueCrashAnalysisMarkerEvents() ||
                                                    platformSettings.cmdBufferLoggerConfig.embedDrawDispatchInfo);
-
-    memset(&m_validUserEntryRegPairsLookupCs[0], 0, sizeof(m_validUserEntryRegPairsLookupCs));
 
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
@@ -106,25 +98,6 @@ void ComputeCmdBuffer::ResetState()
     SetDispatchFunctions(false);
 
     m_pSignatureCs = &m_device.GetNullCsSignature();
-
-    // All user data entries are invalid upon a state reset.
-
-    // In order to wrap, we'd need to have 2^32 draws or dispatches occur.
-    // So we'd like to always handle the wrapping logic in ResetState(), then we wouldn't need to check it at all
-    // during dispatch or draw validation.
-    // (We can be pretty sure that no command buffer is going to have that many draws or dispatches
-    // in a single command buffer -- GPUs are doing a few dozen millions of draws per second,
-    // 2^32 is 4 billion per command buffer.)
-    if (m_minValidUserEntryLookupValueCs > 1)
-    {
-        memset(&m_validUserEntryRegPairsLookupCs[0], 0, sizeof(m_validUserEntryRegPairsLookupCs));
-        m_minValidUserEntryLookupValueCs = 1;
-        m_numValidUserEntriesCs = 0;
-    }
-    else
-    {
-        PAL_ASSERT(m_numValidUserEntriesCs == 0);
-    }
 
     m_ringSizeComputeScratch  = 0;
 }
@@ -397,16 +370,14 @@ void ComputeCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     gpusize           offset,
     uint32            value)
 {
-    const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&dstGpuMemory);
-    WriteDataInfo    writeData  = {};
-
-    writeData.engineType = GetEngineType();
-    writeData.dstAddr    = pGpuMemory->GetBusAddrMarkerVa() + offset;
-    writeData.dstSel     = dst_sel__mec_write_data__memory;
-
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-    pCmdSpace += m_cmdUtil.BuildWriteData(writeData, value, pCmdSpace);
-    m_cmdStream.CommitCommands(pCmdSpace);
+    const GpuMemory*     pGpuMemory = static_cast<const GpuMemory*>(&dstGpuMemory);
+    const WriteDataInfo  writeData  =
+    {
+        .engineType = GetEngineType(),
+        .dstAddr    = pGpuMemory->GetBusAddrMarkerVa() + offset,
+        .dstSel     = dst_sel__mec_write_data__memory,
+    };
+    CmdUtil::BuildWriteData(writeData, value, m_cmdStream.AllocateCommands(CmdUtil::WriteDataSizeDwords + 1));
 }
 
 // =====================================================================================================================
@@ -428,8 +399,27 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
-    const gpusize address   = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
-    uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
+    // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
+    m_barrierMgr.OptimizeStageMask(this, BarrierType::Global, &stageMask, nullptr);
+
+    uint32*       pCmdSpace           = m_cmdStream.ReserveCommands();
+    const gpusize address             = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
+    const bool    issueReleaseMem     = TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBottomOfPipe);
+    bool          releaseMemWaitCpDma = false;
+
+    // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
+    // this function expect that the prior blts have completed by the time the event is written to memory.
+    // Given that our CP DMA blts are asynchronous to the pipeline stages the only way to satisfy this requirement
+    // is to force the ME to stall until the CP DMAs are completed.
+    if (GfxBarrierMgr::NeedWaitCpDma(this, stageMask))
+    {
+        releaseMemWaitCpDma = issueReleaseMem && m_device.EnableReleaseMemWaitCpDma();
+        if (releaseMemWaitCpDma == false)
+        {
+            pCmdSpace += CmdUtil::BuildWaitDmaData(pCmdSpace);
+        }
+        SetCpBltState(false);
+    }
 
     // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
     // This is easiest to implement in this order:
@@ -437,11 +427,12 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     // 2. The CP stages can write the value directly using COPY_DATA in the MEC.
     // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
     // doing an MEC write is probably the least impactful thing we could do in that case.
-    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
+    if (issueReleaseMem)
     {
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.dstAddr = address;
-        releaseInfo.dataSel = data_sel__mec_release_mem__send_gpu_clock_counter;
+        releaseInfo.dstAddr        = address;
+        releaseInfo.dataSel        = data_sel__mec_release_mem__send_gpu_clock_counter;
+        releaseInfo.gfx11WaitCpDma = releaseMemWaitCpDma;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
@@ -468,9 +459,27 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
-    const bool is32Bit = (dataSize == ImmediateDataWidth::ImmediateData32Bit);
+    // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
+    m_barrierMgr.OptimizeStageMask(this, BarrierType::Global, &stageMask, nullptr);
 
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    uint32*    pCmdSpace           = m_cmdStream.ReserveCommands();
+    const bool is32Bit             = (dataSize == ImmediateDataWidth::ImmediateData32Bit);
+    const bool issueReleaseMem     = TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBottomOfPipe);
+    bool       releaseMemWaitCpDma = false;
+
+    // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
+    // this function expect that the prior blts have completed by the time the event is written to memory.
+    // Given that our CP DMA blts are asynchronous to the pipeline stages the only way to satisfy this requirement
+    // is to force the ME to stall until the CP DMAs are completed.
+    if (GfxBarrierMgr::NeedWaitCpDma(this, stageMask))
+    {
+        releaseMemWaitCpDma = issueReleaseMem && m_device.EnableReleaseMemWaitCpDma();
+        if (releaseMemWaitCpDma == false)
+        {
+            pCmdSpace += CmdUtil::BuildWaitDmaData(pCmdSpace);
+        }
+        SetCpBltState(false);
+    }
 
     // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
     // This is easiest to implement in this order:
@@ -478,13 +487,14 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     // 2. The CP stages can write the value directly using COPY_DATA in the MEC.
     // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
     // doing an MEC write is probably the least impactful thing we could do in that case.
-    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
+    if (issueReleaseMem)
     {
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.dstAddr = address;
-        releaseInfo.data    = data;
-        releaseInfo.dataSel = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
-                                      : data_sel__mec_release_mem__send_64_bit_data;
+        releaseInfo.dstAddr        = address;
+        releaseInfo.data           = data;
+        releaseInfo.dataSel        = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
+                                             : data_sel__mec_release_mem__send_64_bit_data;
+        releaseInfo.gfx11WaitCpDma = releaseMemWaitCpDma;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
@@ -525,8 +535,10 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
             if (pNewPalette != nullptr)
             {
                 uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+                const gpusize tsGpuVa = GetWaitIdleTsGpuVa(&pCmdSpace);
                 pCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint,
-                                                       TimestampGpuVirtAddr(),
+                                                       tsGpuVa,
+                                                       WaitIdleTsValue(),
                                                        &m_cmdStream,
                                                        pCmdSpace);
                 m_cmdStream.CommitCommands(pCmdSpace);
@@ -536,65 +548,6 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
             m_computeState.pipelineState.dirtyFlags.borderColorPalette = 1;
         }
     }
-}
-
-// =====================================================================================================================
-// Helper function to write a single user-sgpr. This function should always be preferred for user data writes over
-// WriteSetOneShReg() if the SGPR is written before or during draw/dispatch validation.
-//
-// On GFX11, this function will add the register offset and value into the relevant array of packed register pairs to be
-// written in WritePackedUserDataEntriesToSgprs().
-//
-// Returns the next unused DWORD in pDeCmdSpace.
-uint32* ComputeCmdBuffer::SetUserSgprReg(
-    uint16  regAddr,
-    uint32  regValue,
-    uint32* pCmdSpace)
-{
-    pCmdSpace = SetSeqUserSgprRegs(regAddr,
-                                   regAddr,
-                                   &regValue,
-                                   pCmdSpace);
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Helper function to write a sequence of user-sgprs. This function should always be preferred for user data writes over
-// WriteSetSeqShRegs() if the SGPRs are written before or during draw/dispatch validation.
-//
-// On GFX11, this function will add the offsets/values into the relevant array of packed register pairs to be written
-// in WritePackedUserDataEntriesToSgprs().
-//
-// Returns the next unused DWORD in pCmdSpace.
-uint32* ComputeCmdBuffer::SetSeqUserSgprRegs(
-    uint16      startAddr,
-    uint16      endAddr,
-    const void* pValues,
-    uint32*     pCmdSpace)
-{
-    // This function is exclusively meant for writing user-SGPR regs. Use the regular WriteSetSeqShRegs/OneShReg() for
-    // non user-SGPR SH reg writes.
-    PAL_ASSERT(InRange<uint16>(startAddr, m_baseUserDataRegCs, m_baseUserDataRegCs + NumUserDataRegistersCompute));
-
-    if (m_supportsShPairsPacketCs)
-    {
-        uint16 baseUserDataReg = m_baseUserDataRegCs;
-        SetSeqUserDataEntryPairPackedValues(startAddr,
-                                            endAddr,
-                                            baseUserDataReg,
-                                            pValues,
-                                            m_validUserEntryRegPairsCs,
-                                            &m_validUserEntryRegPairsLookupCs[0],
-                                            m_minValidUserEntryLookupValueCs,
-                                            &m_numValidUserEntriesCs);
-    }
-    else
-    {
-        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startAddr, endAddr, ShaderCompute, pValues, pCmdSpace);
-    }
-
-    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -625,22 +578,9 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 
     if (alreadyWritten == false)
     {
-        if (m_supportsShPairsPacketCs)
-        {
-            CmdStream::AccumulateUserDataEntriesForSgprs<false>(m_pSignatureCs->stage,
-                                                                *pUserData,
-                                                                m_baseUserDataRegCs,
-                                                                m_validUserEntryRegPairsCs,
-                                                                &m_validUserEntryRegPairsLookupCs[0],
-                                                                m_minValidUserEntryLookupValueCs,
-                                                                &m_numValidUserEntriesCs);
-        }
-        else
-        {
-            pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
-                                                                                      *pUserData,
-                                                                                      pCmdSpace);
-        }
+        pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
+                                                                                  *pUserData,
+                                                                                  pCmdSpace);
     }
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
@@ -704,9 +644,9 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         {
             if (m_pSignatureCs->stage.spillTableRegAddr != UserDataNotMapped)
             {
-                pCmdSpace = SetUserSgprReg(m_pSignatureCs->stage.spillTableRegAddr,
-                                           LowPart(pSpillTable->gpuVirtAddr),
-                                           pCmdSpace);
+                pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
+                                                                        LowPart(pSpillTable->gpuVirtAddr),
+                                                                        pCmdSpace);
             }
         }
     } // if current pipeline spills user-data
@@ -736,10 +676,10 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
     {
         const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
 
-        pCmdSpace = pNewPipeline->WriteCommands(&m_cmdStream,
-                                                pCmdSpace,
-                                                m_computeState.dynamicCsInfo,
-                                                m_buildFlags.prefetchShaders);
+        pCmdSpace = pNewPipeline->WriteCommands<true>(&m_cmdStream,
+                                                      pCmdSpace,
+                                                      m_computeState.dynamicCsInfo,
+                                                      m_buildFlags.prefetchShaders);
 
 #if PAL_DEVELOPER_BUILD
         if (enablePm4Instrumentation)
@@ -786,15 +726,11 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
             *reinterpret_cast<DispatchDims*>(CmdAllocateEmbeddedData(3, 4, &indirectGpuVirtAddr)) = logicalSize;
         }
 
-        pCmdSpace = SetSeqUserSgprRegs(m_pSignatureCs->numWorkGroupsRegAddr,
-                                       (m_pSignatureCs->numWorkGroupsRegAddr + 1),
-                                       &indirectGpuVirtAddr,
-                                       pCmdSpace);
-    }
-
-    if (m_numValidUserEntriesCs > 0)
-    {
-        pCmdSpace = WritePackedUserDataEntriesToSgprs(pCmdSpace);
+        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(m_pSignatureCs->numWorkGroupsRegAddr,
+                                                  (m_pSignatureCs->numWorkGroupsRegAddr + 1),
+                                                  ShaderCompute,
+                                                  &indirectGpuVirtAddr,
+                                                  pCmdSpace);
     }
 
 #if PAL_DEVELOPER_BUILD
@@ -835,7 +771,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     gpusize kernargsGpuVa = 0;
     uint32 ldsSize = metadata.GroupSegmentFixedSize();
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
     {
         GfxCmdBuffer::CopyHsaKernelArgsToMem(offset, threads, logicalSize, &kernargsGpuVa, &ldsSize, metadata);
     }
@@ -858,10 +794,10 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     if (m_computeState.pipelineState.dirtyFlags.pipeline)
     {
-        pCmdSpace = pPipeline->WriteCommands(&m_cmdStream,
-                                             pCmdSpace,
-                                             m_computeState.dynamicCsInfo,
-                                             m_buildFlags.prefetchShaders);
+        pCmdSpace = pPipeline->WriteCommands<true>(&m_cmdStream,
+                                                   pCmdSpace,
+                                                   m_computeState.dynamicCsInfo,
+                                                   m_buildFlags.prefetchShaders);
 
         m_pSignatureCs = &pPipeline->Signature();
     }
@@ -884,12 +820,13 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     // Many HSA ELFs request private segment buffer registers, but never actually use them. Space is reserved to
     // adhere to initialization order but will be unset as we do not support scratch space in this execution path.
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER))
+    if (TestAnyFlagSet(desc.kernel_code_properties,
+                       llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER))
     {
         startReg += 4;
     }
 
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_PTR))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_PTR))
     {
         const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
 
@@ -912,7 +849,11 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
         pAqlPacket->private_segment_size = metadata.PrivateSegmentFixedSize();
         pAqlPacket->group_segment_size   = ldsSize;
 
-        pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &aqlPacketGpu, pCmdSpace);
+        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startReg,
+                                                  (startReg + 1),
+                                                  ShaderCompute,
+                                                  &aqlPacketGpu,
+                                                  pCmdSpace);
         startReg += 2;
     }
 
@@ -923,24 +864,32 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     // unable to infer if queue ptr will be used or not. As a result, the pass has to assume the queue ptr
     // might be used, so HSA ELFs request queue ptrs but never actually use them. SGPR Space is reserved to adhere to
     // initialization order for COV4 when ENABLE_SGPR_QUEUE_PTR is set, but is unset as we can't support queue ptr.
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_QUEUE_PTR))
     {
         startReg += 2;
     }
 
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
     {
-        pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &kernargsGpuVa, pCmdSpace);
+        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startReg,
+                                                  (startReg + 1),
+                                                  ShaderCompute,
+                                                  &kernargsGpuVa,
+                                                  pCmdSpace);
         startReg += 2;
     }
 
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_ID))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_ID))
     {
         // This feature may be enabled as a side effect of indirect calls.
         // However, the compiler team confirmed that the dispatch id itself is not used,
         // so safe to send 0 for each dispatch.
         constexpr uint32 DispatchId[2] = {};
-        pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &DispatchId, pCmdSpace);
+        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startReg,
+                                                  (startReg + 1),
+                                                  ShaderCompute,
+                                                  &DispatchId,
+                                                  pCmdSpace);
         startReg += 2;
     }
 
@@ -950,11 +899,6 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) <= computePgmRsrc2.bitfields.USER_SGPR);
 #endif
-
-    if (m_numValidUserEntriesCs > 0)
-    {
-        pCmdSpace = WritePackedUserDataEntriesToSgprs(pCmdSpace);
-    }
 
 #if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
@@ -1002,76 +946,15 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
 
     if (m_pSignatureCs->userDataHash != pPrevSignature->userDataHash)
     {
-        if (m_supportsShPairsPacketCs && (m_numValidUserEntriesCs > 0))
-        {
-            // Even though we ignore dirty flags here, we still need to accumulate user data entries into packed
-            // register pairs for each draw/dispatch when the active pipeline has changed and there are pending register
-            // writes (so we only need to write a single packed packet for user entries). If there are no pending writes
-            // in the valid user entry packed register pair array, it is more performant to write the user data entries
-            // into SGPRs via the non-packed SET_SH_REG packet as we can guarantee SGPRs are contiguous when
-            // IgnoreDirtyFlags = true.
-            CmdStream::AccumulateUserDataEntriesForSgprs<true>(m_pSignatureCs->stage,
-                                                               userData,
-                                                               m_baseUserDataRegCs,
-                                                               m_validUserEntryRegPairsCs,
-                                                               &m_validUserEntryRegPairsLookupCs[0],
-                                                               m_minValidUserEntryLookupValueCs,
-                                                               &m_numValidUserEntriesCs);
-        }
-        else
-        {
-            pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
-                                                                                     userData,
-                                                                                     pCmdSpace);
-        }
+        pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
+                                                                                 userData,
+                                                                                 pCmdSpace);
 
         written = true;
         (*ppCmdSpace) = pCmdSpace;
     }
 
     return written;
-}
-
-// =====================================================================================================================
-// Helper function to validate and write packed user data entries to SGPRs. Returns next unused DWORD in command space.
-template <bool Pm4OptImmediate>
-uint32* ComputeCmdBuffer::WritePackedUserDataEntriesToSgprs(
-    uint32* pCmdSpace)
-{
-    PAL_ASSERT(m_numValidUserEntriesCs <= NumUserDataRegistersCompute);
-
-    pCmdSpace = m_cmdStream.WriteSetShRegPairs<ShaderCompute, Pm4OptImmediate>(m_validUserEntryRegPairsCs,
-                                                                               m_numValidUserEntriesCs,
-                                                                               pCmdSpace);
-
-    // All entries are invalid once written to the command stream.
-    m_minValidUserEntryLookupValueCs++;
-    PAL_ASSERT(m_minValidUserEntryLookupValueCs < MaxUserEntryLookupSetVal);
-    m_numValidUserEntriesCs = 0;
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    memset(&m_validUserEntryRegPairsCs[0], 0, sizeof(m_validUserEntryRegPairsCs));
-#endif
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Wrapper for the real WritePackedUserDataEntriesToSgprs() for when the caller doesn't know if the immediate mode
-// pm4 optimizer is enabled.
-uint32* ComputeCmdBuffer::WritePackedUserDataEntriesToSgprs(
-    uint32* pCmdSpace)
-{
-    if (m_cmdStream.Pm4OptimizerEnabled())
-    {
-        pCmdSpace = WritePackedUserDataEntriesToSgprs<true>(pCmdSpace);
-    }
-    else
-    {
-        pCmdSpace = WritePackedUserDataEntriesToSgprs<false>(pCmdSpace);
-    }
-
-    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -1260,19 +1143,7 @@ void ComputeCmdBuffer::CmdWaitBusAddressableMemoryMarker(
     CompareFunc       compareFunc)
 {
     const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&gpuMemory);
-
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
-                                           mem_space__me_wait_reg_mem__memory_space,
-                                           CmdUtil::WaitRegMemFunc(compareFunc),
-                                           engine_sel__me_wait_reg_mem__micro_engine,
-                                           pGpuMemory->GetBusAddrMarkerVa(),
-                                           data,
-                                           mask,
-                                           pCmdSpace);
-
-    m_cmdStream.CommitCommands(pCmdSpace);
+    CmdWaitMemoryValue(pGpuMemory->GetBusAddrMarkerVa(), data, mask, compareFunc);
 }
 
 // =====================================================================================================================
@@ -1284,6 +1155,22 @@ void ComputeCmdBuffer::CmdCommentString(
     pCmdSpace += m_cmdUtil.BuildCommentString(pComment, ShaderCompute, pCmdSpace);
 
     m_cmdStream.CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+size_t ComputeCmdBuffer::BuildWriteToZero(
+    gpusize       dstAddr,
+    uint32        numDwords,
+    const uint32* pZeros,
+    uint32*       pCmdSpace
+    ) const
+{
+    WriteDataInfo info = {};
+    info.engineType = EngineTypeCompute;
+    info.dstAddr    = dstAddr;
+    info.dstSel     = dst_sel__mec_write_data__memory;
+
+    return CmdUtil::BuildWriteData(info, numDwords, pZeros, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -1364,7 +1251,12 @@ void ComputeCmdBuffer::WritePostambleCommands(
         // We also need a wait-for-idle before the atomic increment because command memory might be read or written
         // by dispatches. If we don't wait for idle then the driver might reset and write over that memory before the
         // shaders are done executing.
-        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        const gpusize tsGpuVa = pCmdBuffer->GetWaitIdleTsGpuVa(&pCmdSpace);
+        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute,
+                                             tsGpuVa,
+                                             pCmdBuffer->WaitIdleTsValue(),
+                                             true,
+                                             pCmdSpace);
         pCmdSpace += cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
                                             pCmdStream->GetFirstChunk()->BusyTrackerGpuAddr(),
                                             1,
@@ -1437,22 +1329,23 @@ void ComputeCmdBuffer::WriteEventCmd(
     uint32                stageMask,   // Bitmask of PipelineStageFlag
     uint32                data)
 {
-    uint32* pCmdSpace          = m_cmdStream.ReserveCommands();
-    bool   releaseMemWaitCpDma = false;
+    // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
+    m_barrierMgr.OptimizeStageMask(this, BarrierType::Global, &stageMask, nullptr);
 
+    uint32*    pCmdSpace           = m_cmdStream.ReserveCommands();
+    const bool issueReleaseMem     = TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBottomOfPipe);
+    bool       releaseMemWaitCpDma = false;
+
+    // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
+    // this function expect that the prior blts have completed by the time the event is written to memory.
+    // Given that our CP DMA blts are asynchronous to the pipeline stages the only way to satisfy this requirement
+    // is to force the ME to stall until the CP DMAs are completed.
     if (GfxBarrierMgr::NeedWaitCpDma(this, stageMask))
     {
-        // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
-        // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have completed by the time the event
-        // is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages the only way to
-        // satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
-        if (m_device.EnableReleaseMemWaitCpDma())
+        releaseMemWaitCpDma = issueReleaseMem && m_device.EnableReleaseMemWaitCpDma();
+        if (releaseMemWaitCpDma == false)
         {
-            releaseMemWaitCpDma = true;
-        }
-        else
-        {
-            pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+            pCmdSpace += CmdUtil::BuildWaitDmaData(pCmdSpace);
         }
         SetCpBltState(false);
     }
@@ -1463,7 +1356,7 @@ void ComputeCmdBuffer::WriteEventCmd(
     // 2. Any other stages must be implemented by the MEC so just do a direct write.
     // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
     // doing an MEC write is probably the least impactful thing we could do in that case.
-    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
+    if (issueReleaseMem)
     {
         // Implement set/reset with an EOP event written when all prior GPU work completes. Note that waiting on an
         // EOS timestamp and waiting on an EOP timestamp are exactly equivalent on compute queues. There's no reason
@@ -1891,6 +1784,8 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
     const AcquirePoint acqPoint  = AcquirePoint(info.hwAcqPoint);
     const bool         waitCpDma = info.waitCpDma;
 
+    // Can optimize acquire at Eop case if hit it.
+    PAL_ASSERT(acqPoint != AcquirePointEop);
     PAL_ASSERT(info.hwRbSync == SyncRbNone);
 
     // Issue explicit waitCpDma packet if ReleaseMem doesn't support it.
@@ -1901,68 +1796,47 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
         releaseMemWaitCpDma = false;
     }
 
-    // We define an "EOP" wait to mean a release without a WaitRegMem.
-    // If glxSync still has some flags left over we still need a WaitRegMem to issue the GCR.
-    const bool    needWaitRegMem = (acqPoint != AcquirePointEop) || (glxSync != SyncGlxNone);
-    const gpusize timestampAddr  = TimestampGpuVirtAddr();
-
-    if (needWaitRegMem)
-    {
-        // Write a known value to the timestamp.
-        WriteDataInfo writeData = {};
-        writeData.engineType = EngineTypeUniversal;
-        writeData.dstAddr    = timestampAddr;
-        writeData.engineSel  = engine_sel__me_write_data__micro_engine;
-        writeData.dstSel     = dst_sel__me_write_data__tc_l2;
-
-        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, ClearedTimestamp, pCmdSpace);
-    }
-
     // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
     // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
     // trailing acquire_mem packet.
     ReleaseMemGeneric releaseInfo = {};
     releaseInfo.cacheSync      = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
-    releaseInfo.dataSel        = needWaitRegMem ? data_sel__me_release_mem__send_32_bit_low
-                                                : data_sel__me_release_mem__none;
-    releaseInfo.dstAddr        = timestampAddr;
-    releaseInfo.data           = CompletedTimestamp;
+    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.dstAddr        = GetWaitIdleTsGpuVa(&pCmdSpace);
+    releaseInfo.data           = WaitIdleTsValue();
     releaseInfo.gfx11WaitCpDma = releaseMemWaitCpDma;
 
     pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
 
-    if (needWaitRegMem)
+    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
+                                           mem_space__me_wait_reg_mem__memory_space,
+                                           function__me_wait_reg_mem__equal_to_the_reference_value,
+                                           engine_sel__me_wait_reg_mem__micro_engine,
+                                           releaseInfo.dstAddr,
+                                           uint32(releaseInfo.data),
+                                           UINT32_MAX,
+                                           pCmdSpace);
+
+    // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
+    // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
+    if (glxSync != SyncGlxNone)
     {
-        pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
-                                               mem_space__me_wait_reg_mem__memory_space,
-                                               function__me_wait_reg_mem__equal_to_the_reference_value,
-                                               engine_sel__me_wait_reg_mem__micro_engine,
-                                               timestampAddr,
-                                               releaseInfo.data,
-                                               UINT32_MAX,
-                                               pCmdSpace);
+        AcquireMemGeneric acquireInfo = {};
+        acquireInfo.engineType = EngineTypeCompute;
+        acquireInfo.cacheSync  = glxSync;
 
-        // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
-        // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
-        if (glxSync != SyncGlxNone)
-        {
-            AcquireMemGeneric acquireInfo = {};
-            acquireInfo.engineType = EngineTypeCompute;
-            acquireInfo.cacheSync  = glxSync;
+        pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
+    }
 
-            pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
-        }
+    SetCsBltState(false);
+    SetPrevCmdBufInactive();
 
-        SetCsBltState(false);
-        SetPrevCmdBufInactive();
+    UpdateRetiredAcqRelFenceVal(ReleaseTokenEop, GetCurAcqRelFenceVal(ReleaseTokenEop));
+    UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, GetCurAcqRelFenceVal(ReleaseTokenCsDone));
 
-        UpdateRetiredAcqRelFenceVal(ReleaseTokenEop, GetCurAcqRelFenceVal(ReleaseTokenEop));
-        UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, GetCurAcqRelFenceVal(ReleaseTokenCsDone));
-
-        if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
-        {
-            ClearBltWriteMisalignMdState();
-        }
+    if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
+    {
+        ClearBltWriteMisalignMdState();
     }
 
     if (waitCpDma)
@@ -1977,7 +1851,9 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
 uint32* ComputeCmdBuffer::WriteWaitCsIdle(
     uint32* pCmdSpace)
 {
-    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(GetEngineType(), TimestampGpuVirtAddr(), pCmdSpace);
+    const gpusize tsGpuVa = GetWaitIdleTsGpuVa(&pCmdSpace);
+
+    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(GetEngineType(), tsGpuVa, WaitIdleTsValue(), true, pCmdSpace);
 
     SetCsBltState(false);
 

@@ -26,13 +26,14 @@
 #pragma once
 
 #include "pal.h"
-#include "palUtil.h"
 #include "palElf.h"
-#include "palMutex.h"
-#include "palSpan.h"
-#include "palVector.h"
+#include "palFunctionRef.h"
 #include "palHashMap.h"
+#include "palMutex.h"
 #include "palPlatform.h"
+#include "palSpan.h"
+#include "palUtil.h"
+#include "palVector.h"
 
 namespace Pal
 {
@@ -47,14 +48,13 @@ class LoadedElf
 {
 public:
     // Constructor/destructor.
-    LoadedElf(Device* pDevice);
+    LoadedElf(Device* pDevice, uint64 hash, uint64 origHash);
     ~LoadedElf();
 
     // Initialize (load the ELF and set the ref count to 1).
-    Result Init(uint64                            hash,
-                uint64                            origHash,
-                const ComputePipelineCreateInfo&  createInfo,
-                Util::Span<LoadedElf* const>      otherElfs);
+    Result Init(const ComputePipelineCreateInfo& createInfo, Util::Span<LoadedElf* const> otherElfs);
+    Result Init(const GraphicsPipelineCreateInfo& createInfo);
+    Result Init(const ShaderLibraryCreateInfo& createInfo);
 
     Result ResolveRelocs();
 
@@ -113,16 +113,32 @@ public:
     // Get the Device
     Device* GetDevice() const { return m_pDevice; }
 
-    // Find an already-loaded ELF, or load it
-    Result GetElf(uint64                            hash,
+    // Find an already-loaded ELF, or load it: compute pipeline/library edition
+    Result GetElf(uint64                            origHash,
                   const ComputePipelineCreateInfo&  createInfo,
                   Util::Span<LoadedElf* const>      otherElfs,
                   LoadedElf**                       ppLoadedElf);
+
+    // Find an already-loaded ELF, or load it: graphics pipeline edition
+    Result GetElf(uint64                            origHash,
+                  const GraphicsPipelineCreateInfo& createInfo,
+                  LoadedElf**                       ppLoadedElf);
+
+    // Find an already-loaded ELF, or load it: compute/graphics library edition
+    Result GetElf(uint64                         origHash,
+                  const ShaderLibraryCreateInfo& createInfo,
+                  LoadedElf**                    ppLoadedElf);
 
     // Release a loaded ELF, freeing it if it is the last reference.
     void ReleaseLoadedElf(LoadedElf* pLoadedElf);
 
 private:
+    // Find an already-loaded ELF, or load it using the supplied callback function.
+    Result FindOrLoadElf(uint64                                hash,
+                         uint64                                origHash,
+                         Util::FunctionRef<Result(LoadedElf*)> LoadCallback,
+                         LoadedElf**                           ppLoadedElf);
+
     using LoadedElfMap = Util::HashMap<uint64, LoadedElf*, IPlatform>;
 
     Device*       m_pDevice;

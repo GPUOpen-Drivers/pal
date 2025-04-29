@@ -68,6 +68,30 @@ def buildtypes_to_c_macro(and_build_types, or_build_types) -> str:
 
     return result
 
+def init_scope_string(is_pal: bool, skip_registry: bool, setting: dict):
+
+    output = ""
+    scope = setting.get("Scope", None)
+    whitelist = setting.get("Whitelist", False)
+
+    if is_pal:
+        output += ", InternalSettingScope::"
+        if skip_registry and whitelist:
+            output += scope or 'PrivatePalKey'
+        elif skip_registry:
+            output += "PublicPalFile"
+        else:
+            output += scope or 'PrivatePalKey'
+    # For client drivers, when skip registry is used, we now need to supply the scope
+    elif skip_registry:
+        output += ", Pal::SettingScope::"
+        if whitelist:
+            output += "Driver"
+        else:
+            output += "File"
+
+    return output
+
 def setup_default(setting: dict, group_name: str) -> str:
     """A Jinja filter that renders settings default value assignment."""
 
@@ -286,7 +310,7 @@ def gen_variable_name(name: str) -> str:
     return var_name
 
 def validate_settings_name(name: str):
-    """Valid a "name" field in YAML object.
+    """Valid a "name" field in JSON object.
 
     The generated C++ variable names are based on `name`. So we need to make
     sure they can compile in C++.
@@ -422,11 +446,8 @@ def gen_setting_name_hashes(settings: list):
                 setting["NameHash"] = name_hash
                 setting_name_hash_map[name_hash] = name
 
-def prepare_enums(settings_root: dict):
+def prepare_enums(settings_root: dict, additional_enums_list: list):
     """Prepare enums from the top-level enum list and individual settings.
-
-    Return a list of all unique enums. ValueError exception is raised when
-    duplicate enums are found.
     """
 
     SETTING_STR_DD_TYPE_MAP = {
@@ -545,6 +566,8 @@ def prepare_enums(settings_root: dict):
             setting["PalType"] = SETTING_STR_PAL_TYPE_MAP[setting_type]
 
     top_level_enums = settings_root.get("Enums", [])
+    top_level_enums.extend(additional_enums_list)
+
     top_level_enum_names = [enum["Name"] for enum in top_level_enums]
 
     enum_names_unique = set(top_level_enum_names)
@@ -588,7 +611,7 @@ def prepare_enums(settings_root: dict):
 
         if "Is64Bit" in enum:
             enum_base = "uint64_t"
-            print('[SettingsCodeGen][WARNING] "Is64Bit" field is deprecated, please use "EnumSize". '
+            print('[WARN][SettingsCodeGen] "Is64Bit" field is deprecated, please use "EnumSize". '
                   'For example: `"EnumSize": 64`.', file=sys.stderr)
         else:
             enum_size = enum.get("EnumSize", 32)
@@ -630,7 +653,7 @@ def prepare_settings_meta(
 ):
     """Prepare settings meta data for code generation.
 
-    Meta data are anything that's not under the "Settings" field in the YAML.
+    Meta data are anything that's not under the "Settings" field in the JSON.
 
     settings_root:
         The root of Settings JSON object.
@@ -860,14 +883,14 @@ def main():
     timer_start = time.monotonic()
 
     parser = argparse.ArgumentParser(
-        description="Generate Settings files from a YAML files."
+        description="Generate Settings files from a JSON files."
     )
 
     parser.add_argument(
         "-i",
         "--input",
         required=True,
-        help="The path to a Settings YAML file that conforms to the version 2 of Settings schema.",
+        help="The path to a Settings JSON file that conforms to the version 2 of Settings schema.",
     )
     parser.add_argument(
         "-g",
@@ -940,6 +963,14 @@ def main():
         help="If this flag is present, the read settings will not use the registry path.",
     )
 
+    parser.add_argument(
+        "--more-settings-files",
+        nargs="*",
+        default=[],
+        required=False,
+        help="Additional settings JSON files similar to the one specificed with '--input' to be merged.",
+    )
+
     args = parser.parse_args()
 
     assert not args.generated_filename.endswith(
@@ -955,6 +986,17 @@ def main():
 
     with open(args.input) as file:
         settings_root = json.load(file)
+
+    # Read enum definitions from additional settings files.
+    additional_enums_list = []
+    for file_path in args.more_settings_files:
+        with open(file_path) as file:
+            enums_json = json.load(file)
+            if "Enums" in enums_json:
+                additional_enums = enums_json["Enums"]
+                additional_enums_list.extend(additional_enums);
+            else:
+                print("[WARN][SettingsCodeGen] the additional enums file doesn't contain \"Enums\" field.")
 
     settings_root["IsEncoded"] = args.encoded
 
@@ -981,7 +1023,7 @@ def main():
 
     gen_setting_name_hashes(settings_root["Settings"])
 
-    prepare_enums(settings_root)
+    prepare_enums(settings_root, additional_enums_list)
 
     prepare_constants(settings_root)
 
@@ -1018,6 +1060,7 @@ def main():
     jinja_env.filters["buildtypes_to_c_macro"] = buildtypes_to_c_macro
     jinja_env.filters["setup_default"] = setup_default
     jinja_env.filters["setting_format_string"] = setting_format_string
+    jinja_env.filters["init_scope_string"]  = init_scope_string
 
     header_template = jinja_env.get_template("settings.h.jinja2")
 

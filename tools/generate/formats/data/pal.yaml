@@ -23,10 +23,10 @@
  #
  #######################################################################################################################
 
-
 formats:
   # The order of the formats below **must** match that in pal.h!
   Undefined: &defFormatInfo
+    private_name: null
     channelMask: ['X']
     bitCounts: [8, 0, 0, 0]
     bpp: 8
@@ -1190,13 +1190,13 @@ formats:
     bpp: 16
   X16Y16_MM12_Unorm:
     <<: *defFormatInfo
-    channelMask: ['X,Y']
+    channelMask: ['X', 'Y']
     bitCounts: [16, 16, 0, 0]
     bpp: 32
     numComponents: 2
   X16Y16_MM12_Uint:
     <<: *defFormatInfo
-    channelMask: ['X,Y']
+    channelMask: ['X', 'Y']
     bitCounts: [16, 16, 0, 0]
     bpp: 32
     numComponents: 2
@@ -1261,3 +1261,126 @@ formats:
     bpp: 32
     numComponents: 4
     yuvPacked: true
+  _ReservedBE:
+    <<: *defFormatInfo
+  P216:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 923
+  YUV_420P10:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YUV_422P10:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YUV_444P10:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YUV_420P12:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YUV_422P12:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YUV_444P12:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YUV_420P16:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YUV_422P16:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YUV_444P16:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 924
+  YV16:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 925
+  YV24:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 24
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 925
+  NV24:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 24
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 925
+  P410:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [10, 10, 10, 0]
+    bpp: 48
+    numComponents: 3
+    yuvPlanar: true
+    bitCountInaccurate: true
+    versioning: 925
+  P416:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 48
+    numComponents: 3
+    yuvPlanar: true
+    versioning: 925

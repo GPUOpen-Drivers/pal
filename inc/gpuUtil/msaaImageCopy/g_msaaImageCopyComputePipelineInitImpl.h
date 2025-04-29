@@ -119,12 +119,15 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
     case Pal::IpTriple({ 11, 0, 0 }):
     case Pal::IpTriple({ 11, 0, 1 }):
     case Pal::IpTriple({ 11, 0, 2 }):
-    case Pal::IpTriple({ 11, 5, 0 }):
         pTable = msaaImageCopyComputeBinaryTable11_0_0;
         break;
 
     case Pal::IpTriple({ 11, 0, 3 }):
         pTable = msaaImageCopyComputeBinaryTable11_0_3;
+        break;
+
+    case Pal::IpTriple({ 11, 5, 0 }):
+        pTable = msaaImageCopyComputeBinaryTable11_5_0;
         break;
 
 #if  PAL_BUILD_STRIX_HALO

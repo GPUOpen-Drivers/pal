@@ -23,11 +23,14 @@
  *
  **********************************************************************************************************************/
 
+#include "palArFile.h"
+#include "palElf.h"
 #include "palFile.h"
 #include "palFormatInfo.h"
 #include "core/device.h"
 #include "g_coreSettings.h"
 #include "core/platform.h"
+#include "core/hw/gfxip/archiveLibrary.h"
 #include "core/hw/gfxip/colorBlendState.h"
 #include "core/hw/gfxip/depthStencilState.h"
 #include "core/hw/gfxip/gfxDevice.h"
@@ -35,7 +38,9 @@
 #include "core/hw/gfxip/msaaState.h"
 #include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
+#include "core/hw/gfxip/shaderLibrary.h"
 #include "palHashMapImpl.h"
+#include "palVectorImpl.h"
 #include "addrinterface.h"
 #include "dd_settings_base.h"
 #include "dd_settings_service.h"
@@ -283,6 +288,47 @@ Result GfxDevice::CreateComputePipelineInternal(
 }
 
 // =====================================================================================================================
+// Creates a graphics pipeline, with unpacking of archive shader libraries (partial pipelines) where applicable.
+Result GfxDevice::CreateGraphicsPipelineUnpackArchiveLibs(
+    const GraphicsPipelineCreateInfo&         createInfo,
+    const GraphicsPipelineInternalCreateInfo& internalInfo,
+    void*                                     pPlacementAddr,
+    bool                                      isInternal,
+    IPipeline**                               ppPipeline)
+{
+    Result result = Result::Success;
+    if (createInfo.numShaderLibraries == 0)
+    {
+        result = CreateGraphicsPipeline(createInfo, internalInfo, pPlacementAddr, isInternal, ppPipeline);
+    }
+    else
+    {
+        // Unpack shader libraries in case any are archive libraries.
+        Vector<const IShaderLibrary*, 5, Platform> unpackedShaderLibs(GetPlatform());
+        for (const IShaderLibrary* pShaderLib :
+            Span<const IShaderLibrary* const>(createInfo.ppShaderLibraries, createInfo.numShaderLibraries))
+        {
+            ShaderLibrarySpan innerShaderLibs = static_cast<const ShaderLibraryBase*>(pShaderLib)->GetShaderLibraries();
+            for (const ShaderLibrary* pInnerShaderLib : innerShaderLibs)
+            {
+                if (result == Result::Success)
+                {
+                    result = unpackedShaderLibs.PushBack(pInnerShaderLib);
+                }
+            }
+        }
+        if (result == Result::Success)
+        {
+            GraphicsPipelineCreateInfo localInfo = createInfo;
+            localInfo.numShaderLibraries         = unpackedShaderLibs.NumElements();
+            localInfo.ppShaderLibraries          = unpackedShaderLibs.Data();
+            result = CreateGraphicsPipeline(localInfo, internalInfo, pPlacementAddr, isInternal, ppPipeline);
+        }
+    }
+    return result;
+}
+
+// =====================================================================================================================
 // Creates an internal graphics pipeline object by allocating memory then calling the usual create method.
 Result GfxDevice::CreateGraphicsPipelineInternal(
     const GraphicsPipelineCreateInfo&         createInfo,
@@ -308,6 +354,56 @@ Result GfxDevice::CreateGraphicsPipelineInternal(
         }
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+// Gets size of shader library, either a singleton shader library or an archive library.
+size_t GfxDevice::GetMaybeArchiveLibrarySize(
+    const ShaderLibraryCreateInfo&  createInfo,
+    Result*                         pResult
+    ) const
+{
+    size_t size = 0;
+    if (IsArFile(Span<const void>(createInfo.pCodeObject, createInfo.codeObjectSize)) == false)
+    {
+        size = GetShaderLibrarySize(createInfo, pResult);
+    }
+    else
+    {
+        if (pResult != nullptr)
+        {
+            *pResult = Result::Success;
+        }
+        size = sizeof(ArchiveLibrary);
+    }
+    return size;
+}
+
+// =====================================================================================================================
+// Creates a shader library, either a singleton shader library or an archive library.
+Result GfxDevice::CreateMaybeArchiveLibrary(
+    const ShaderLibraryCreateInfo&  createInfo,
+    void*                           pPlacementAddr,
+    bool                            isInternal,
+    IShaderLibrary**                ppShaderLib)
+{
+    Result result{};
+    if (IsArFile(Span<const void>(createInfo.pCodeObject, createInfo.codeObjectSize)) == false)
+    {
+        result = CreateShaderLibrary(createInfo, pPlacementAddr, isInternal, ppShaderLib);
+    }
+    else
+    {
+        ArchiveLibrary* pArchiveLib = PAL_PLACEMENT_NEW(pPlacementAddr) ArchiveLibrary(this, createInfo);
+        result = pArchiveLib->Init(createInfo);
+        if (result != Result::Success)
+        {
+            pArchiveLib->Destroy();
+            pArchiveLib = nullptr;
+        }
+        *ppShaderLib = pArchiveLib;
+    }
     return result;
 }
 
@@ -573,7 +669,7 @@ void GfxDevice::DescribeDraw(
 // Call back to above layers to describe a bind pipeline command
 void GfxDevice::DescribeBindPipeline(
     GfxCmdBuffer*     pCmdBuf,
-    const IPipeline*  pPipeline,
+    const Pipeline*   pPipeline,
     uint64            apiPsoHash,
     PipelineBindPoint bindPoint
     ) const
@@ -585,7 +681,21 @@ void GfxDevice::DescribeBindPipeline(
     data.apiPsoHash = apiPsoHash;
     data.bindPoint  = bindPoint;
 
+    data.subQueueFlags.includeMainSubQueue = 1;
+
     m_pParent->DeveloperCb(Developer::CallbackType::BindPipeline, &data);
+
+    // RGP uses the same pipeline bind point for main and sub-queue markers.
+    // To be safe, we have to send another token for ACE.
+    if (((pPipeline != nullptr) && (pPipeline->IsTaskShaderEnabled())))
+    {
+        data.bindPoint = PipelineBindPoint::Compute;
+
+        data.subQueueFlags.includeMainSubQueue    = 0;
+        data.subQueueFlags.includeGangedSubQueues = 1;
+
+        m_pParent->DeveloperCb(Developer::CallbackType::BindPipeline, &data);
+    }
 }
 
 #if PAL_DEVELOPER_BUILD

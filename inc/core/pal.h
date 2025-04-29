@@ -394,6 +394,10 @@ struct CompilerStackSizes
 /// @returns True if the hashes are equal.
 constexpr bool ShaderHashesEqual(const ShaderHash hash1, const ShaderHash hash2)
     { return ((hash1.lower  == hash2.lower)  && (hash1.upper  == hash2.upper)); }
+constexpr bool operator==(const ShaderHash hash1, const ShaderHash hash2)
+    { return ((hash1.lower  == hash2.lower)  && (hash1.upper  == hash2.upper)); }
+constexpr bool operator!=(const ShaderHash hash1, const ShaderHash hash2)
+    { return ((hash1.lower  != hash2.lower)  || (hash1.upper  != hash2.upper)); }
 constexpr bool PipelineHashesEqual(const PipelineHash hash1, const PipelineHash hash2)
     { return ((hash1.stable == hash2.stable) && (hash1.unique == hash2.unique)); }
 ///@}
@@ -418,7 +422,7 @@ struct DoppDesktopInfo
 };
 
 /// Specifies the Direct Capture resource information. Direct Capture is an extension that allows to access on-screen
-/// primary directly. This is only supported on Windows.
+/// primary, motion vectors, depth, and camera matrix directly. This is only supported on Windows.
 struct DirectCaptureInfo
 {
     uint32  vidPnSourceId;  ///< VidPnSource ID of the on-screen primary.
@@ -426,14 +430,21 @@ struct DirectCaptureInfo
     {
         struct
         {
-            uint32 preflip            :  1;  ///< Requires pre-flip primary access
-            uint32 postflip           :  1;  ///< Requires post-flip primary access. A DirectCapture resource cannot
-                                             ///  have pre-flip and post-flip access at the same time
-            uint32 accessDesktop      :  1;  ///< Requires acces to the desktop
-            uint32 shared             :  1;  ///< This resource will be shared between APIs
-            uint32 frameGenRatio      :  4;  ///< Frame generation ratio
-            uint32 paceGeneratedFrame :  1;  ///< Requires pacing the generated frames
-            uint32 reserved           : 23;
+            uint32 preflip              :  1;  ///< Requires pre-flip primary access
+            uint32 postflip             :  1;  ///< Requires post-flip primary access. A DirectCapture resource cannot
+                                               ///  have pre-flip and post-flip access at the same time
+            uint32 accessDesktop        :  1;  ///< Requires acces to the desktop
+            uint32 shared               :  1;  ///< This resource will be shared between APIs
+            uint32 frameGenRatio        :  4;  ///< Frame generation ratio
+            uint32 paceGeneratedFrame   :  1;  ///< Requires pacing the generated frames
+            uint32 requiresDisplayDcc   :  1;  ///< Requires display dcc support
+            uint32 requestMotionVectors :  1;  ///< Request DirectCapture access to motion vector data if available
+            uint32 requestDepth         :  1;  ///< Request DirectCapture access to depth data if available
+            uint32 requestCamera        :  1;  ///< Request DirectCapture access to camera matrix data if available
+            uint32 initMotionVectors    :  1;  ///< Initialize the DirectCapture resource to access motion vector data
+            uint32 initDepth            :  1;  ///< Initialize the DirectCapture resource to access depth data
+            uint32 initCamera           :  1;  ///< Initialize the DirectCapture resource to access camera matrix
+            uint32 reserved             : 16;
         };
         uint32 u32All;
     } usageFlags;

@@ -61,6 +61,16 @@ function(pal_compile_definitions_gpu TARGET)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_STRIX1=$<BOOL:${PAL_BUILD_GFX9}>)
         endif()
 
+#if PAL_BUILD_HAWK_POINT1
+        # HAWK_POINT1 doesn't need a CHIP_HDR define.
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_HAWK_POINT1=$<BOOL:${PAL_BUILD_HAWK_POINT1}>)
+#endif
+
+#if PAL_BUILD_HAWK_POINT2
+        # HAWK_POINT2 doesn't need a CHIP_HDR define.
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_HAWK_POINT2=$<BOOL:${PAL_BUILD_HAWK_POINT2}>)
+#endif
+
 #if PAL_BUILD_STRIX_HALO
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_STRIX_HALO=$<BOOL:${PAL_BUILD_STRIX_HALO}>)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_STRIX_HALO=$<BOOL:${CHIP_HDR_STRIX_HALO}>)
@@ -68,13 +78,11 @@ function(pal_compile_definitions_gpu TARGET)
 
 #if PAL_BUILD_GFX12
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX12=$<BOOL:${PAL_BUILD_GFX12}>)
+        target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI4X=$<BOOL:${PAL_BUILD_GFX12}>)
 
-#if PAL_BUILD_NAVI4X
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI4X=$<BOOL:${PAL_BUILD_NAVI4X}>)
-#endif
 #if PAL_BUILD_NAVI48
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI48=$<BOOL:${PAL_BUILD_NAVI48}>)
-        target_compile_definitions(${TARGET} PUBLIC CHIP_HDR_NAVI48=$<BOOL:${CHIP_HDR_NAVI48}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI48=$<BOOL:${CHIP_HDR_NAVI48}>)
 #endif
 #endif
 
@@ -108,10 +116,12 @@ function(pal_compile_definitions TARGET)
     pal_get_cpu_endianness(TARGET_ARCHITECTURE_ENDIANESS)
     pal_get_system_architecture_bits(TARGET_ARCHITECTURE_BITS)
 
-    target_compile_definitions(${TARGET} PRIVATE
+    target_compile_definitions(${TARGET} PUBLIC
         # Useful for determining determining the architecture (32 vs 64)
         PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BITS}
+    )
 
+    target_compile_definitions(${TARGET} PRIVATE
         # Ex: BIGENDIAN_CPU or LITTLEENDIAN_CPU
         ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU=1
     )

@@ -139,6 +139,8 @@ union GpuMemoryFlags
         uint32 nonLocalOnly             :  1; // GPU memory doesn't prefer local heaps.
         uint32 isLocalPreferred         :  1; // If GPU memory prefers local heaps as the first heap choice.
         uint32 cpuVisible               :  1; // GPU memory is CPU accessible via Map().
+        uint32 cpuInvisible             :  1; // GPU memory is not accessible from the CPU per the client, even if
+                                              // placed in CPU-accessible heaps.
         uint32 privateScreen            :  1; // GPU memory is bound to a private screen image.
         uint32 isUserQueue              :  1; // GPU memory is used for an user queue.
         uint32 globallyCoherent         :  1; // GPU memory is globally coherent.
@@ -180,7 +182,8 @@ union GpuMemoryFlags
 #else
         uint32 placeholder2             :  2; // Placeholder.
 #endif
-        uint32 reserved                 : 14;
+        uint32 directCaptureSource      :  1; // DirectCapture game data source from game process
+        uint32 reserved                 : 12;
     };
     uint64  u64All;
 };
@@ -310,6 +313,7 @@ public:
 #if PAL_AMDGPU_BUILD
     bool IsDiscardable()         const { return (m_flags.isDiscardable            != 0); }
 #endif
+    bool IsDirectCaptureSource() const { return (m_flags.directCaptureSource      != 0); }
 
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }

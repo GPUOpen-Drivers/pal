@@ -35,7 +35,7 @@ extern "C" {
 #define DD_DRIVER_UTILS_API_NAME "DD_DRIVER_UTILS_API"
 
 #define DD_DRIVER_UTILS_API_VERSION_MAJOR 0
-#define DD_DRIVER_UTILS_API_VERSION_MINOR 4
+#define DD_DRIVER_UTILS_API_VERSION_MINOR 5
 #define DD_DRIVER_UTILS_API_VERSION_PATCH 0
 
 typedef enum DD_DRIVER_UTILS_FEATURE_FLAG
@@ -60,13 +60,6 @@ typedef enum DD_DRIVER_UTILS_FEATURE
 
     DD_DRIVER_UTILS_FEATURE_COUNT,
 } DD_DRIVER_UTILS_FEATURE;
-
-typedef enum DD_DRIVER_UTILS_OVERLAY_DISPLAY_MODE
-{
-    DD_DRIVER_UTILS_OVERLAY_DISPLAY_MODE_DEFAULT = 0,
-    DD_DRIVER_UTILS_OVERLAY_DISPLAY_MODE_ALWAYS_ON,
-    DD_DRIVER_UTILS_OVERLAY_DISPLAY_MODE_ALWAYS_OFF,
-} DD_DRIVER_UTILS_OVERLAY_DISPLAY_MODE;
 
 typedef struct DDDriverUtilsInstance DDDriverUtilsInstance;
 
@@ -164,17 +157,6 @@ typedef struct DDDriverUtilsApi
         uint32_t               origination,
         bool                   enable);
 
-    /// @brief Set the mode for whether to display the DevDriver overlay.
-    ///
-    /// @param[in] pInstance Must be @ref DDDriverUtilsApi.pInstance.
-    /// @param[in] umdConnectionId The umd connection id.
-    /// @param[in] displayMode The mode to set.
-    /// @return DD_RESULT_SUCCESS if the operation succeeded.
-    /// @return Other error codes if the operation failed.
-    DD_RESULT (*SetOverlayDisplayMode)(
-        DDDriverUtilsInstance*               pInstance,
-        DDConnectionId                       umdConnectionId,
-        DD_DRIVER_UTILS_OVERLAY_DISPLAY_MODE displayMode);
 } DDDriverUtilsApi;
 
 #ifdef __cplusplus

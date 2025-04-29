@@ -25,6 +25,7 @@
 
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/pipelineLoader.h"
+#include "palVector.h"
 
 namespace Pal
 {
@@ -140,6 +141,10 @@ public:
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ArchivePipeline);
+
+    // Load one ELF in the ArchivePipeline.
+    Result LoadOneElf(const ComputePipelineCreateInfo& createInfo, Util::Span<const char> contents,
+                      uint64 elfName, uint32 currIndex, LoadedElf** ppLoadedElf);
 
     Pipeline* LeadPipeline() const { return static_cast<Pipeline*>(m_pipelines.Back()); }
 

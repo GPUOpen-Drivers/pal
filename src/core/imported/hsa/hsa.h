@@ -3,30 +3,7 @@
 // The University of Illinois/NCSA
 // Open Source License (NCSA)
 //
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+// Copyright (c) 2014-2020, Advanced Micro Devices, Inc. All rights reserved.
 //
 // Developed by:
 //
@@ -118,6 +95,11 @@
 
 #ifndef HSA_DEPRECATED
 #define HSA_DEPRECATED
+//#ifdef __GNUC__
+//#define HSA_DEPRECATED __attribute__((deprecated))
+//#else
+//#define HSA_DEPRECATED __declspec(deprecated)
+//#endif
 #endif
 
 #define HSA_VERSION_1_0                              1
@@ -351,6 +333,7 @@ typedef enum {
 typedef int hsa_file_t;
 
 /** @} **/
+
 
 /** \defgroup initshutdown Initialization and Shut Down
  *  @{
@@ -663,6 +646,7 @@ hsa_status_t HSA_API hsa_system_major_extension_supported(
     uint16_t version_major,
     uint16_t *version_minor,
     bool* result);
+
 
 /**
  * @deprecated
@@ -1314,7 +1298,9 @@ hsa_status_t HSA_API hsa_agent_major_extension_supported(
     uint16_t *version_minor,
     bool* result);
 
+
 /** @} */
+
 
 /** \defgroup signals Signals
  *  @{
@@ -1560,6 +1546,7 @@ hsa_signal_value_t HSA_API hsa_signal_cas_scacq_screl(
     hsa_signal_value_t expected,
     hsa_signal_value_t value);
 
+
 /**
  * @deprecated Renamed as ::hsa_signal_cas_scacq_screl.
  *
@@ -1669,6 +1656,7 @@ void HSA_API hsa_signal_add_screlease(
     hsa_signal_t signal,
     hsa_signal_value_t value);
 
+
 /**
  * @deprecated Renamed as ::hsa_signal_add_screlease.
  *
@@ -1693,6 +1681,7 @@ void HSA_API HSA_DEPRECATED hsa_signal_add_release(
 void HSA_API hsa_signal_subtract_scacq_screl(
     hsa_signal_t signal,
     hsa_signal_value_t value);
+
 
 /**
  * @deprecated Renamed as ::hsa_signal_subtract_scacq_screl.
@@ -1732,6 +1721,7 @@ void HSA_API hsa_signal_subtract_relaxed(
 void HSA_API hsa_signal_subtract_screlease(
     hsa_signal_t signal,
     hsa_signal_value_t value);
+
 
 /**
  * @deprecated Renamed as ::hsa_signal_subtract_screlease.
@@ -1798,6 +1788,7 @@ void HSA_API hsa_signal_and_screlease(
     hsa_signal_t signal,
     hsa_signal_value_t value);
 
+
 /**
  * @deprecated Renamed as ::hsa_signal_and_screlease.
  *
@@ -1822,6 +1813,7 @@ void HSA_API HSA_DEPRECATED hsa_signal_and_release(
 void HSA_API hsa_signal_or_scacq_screl(
     hsa_signal_t signal,
     hsa_signal_value_t value);
+
 
 /**
  * @deprecated Renamed as ::hsa_signal_or_scacq_screl.
@@ -1887,6 +1879,7 @@ void HSA_API HSA_DEPRECATED hsa_signal_or_release(
 void HSA_API hsa_signal_xor_scacq_screl(
     hsa_signal_t signal,
     hsa_signal_value_t value);
+
 
 /**
  * @deprecated Renamed as ::hsa_signal_xor_scacq_screl.
@@ -1971,6 +1964,7 @@ typedef enum {
      */
     HSA_WAIT_STATE_ACTIVE = 1
 } hsa_wait_state_t;
+
 
 /**
  * @brief Wait until a signal value satisfies a specified condition, or a
@@ -2192,6 +2186,7 @@ typedef struct hsa_region_s {
 } hsa_region_t;
 
 /** @} */
+
 
 /** \defgroup queue Queues
  *  @{
@@ -2749,6 +2744,7 @@ void HSA_API hsa_queue_store_read_index_screlease(
    const hsa_queue_t *queue,
    uint64_t value);
 /** @} */
+
 
 /** \defgroup aql Architected Queuing Language
  *  @{
@@ -3519,6 +3515,7 @@ hsa_status_t HSA_API hsa_memory_deregister(
 
 /** @} */
 
+
 /** \defgroup instruction-set-architecture Instruction Set Architecture.
  *  @{
  */
@@ -3994,6 +3991,7 @@ hsa_status_t HSA_API HSA_DEPRECATED hsa_isa_compatible(
     bool *result);
 
 /** @} */
+
 
 /** \defgroup executable Executable
  *  @{
@@ -5103,6 +5101,7 @@ hsa_status_t HSA_API hsa_executable_iterate_program_symbols(
 
 /** @} */
 
+
 /** \defgroup code-object Code Objects (deprecated).
  *  @{
  */
@@ -5672,4 +5671,4 @@ hsa_status_t HSA_API HSA_DEPRECATED hsa_code_object_iterate_symbols(
 }  // end extern "C" block
 #endif
 
-#endif
+#endif  // header guard

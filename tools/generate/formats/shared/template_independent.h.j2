@@ -33,32 +33,40 @@ namespace Formats
 // table via BitsPerPixel() and related functions.
 const FormatInfo FormatInfoTable[] =
 {
+{%- macro render_format(format_name, fmt) -%}
+// {{ format_name }}
+{
+    {{ "{0:<36s}".format(fmt.bpp ~ ",") }} // {{ fmt.bpp }} bpp
+    {{ "{0:<36s}".format(fmt.num_components ~ ",") }} // {{ fmt.num_components }} component(s)
+    {{ "{0:<36s}".format(fmt.bit_counts_str ~ ",") }} // # of bits-per-component
+    ({%- for mask in fmt.channel_mask %}ChannelFlags::{{mask}}
+     {%- if (fmt.channel_mask|length > 1) and (loop.index != fmt.channel_mask|length) %} {{ '|' }}
+     {% endif %}
+     {%- endfor %}),                   // Channel Mask: {{ fmt.channel_mask_str }}
+    {% if fmt.format_properties|length == 0 %}0,                                   // Format Properties
+    {%- else %}(
+    {%- for property in fmt.format_properties %}
+        {{ property }}
+        {%- if (fmt.format_properties|length > 1) and (loop.index != fmt.format_properties|length) %} {{ '|' }}
+        {%- endif %}
+    {%- endfor %}
+    ),                                   // Format Properties
+    {%- endif %}
+    NumericSupportFlags::{{ fmt.numeric_support }},
+},
+{%- endmacro -%}
 {%- for format_name, fmt in ifmts.items() %}{%- if fmt.ifdef_str %}
 #if {{ fmt.ifdef_str }}
 {%- endif %}
-    // {{ format_name }}
-    {
-        {{ "{0:<36s}".format(fmt.bpp ~ ",") }} // {{ fmt.bpp }} bpp
-        {{ "{0:<36s}".format(fmt.num_components ~ ",") }} // {{ fmt.num_components }} component(s)
-        {{ "{0:<36s}".format(fmt.bit_counts_str ~ ",") }} // # of bits-per-component
-        ({%- for mask in fmt.channel_mask %}ChannelFlags::{{mask}}
-         {%- if (fmt.channel_mask|length > 1) and (loop.index != fmt.channel_mask|length) %} {{ '|' }}
-         {% endif %}
-         {%- endfor %}),                   // Channel Mask: {{ fmt.channel_mask_str }}
-        {% if fmt.format_properties|length == 0 %}0,                                   // Format Properties
-        {%- else %}(
-        {%- for property in fmt.format_properties %}
-            {{ property }}
-            {%- if (fmt.format_properties|length > 1) and (loop.index != fmt.format_properties|length) %} {{ '|' }}
-            {%- endif %}
-        {%- endfor %}
-        ),                                   // Format Properties
-        {%- endif %}
-        NumericSupportFlags::{{ fmt.numeric_support }},
-    },
+{{ render_format(fmt.real_format_name, fmt) | indent(4, first=True) }}
 {%- if fmt.ifdef_str %}
+{% if fmt.generate_reserved -%}
+#else
+{{ render_format(format_name, ifmts['Undefined']) | indent(4, first=True) }}
+{%- endif %}
 #endif // {{ fmt.ifdef_str }}
 {%- endif %}
+
 {%- endfor %}
 };
 

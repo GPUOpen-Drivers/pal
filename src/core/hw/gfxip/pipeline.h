@@ -35,6 +35,7 @@
 #include "palMetroHash.h"
 #include "palPipeline.h"
 #include "palPipelineAbiReader.h"
+#include "palPipelineAbiUtils.h"
 #include "palSparseVectorImpl.h"
 #include "palStringView.h"
 #include "palVectorImpl.h"
@@ -76,12 +77,6 @@ struct ShaderStageInfo
     size_t  disassemblyLength;  // Length of the shader's disassembly data, in bytes.
 };
 
-// Contains stage information calculated at pipeline bind time.
-struct DynamicStageInfo
-{
-    uint32 wavesPerSh;
-};
-
 // Identifies what type of pipeline is described by a serialized pipeline ELF.
 enum PipelineType : uint32
 {
@@ -121,6 +116,13 @@ static Util::Abi::ApiShaderType PalShaderTypeToAbiShaderType(ShaderType stage)
     static_assert(Util::ArrayLen(PalToAbiShaderType) == NumShaderTypes,
         "PalToAbiShaderType[] array is incorrectly sized!");
     return PalToAbiShaderType[static_cast<uint32>(stage)];
+}
+
+// Checks if pipeline metadata specifies that it supports generic entry points.
+inline bool PipelineSupportsGenericEntryPoint(
+    const Util::PalAbi::CodeObjectMetadata& metadata)
+{
+    return Util::PalAbi::PalMetadataVersionAtLeast(metadata, 3, 6);
 }
 
 constexpr uint32 MaxGfxShaderLibraryCount = 3;

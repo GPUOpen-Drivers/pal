@@ -91,8 +91,8 @@ public:
     virtual Result WaitForCompletion(bool doWait) override;
     virtual Result AssociatePriorRenderFence(IQueue* pQueue) override { return Result::Success; }
     virtual ExplicitSyncData* GetExplicitSyncData() override { return &m_explicitSyncData; }
-
-    void           AssociateImage(Image* pImage) { m_pImage = pImage; }
+    void    AssociateImage(Image* pImage) { m_pImage = pImage; }
+    virtual bool   IsIdle()                       override;
 
 private:
     explicit WaylandPresentFence(const WaylandWindowSystem& windowSystem);
@@ -156,6 +156,10 @@ public:
     virtual Result WaitForLastImagePresented() override;
 
     virtual bool NeedWindowSizeChangedCheck() const override { return false; }
+
+    virtual bool SupportWaitingOnCompletion() const override { return !m_windowSystemProperties.useExplicitSync; }
+
+    virtual void WaitOnCompletion() override;
 
     const WaylandLoader&      GetWaylandLoader() const                            { return m_waylandLoader; }
 #if defined(PAL_DEBUG_PRINTS)

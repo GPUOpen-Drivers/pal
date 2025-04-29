@@ -316,13 +316,65 @@ Result Device::DetermineExternalSharedResourceType(
 }
 
 // =====================================================================================================================
+// Fill in the uCode versions for spoofed chips.
+static void FillInSpoofedUcodeVersions(
+    uint32                     familyId,
+    uint32                     eRevId,
+    GpuChipProperties*         pChipProps,
+    const PalPlatformSettings& platformSettings)
+{
+    uint32 spoofedPfpVersion = UINT32_MAX;
+    uint32 spoofedMecVersion = UINT32_MAX;
+
+    if (IsGfx10(pChipProps->gfxLevel))
+    {
+        // Cap to RS64 - 1 (all GFX10 only have F32).
+        spoofedPfpVersion = (Gfx11Rs64MinPfpUcodeVersion - 1);
+        spoofedMecVersion = (Gfx11Rs64MinMecUcodeVersion - 1);
+    }
+    else if (IsGfx11(pChipProps->gfxLevel))
+    {
+        if (AMDGPU_IS_NAVI31(familyId, eRevId) ||
+            AMDGPU_IS_NAVI32(familyId, eRevId) ||
+            AMDGPU_IS_NAVI33(familyId, eRevId))
+        {
+            // Nothing to do here - RS64 based.
+        }
+        else if ((AMDGPU_IS_PHOENIX1(familyId, eRevId))   ||
+                 (AMDGPU_IS_PHOENIX2(familyId, eRevId))   ||
+#if PAL_BUILD_STRIX_HALO
+                 (AMDGPU_IS_STRIX_HALO(familyId, eRevId)) ||
+#endif
+                 (AMDGPU_IS_STRIX1(familyId, eRevId)))
+        {
+            // Cap to RS64 - 1 (GFX11 APUs use F32).
+            spoofedPfpVersion = (Gfx11Rs64MinPfpUcodeVersion - 1);
+            spoofedMecVersion = (Gfx11Rs64MinMecUcodeVersion - 1);
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+    }
+
+    const uint32 pfpUcodeVersionSetting = platformSettings.spoofPfpUcodeVersion;
+    const uint32 mecUcodeVersionSetting = platformSettings.spoofMecUcodeVersion;
+
+    pChipProps->pfpUcodeVersion = (pfpUcodeVersionSetting == UINT32_MAX) ? spoofedPfpVersion : pfpUcodeVersionSetting;
+    pChipProps->mecUcodeVersion = (mecUcodeVersionSetting == UINT32_MAX) ? spoofedMecVersion : mecUcodeVersionSetting;
+}
+
+// =====================================================================================================================
 // Helper method which initializes the GPU chip properties for all hardware families using the GFX9 hardware layer.
 void Device::FillGfx9ChipProperties(
-    GpuChipProperties* pChipProps)
+    GpuChipProperties*         pChipProps,
+    const PalPlatformSettings& platformSettings)
 {
     auto*const   pChipInfo = &pChipProps->gfx9;
     const uint32 familyId  = pChipProps->familyId;
     const uint32 eRevId    = pChipProps->eRevId;
+
+    FillInSpoofedUcodeVersions(familyId, eRevId, pChipProps, platformSettings);
 
     if (AMDGPU_IS_NAVI10(familyId, eRevId))
     {
@@ -684,7 +736,7 @@ void Device::InitGfx9ChipProperties()
     Gfx9::InitializeGpuChipProperties(GetPlatform(), UINT_MAX, &m_chipProperties);
 
     // Fill in properties that would normally get pulled from the KMD
-    FillGfx9ChipProperties(&m_chipProperties);
+    FillGfx9ChipProperties(&m_chipProperties, GetPlatform()->PlatformSettings());
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
@@ -695,11 +747,15 @@ void Device::InitGfx9ChipProperties()
 // =====================================================================================================================
 // Helper method which initializes the GPU chip properties for all hardware families using the Gfx12 hardware layer.
 void Device::FillGfx12ChipProperties(
-    GpuChipProperties* pChipProps)
+    GpuChipProperties*         pChipProps,
+    const PalPlatformSettings& platformSettings)
 {
     auto*const   pChipInfo = &pChipProps->gfx9;
     const uint32 familyId  = pChipProps->familyId;
     const uint32 eRevId    = pChipProps->eRevId;
+
+    pChipProps->pfpUcodeVersion = platformSettings.spoofPfpUcodeVersion;
+    pChipProps->mecUcodeVersion = platformSettings.spoofMecUcodeVersion;
 
 #if PAL_BUILD_NAVI48
     if (AMDGPU_IS_NAVI48(familyId, eRevId))
@@ -763,7 +819,7 @@ void Device::InitGfx12ChipProperties()
 {
     Gfx12::InitializeGpuChipProperties(GetPlatform(), &m_chipProperties);
 
-    FillGfx12ChipProperties(&m_chipProperties);
+    FillGfx12ChipProperties(&m_chipProperties, GetPlatform()->PlatformSettings());
 
     Gfx12::FinalizeGpuChipProperties(*this, &m_chipProperties);
 }

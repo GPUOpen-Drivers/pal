@@ -83,6 +83,17 @@
       "Description": "Settings file name for Vulkan drivers."
     },
     {
+      "Name": "AmfSettingsFileName",
+      "Values": {
+        "Value": "amdAmfSettings.cfg"
+      },
+      "Type": "string",
+      "Description": "Settings file name for AMF drivers.",
+      "BuildTypes": [
+        "PAL_CLIENT_AMF"
+      ]
+    },
+    {
       "Name": "DefaultSettingsFileName",
       "Values": {
         "Value": "amdPalSettings.cfg"
@@ -476,6 +487,30 @@
         "Default": ""
       },
       "Name": "SpoofNullGpuIfh"
+    },
+    {
+      "Tags": [
+        "GPU ID Masquerade"
+      ],
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "Description": "PFP uCode version to fake when SpoofNullGpuIfh is used. Defaults to UINT32_MAX meaning 'support all latest features'.",
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Name": "SpoofPfpUcodeVersion"
+    },
+    {
+      "Tags": [
+        "GPU ID Masquerade"
+      ],
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "Description": "MEC uCode version to fake when SpoofNullGpuIfh is used. Defaults to UINT32_MAX meaning 'support all latest features'.",
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Name": "SpoofMecUcodeVersion"
     },
     {
       "Tags": [
@@ -1143,6 +1178,36 @@
           },
           "Type": "bool",
           "Description": "Include the barrier comments in per-draw granularity which require much string manipulation in the driver and can be noise in logs"
+        },
+        {
+          "Name": "BeginTimestampPoint",
+          "Flags": {},
+          "ValidValues": {
+            "Name": "GpuProfilerBeginTimestampPoint",
+            "IsEnum": true,
+            "Values": [
+              {
+                "Description": "",
+                "Value": 0,
+                "Name": "GpuProfilerBeginTimestampBottomOfPipe"
+              },
+              {
+                "Description": "",
+                "Value": 1,
+                "Name": "GpuProfilerBeginTimestampTopOfPipe"
+              },
+              {
+                "Description": "",
+                "Value": 2,
+                "Name": "GpuProfilerBeginTimestampAuto"
+              }
+            ]
+          },
+          "Defaults": {
+            "Default": "GpuProfilerBeginTimestampAuto"
+          },
+          "Type": "enum",
+          "Description": "Where to take the begin timestamp sample. Auto defaults to BOP unless TOP is considered safe"
         }
       ],
       "Description": "Configuration options for the PAL GPU Profiler layer."
@@ -2449,6 +2514,39 @@
         }
       ],
       "Description": "Controls what debugging options are selected in the GPU Debug layer."
+    },
+    {
+      "Name": "DevModeOverlayMode",
+      "Tags": [
+        "Dev Mode Overlay"
+      ],
+      "Defaults": {
+        "Default": "DevModeOverlayModeAuto"
+      },
+      "Scope": "PrivatePalKey",
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Description": "Automatic based on driver state",
+            "Value": 0,
+            "Name": "DevModeOverlayModeAuto"
+          },
+          {
+            "Description": "Always on",
+            "Value": 1,
+            "Name": "DevModeOverlayModeOn"
+          },
+          {
+            "Description": "Always off",
+            "Value": 2,
+            "Name": "DevModeOverlayModeOff"
+          }
+        ],
+        "Name": "DevModeOverlayMode"
+      },
+      "Type": "enum",
+      "Description": "Control Dev Mode overlay visibility."
     }
   ],
   "Tags": [
@@ -2458,6 +2556,7 @@
     "GPU Profiler",
     "CmdBuffer Logger",
     "Interface Logger",
-    "Shader Debug"
+    "Shader Debug",
+    "Dev Mode Overlay"
   ]
 }

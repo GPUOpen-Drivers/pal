@@ -1,28 +1,3 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2025 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
-
 //===--- AMDHSAKernelDescriptor.h -----------------------------*- C++ -*---===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -46,7 +21,7 @@
 // Gets offset of specified member in specified type.
 #ifndef offsetof
 #define offsetof(TYPE, MEMBER) ((size_t)&((TYPE*)0)->MEMBER)
-#endif
+#endif // offsetof
 
 // Creates enumeration entries used for packing bits into integers. Enumeration
 // entries include bit shift amount, bit width, and bit mask.
@@ -55,19 +30,22 @@
   NAME ## _SHIFT = (SHIFT),                        \
   NAME ## _WIDTH = (WIDTH),                        \
   NAME = (((1 << (WIDTH)) - 1) << (SHIFT))
-#endif
+#endif // AMDHSA_BITS_ENUM_ENTRY
 
 // Gets bits for specified bit mask from specified source.
 #ifndef AMDHSA_BITS_GET
 #define AMDHSA_BITS_GET(SRC, MSK) ((SRC & MSK) >> MSK ## _SHIFT)
-#endif
+#endif // AMDHSA_BITS_GET
 
 // Sets bits for specified bit mask in specified destination.
 #ifndef AMDHSA_BITS_SET
-#define AMDHSA_BITS_SET(DST, MSK, VAL)  \
-  DST &= ~MSK;                          \
-  DST |= ((VAL << MSK ## _SHIFT) & MSK)
-#endif
+#define AMDHSA_BITS_SET(DST, MSK, VAL)                                         \
+  do {                                                                         \
+    auto local = VAL;                                                          \
+    DST &= ~MSK;                                                               \
+    DST |= ((local << MSK##_SHIFT) & MSK);                                     \
+  } while (0)
+#endif // AMDHSA_BITS_SET
 
 namespace llvm {
 namespace amdhsa {
@@ -96,79 +74,6 @@ enum : uint8_t {
   SYSTEM_VGPR_WORKITEM_ID_UNDEFINED = 3,
 };
 
-// Compute program resource register 1. Must match hardware definition.
-#define COMPUTE_PGM_RSRC1(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_ ## NAME, SHIFT, WIDTH)
-enum : int32_t {
-  COMPUTE_PGM_RSRC1(GRANULATED_WORKITEM_VGPR_COUNT, 0, 6),
-  COMPUTE_PGM_RSRC1(GRANULATED_WAVEFRONT_SGPR_COUNT, 6, 4),
-  COMPUTE_PGM_RSRC1(PRIORITY, 10, 2),
-  COMPUTE_PGM_RSRC1(FLOAT_ROUND_MODE_32, 12, 2),
-  COMPUTE_PGM_RSRC1(FLOAT_ROUND_MODE_16_64, 14, 2),
-  COMPUTE_PGM_RSRC1(FLOAT_DENORM_MODE_32, 16, 2),
-  COMPUTE_PGM_RSRC1(FLOAT_DENORM_MODE_16_64, 18, 2),
-  COMPUTE_PGM_RSRC1(PRIV, 20, 1),
-  COMPUTE_PGM_RSRC1(ENABLE_DX10_CLAMP, 21, 1),
-  COMPUTE_PGM_RSRC1(DEBUG_MODE, 22, 1),
-  COMPUTE_PGM_RSRC1(ENABLE_IEEE_MODE, 23, 1),
-  COMPUTE_PGM_RSRC1(BULKY, 24, 1),
-  COMPUTE_PGM_RSRC1(CDBG_USER, 25, 1),
-  COMPUTE_PGM_RSRC1(FP16_OVFL, 26, 1),    // GFX9+
-  COMPUTE_PGM_RSRC1(RESERVED0, 27, 2),
-  COMPUTE_PGM_RSRC1(WGP_MODE, 29, 1),     // GFX10+
-  COMPUTE_PGM_RSRC1(MEM_ORDERED, 30, 1),  // GFX10+
-  COMPUTE_PGM_RSRC1(FWD_PROGRESS, 31, 1), // GFX10+
-};
-#undef COMPUTE_PGM_RSRC1
-
-// Compute program resource register 2. Must match hardware definition.
-#define COMPUTE_PGM_RSRC2(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC2_ ## NAME, SHIFT, WIDTH)
-enum : int32_t {
-  COMPUTE_PGM_RSRC2(ENABLE_PRIVATE_SEGMENT, 0, 1),
-  COMPUTE_PGM_RSRC2(USER_SGPR_COUNT, 1, 5),
-  COMPUTE_PGM_RSRC2(ENABLE_TRAP_HANDLER, 6, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_SGPR_WORKGROUP_ID_X, 7, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_SGPR_WORKGROUP_ID_Y, 8, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_SGPR_WORKGROUP_ID_Z, 9, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_SGPR_WORKGROUP_INFO, 10, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_VGPR_WORKITEM_ID, 11, 2),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_ADDRESS_WATCH, 13, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_MEMORY, 14, 1),
-  COMPUTE_PGM_RSRC2(GRANULATED_LDS_SIZE, 15, 9),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_IEEE_754_FP_INVALID_OPERATION, 24, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_FP_DENORMAL_SOURCE, 25, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_IEEE_754_FP_DIVISION_BY_ZERO, 26, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_IEEE_754_FP_OVERFLOW, 27, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_IEEE_754_FP_UNDERFLOW, 28, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_IEEE_754_FP_INEXACT, 29, 1),
-  COMPUTE_PGM_RSRC2(ENABLE_EXCEPTION_INT_DIVIDE_BY_ZERO, 30, 1),
-  COMPUTE_PGM_RSRC2(RESERVED0, 31, 1),
-};
-#undef COMPUTE_PGM_RSRC2
-
-// Compute program resource register 3 for GFX90A+. Must match hardware
-// definition.
-#define COMPUTE_PGM_RSRC3_GFX90A(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX90A_ ## NAME, SHIFT, WIDTH)
-enum : int32_t {
-  COMPUTE_PGM_RSRC3_GFX90A(ACCUM_OFFSET, 0, 6),
-  COMPUTE_PGM_RSRC3_GFX90A(RESERVED0, 6, 10),
-  COMPUTE_PGM_RSRC3_GFX90A(TG_SPLIT, 16, 1),
-  COMPUTE_PGM_RSRC3_GFX90A(RESERVED1, 17, 15),
-};
-#undef COMPUTE_PGM_RSRC3_GFX90A
-
-// Compute program resource register 3 for GFX10+. Must match hardware
-// definition.
-#define COMPUTE_PGM_RSRC3_GFX10(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX10_ ## NAME, SHIFT, WIDTH)
-enum : int32_t {
-  COMPUTE_PGM_RSRC3_GFX10(SHARED_VGPR_COUNT, 0, 4), // GFX10+
-  COMPUTE_PGM_RSRC3_GFX10(RESERVED0, 4, 28),
-};
-#undef COMPUTE_PGM_RSRC3_GFX10
-
 // Kernel code properties. Must be kept backwards compatible.
 #define KERNEL_CODE_PROPERTY(NAME, SHIFT, WIDTH) \
   AMDHSA_BITS_ENUM_ENTRY(KERNEL_CODE_PROPERTY_ ## NAME, SHIFT, WIDTH)
@@ -183,10 +88,19 @@ enum : int32_t {
   KERNEL_CODE_PROPERTY(RESERVED0, 7, 3),
   KERNEL_CODE_PROPERTY(ENABLE_WAVEFRONT_SIZE32, 10, 1), // GFX10+
   KERNEL_CODE_PROPERTY(USES_DYNAMIC_STACK, 11, 1),
-  KERNEL_CODE_PROPERTY(ENABLE_WAVEGROUP, 12, 1),
+  KERNEL_CODE_PROPERTY(ENABLE_WAVEGROUP, 12, 1), //# GFX13+
   KERNEL_CODE_PROPERTY(RESERVED1, 13, 3),
 };
 #undef KERNEL_CODE_PROPERTY
+
+// Kernarg preload specification.
+#define KERNARG_PRELOAD_SPEC(NAME, SHIFT, WIDTH)                               \
+  AMDHSA_BITS_ENUM_ENTRY(KERNARG_PRELOAD_SPEC_##NAME, SHIFT, WIDTH)
+enum : int32_t {
+  KERNARG_PRELOAD_SPEC(LENGTH, 0, 7),
+  KERNARG_PRELOAD_SPEC(OFFSET, 7, 9),
+};
+#undef KERNARG_PRELOAD_SPEC
 
 // Kernel descriptor. Must be kept backwards compatible.
 struct kernel_descriptor_t {
@@ -196,7 +110,7 @@ struct kernel_descriptor_t {
   uint8_t reserved0[4];
   int64_t kernel_code_entry_byte_offset;
   uint8_t reserved1[16];
-  uint32_t laneshared_segment_fixed_size;
+  uint32_t laneshared_segment_fixed_size; //# GFX13+
   uint32_t compute_pgm_rsrc3;             // GFX10+ and GFX90A+
   uint32_t compute_pgm_rsrc1;
   uint32_t compute_pgm_rsrc2;
@@ -264,4 +178,4 @@ static_assert(offsetof(kernel_descriptor_t, reserved3) == RESERVED3_OFFSET,
 } // end namespace amdhsa
 } // end namespace llvm
 
-#endif
+#endif // LLVM_SUPPORT_AMDHSAKERNELDESCRIPTOR_H

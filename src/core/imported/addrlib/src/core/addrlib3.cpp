@@ -520,7 +520,7 @@ ADDR_E_RETURNCODE Lib::CopyLinearSurface(
 {
     ADDR3_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
     ADDR3_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
-    ADDR3_MIP_INFO                    mipInfo[Addr3MaxMipLevels] = {0};
+    ADDR3_MIP_INFO                    mipInfo[Addr3MaxMipLevels] = {{0}};
     ADDR_ASSERT(pIn->numMipLevels <= Addr3MaxMipLevels);
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 

@@ -67,13 +67,10 @@ struct VsPsRegs
 
     struct Context
     {
-        regSPI_BARYC_CNTL       spiBarycCntl;
         regSPI_PS_INPUT_ENA     spiPsInputEna;
         regSPI_PS_INPUT_ADDR    spiPsInputAddr;
         regDB_SHADER_CONTROL    dbShaderControl;
-        regPA_SC_SHADER_CONTROL paScShaderControl;
         regPA_CL_VS_OUT_CNTL    paClVsOutCntl;
-        regVGT_PRIMITIVEID_EN   vgtPrimitiveIdEn;
 
         regVGT_STRMOUT_CONFIG        vgtStrmoutConfig;
         regVGT_STRMOUT_BUFFER_CONFIG vgtStrmoutBufferConfig;
@@ -82,6 +79,13 @@ struct VsPsRegs
         uint32  interpolatorCount;
         regSPI_PS_INPUT_CNTL_0   spiPsInputCntl[MaxPsInputSemantics];
     } context;
+
+    struct LowFreqContext
+    {
+        regSPI_BARYC_CNTL       spiBarycCntl;
+        regPA_SC_SHADER_CONTROL paScShaderControl;
+        regVGT_PRIMITIVEID_EN   vgtPrimitiveIdEn;
+    } lowFreqContext;
 
     struct Dynamic
     {
@@ -144,22 +148,27 @@ public:
         bool       isNgg) const;
     template <bool Pm4OptEnabled>
     uint32* WriteDynamicRegs(
-        CmdStream*              pCmdStream,
-        uint32*                 pCmdSpace,
-        bool                    isNgg,
-        const DynamicStageInfo& vsStageInfo,
-        const DynamicStageInfo& psStageInfo) const;
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace,
+        bool       isNgg,
+        uint8      vsWavesPerSeInUnitsOf16,
+        uint8      psWavesPerSeInUnitsOf16) const;
 
     template <bool Pm4OptEnabled>
     uint32* WriteContextCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-    static constexpr uint32 AccumulateContextRegsMaxRegs = 6 + 32; // 6 + 32 Interp.
     template <typename T>
     void AccumulateShRegs(T* pRegPairs, uint32* pNumRegs) const;
+
+    static constexpr uint32 AccumulateContextRegsMaxRegs = 3 + 32; // 6 + 32 Interp.
     template <typename T>
     void AccumulateContextRegs(T* pRegPairs, uint32* pNumRegs) const;
+
+    static constexpr uint32 AccumulateLowFreqContextRegsMaxRegs = 3;
+    template <typename T>
+    void AccumulateLowFreqContextRegs(T* pRegPairs, uint32* pNumRegs) const;
 
     bool UsesHwStreamout() const { return (m_regs.context.vgtStrmoutConfig.u32All != 0);  }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
@@ -169,7 +178,6 @@ public:
     regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_regs.context.paClVsOutCntl; }
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_paScAaConfig; }
     regSPI_PS_INPUT_ENA SpiPsInputEna() const { return m_regs.context.spiPsInputEna; }
-    regSPI_BARYC_CNTL SpiBarycCntl() const { return m_regs.context.spiBarycCntl; }
 
     // Shortcut for checking if the shader has enabled INNER_COVERAGE mode.
     bool UsesInnerCoverage() const
@@ -198,7 +206,17 @@ public:
                const PipelineChunkVsPs& chunkPs,
                const GraphicsShaderLibrary* expShaderLibrary);
 
-    void AccumulateRegistersHash(Util::MetroHash64& hasher)  const { hasher.Update(m_regs.context); }
+    void AccumulateRegistersHash(Util::MetroHash64* pHasher) const
+    {
+        pHasher->Update(m_regs.context);
+        pHasher->Update(m_regs.lowFreqContext);
+    }
+
+    void AccumulateLowFreqRegistersHash(Util::MetroHash64* pHasher) const
+    {
+        pHasher->Update(m_regs.lowFreqContext);
+    }
+    void AccumulateDynRegistersHash(Util::MetroHash64* pHasher) const { pHasher->Update(m_regs.dynamic); }
 private:
     template <bool Pm4OptEnabled>
     uint32* WriteShCommandsSetPathVs(CmdStream* pCmdStream, uint32* pCmdSpace) const;

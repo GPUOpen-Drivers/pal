@@ -159,10 +159,13 @@ constexpr uint32 ScratchWaveSizeGranularityShift = 0x00000006;
 constexpr size_t MaxScratchWaveSizeInDwords = (SPI_TMPRING_SIZE__WAVESIZE_MASK >> SPI_TMPRING_SIZE__WAVESIZE__SHIFT) <<
                                               ScratchWaveSizeGranularityShift;
 
-static_assert(MaxScratchWaveSizeInDwords ==
+static_assert((MaxScratchWaveSizeInDwords ==
                ((COMPUTE_TMPRING_SIZE__WAVESIZE_MASK >> COMPUTE_TMPRING_SIZE__WAVESIZE__SHIFT) <<
-                ScratchWaveSizeGranularityShift),
-              "SPI, COMPUTE MaxScratchWaveSize do not match!");
+                ScratchWaveSizeGranularityShift)) &&
+              (MaxScratchWaveSizeInDwords ==
+               ((WGS_COMPUTE_TMPRING_SIZE__WAVESIZE_MASK >> WGS_COMPUTE_TMPRING_SIZE__WAVESIZE__SHIFT) <<
+                ScratchWaveSizeGranularityShift)),
+              "SPI, COMPUTE, COMPUTE_WGS MaxScratchWaveSize do not match!");
 
 // Geometry export rings (primitive and position) base is in units of 64KB.
 constexpr uint32 GeometryExportRingShift = 0x00000010;

@@ -525,14 +525,11 @@ public:
         gpusize           dstOffset,
         gpusize           dstStride) override;
 
-    gpusize GetAcqRelFenceValBaseGpuVa() const { return m_acqRelFenceValGpuVa; }
-    void SetAcqRelFenceValBaseGpuVa(gpusize addr) { m_acqRelFenceValGpuVa = addr; }
+    uint32  WaitIdleTsValue()   { return ++m_waitIdleTsValue;   }
+    gpusize GetWaitIdleTsGpuVa(uint32** ppCmdSpace);
+    gpusize GetReleaseMemTsGpuVa();
 
-    gpusize AcqRelFenceValGpuVa(ReleaseTokenType type) const
-    {
-        PAL_ASSERT(m_acqRelFenceValGpuVa != 0);
-        return (m_acqRelFenceValGpuVa + sizeof(uint32) * static_cast<uint32>(type));
-    }
+    gpusize GetAcqRelFenceGpuVa(ReleaseTokenType type, uint32** ppCmdSpace);
 
     uint32 GetCurAcqRelFenceVal(ReleaseTokenType type) const { return m_acqRelFenceVals[type]; }
 
@@ -652,8 +649,6 @@ public:
         uint32                           numChunkOutputs,
         ChunkOutput*                     pChunkOutputs) { PAL_NOT_IMPLEMENTED(); }
 
-    gpusize TimestampGpuVirtAddr();
-
     // hwGlxSync/hwRbSync: opaque HWL cache sync flags. hwRbSync will be ignored for compute cmd buffer.
     virtual uint32* WriteWaitEop(WriteWaitEopInfo info, uint32* pCmdSpace) = 0;
 
@@ -685,6 +680,12 @@ protected:
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
 
     virtual void ResetState() override;
+
+    virtual size_t BuildWriteToZero(
+        gpusize       dstAddr,
+        uint32        numDwords,
+        const uint32* pZeros,
+        uint32*       pCmdSpace) const = 0;
 
     virtual void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
     void DescribeExecuteIndirectCmds(GfxCmdBuffer* pCmdBuf, uint32 genType);
@@ -857,7 +858,9 @@ private:
 
     const bool m_splitBarriers;    // If need split barriers with multiple planes into barriers with single plane.
 
-    gpusize m_timestampGpuVa;      // GPU virtual address of memory used for cache flush & inv timestamp events.
+    gpusize m_releaseMemTsGpuVa;   // GPU virtual address of memory used for ReleaseMem events, not care content.
+    gpusize m_waitIdleTsGpuVa;     // GPU virtual address of memory used for wait-idle timestamp events.
+    uint32  m_waitIdleTsValue;     // Ordered wait-idle timestamp value, +1 per each time.
 
     // Number of active queries in this command buffer.
     uint32 m_numActiveQueries[size_t(QueryPoolType::Count)];

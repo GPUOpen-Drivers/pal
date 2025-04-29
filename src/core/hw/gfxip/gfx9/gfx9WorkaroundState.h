@@ -52,10 +52,8 @@ class WorkaroundState
 {
 public:
     WorkaroundState(
-        const Device*                  pDevice,
-        bool                           isNested,
-        const UniversalCmdBufferState& universalState,
-        const CachedSettings&          cachedSettings);
+        const Device*         pDevice,
+        const CachedSettings& cachedSettings);
     ~WorkaroundState() {}
 
     template <bool PipelineDirty, bool StateDirty, bool Pm4OptImmediate>
@@ -83,11 +81,8 @@ public:
         uint32              numActiveQueries) const;
 
 private:
-    const Device&                  m_device;
-    const CmdUtil&                 m_cmdUtil;
-    const CachedSettings&          m_cachedSettings;
-    const bool                     m_isNested;
-    const UniversalCmdBufferState& m_universalState;
+    const CmdUtil&        m_cmdUtil;
+    const CachedSettings& m_cachedSettings;
 
     PAL_DISALLOW_DEFAULT_CTOR(WorkaroundState);
     PAL_DISALLOW_COPY_AND_ASSIGN(WorkaroundState);

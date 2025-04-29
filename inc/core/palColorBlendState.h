@@ -88,6 +88,7 @@ struct ColorBlendStateCreateInfo
         Blend     srcBlendAlpha;   ///< Source blend equation coefficient for alpha.
         Blend     dstBlendAlpha;   ///< Destination blend equation coefficient for alpha.
         BlendFunc blendFuncAlpha;  ///< Blend function for alpha.
+        bool      disableLogicOp;  ///< Disable logicOp for a this target.
     } targets[MaxColorTargets];    ///< Blending info for each color target.
 };
 

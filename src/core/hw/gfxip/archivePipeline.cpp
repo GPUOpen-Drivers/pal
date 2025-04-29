@@ -26,6 +26,7 @@
 #include "core/hw/gfxip/archivePipeline.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "palPipelineArFile.h"
+#include "palVectorImpl.h"
 
 using namespace Util;
 
@@ -56,8 +57,7 @@ Result ArchivePipeline::Init(
         { static_cast<const char*>(createInfo.pPipelineBinary), createInfo.pipelineBinarySize });
     Result result = Result::Success;
 
-    // Load (or find already loaded) each ELF in turn, backwards so that the lead ELF with the cross-ELF relocs
-    // gets done last.
+    // Get a vector of the ELF members of the archive.
     Vector<Abi::PipelineArFileReader::Iterator, 8, Platform> members(m_pDevice->GetPlatform());
     for (auto member = reader.Begin(); (result == Result::Success) && (member.IsEnd() == false); member.Next())
     {
@@ -71,45 +71,22 @@ Result ArchivePipeline::Init(
             result = members.PushBack(member);
         }
     }
-
     if (result == Result::Success)
     {
         result = m_loadedElfs.Resize(members.NumElements());
     }
 
-    ComputePipelineCreateInfo localInfo = createInfo;
-    for (uint32 idx = members.NumElements(); (result == Result::Success) && (idx != 0); )
     {
-        const auto& member = members[--idx];
-
-        // The ELF name is a 64-bit hash.
-        const uint64 hash = member.GetElfHash();
-
-        // Load the ELF, or find an already-loaded ELF.
-        const Span<const char> contents = member.GetData();
-        localInfo.pPipelineBinary       = contents.Data();
-        localInfo.pipelineBinarySize    = contents.NumElements();
-
-        Span<LoadedElf* const> otherElfs(m_loadedElfs);
-        otherElfs = otherElfs.DropFront(idx + 1);
-        result    = m_pLoader->GetElf(hash, localInfo, otherElfs, &m_loadedElfs[idx]);
-        if (result == Result::Success)
+        // Load ELFs in reverse the order of members; for a ray-tracing pipeline, we need to load the lead ELF
+        // last as it has relocs to other ELFs.
+        for (uint32 idx = members.NumElements(); (result == Result::Success) && (idx != 0); )
         {
-            // If it is a pipeline, add it to the pipelines list.
-            IPipeline* pPipeline = m_loadedElfs[idx]->GetPipeline();
-            if (pPipeline != nullptr)
-            {
-                result = m_pipelines.PushBack(pPipeline);
-                CompilerStackSizes sizes = {};
-                pPipeline->GetStackSizes(&sizes);
-                m_cpsStackSizes.backendSize = Max(m_cpsStackSizes.backendSize, sizes.backendSize);
-                m_cpsStackSizes.frontendSize = Max(m_cpsStackSizes.frontendSize, sizes.frontendSize);
-            }
-            // If it is a library, add it to the libraries list.
-            else if (m_loadedElfs[idx]->GetShaderLibrary())
-            {
-                result = m_libraries.PushBack(m_loadedElfs[idx]->GetShaderLibrary());
-            }
+            const auto& member = members[--idx];
+            result = LoadOneElf(createInfo,
+                                member.GetData(),
+                                member.GetElfHash(),
+                                idx,
+                                &m_loadedElfs[idx]);
         }
     }
 
@@ -134,8 +111,55 @@ Result ArchivePipeline::Init(
                 m_info.flags.cpsGlobal |= pPipeline->GetInfo().flags.cpsGlobal;
             }
         }
+
+        // Get info from the lead ELF.
         if (m_loadedElfs.IsEmpty() == false)
         {
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Load one ELF in the ArchivePipeline.
+Result ArchivePipeline::LoadOneElf(
+    const ComputePipelineCreateInfo& createInfo,  // Archive pipeline create info
+    Span<const char>                 contents,    // Archive member to load
+    uint64                           elfName,     // Name (hash) of archive member
+    uint32                           currIndex,   // Current Index in the Elf Archive
+    LoadedElf**                      ppLoadedElf) // (out) LoadedElf pointer to fill out
+{
+    Result result = Result::Success;
+
+    {
+        // Load the ELF, or find an already-loaded ELF.
+        ComputePipelineCreateInfo localInfo = createInfo;
+        localInfo.pPipelineBinary           = contents.Data();
+        localInfo.pipelineBinarySize        = contents.NumElements();
+        result                              = m_pLoader->GetElf(elfName, localInfo, m_loadedElfs, ppLoadedElf);
+        if (result == Result::Success)
+        {
+            // If it is a pipeline, add it to the pipelines list.
+            IPipeline* pPipeline = (*ppLoadedElf)->GetPipeline();
+            if (pPipeline != nullptr)
+            {
+                result = m_pipelines.PushBack(pPipeline);
+                CompilerStackSizes sizes = {};
+                pPipeline->GetStackSizes(&sizes);
+                m_cpsStackSizes.backendSize = Max(m_cpsStackSizes.backendSize, sizes.backendSize);
+                m_cpsStackSizes.frontendSize = Max(m_cpsStackSizes.frontendSize, sizes.frontendSize);
+            }
+            // If it is a library, add it to the libraries list.
+            else if ((*ppLoadedElf)->GetShaderLibrary())
+            {
+                result = m_libraries.PushBack((*ppLoadedElf)->GetShaderLibrary());
+
+                // Get info from the lead ELF.
+                if (currIndex == 0)
+                {
+                }
+            }
         }
     }
 

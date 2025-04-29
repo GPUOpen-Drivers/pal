@@ -486,7 +486,13 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+// Do not include <inttypes.h> for the kernel build because <inttypes.h>
+// clashes with <crtdefs.h> in the WDK, leading to _locale_t being re-defined,
+// which causes a compile error.
+#if !DD_PLATFORM_IS_KM
 #include <inttypes.h>
+#endif
 #include <limits.h>
 
 #if MPACK_STDLIB
@@ -578,7 +584,6 @@ MPACK_HEADER_START
 // lexically first. (For safety/consistency we use this in all variadic macros
 // that don't ignore the variadic arguments regardless of whether __VA_ARGS__
 // is passed to another macro.)
-//     https://stackoverflow.com/a/32400131
 #define MPACK_EXPAND(x) x
 
 // Extracts the first argument of a variadic macro list, where there might only

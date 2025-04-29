@@ -43,6 +43,8 @@
 typedef struct hsa_kernel_dispatch_packet_s hsa_kernel_dispatch_packet_t;
 /// AMD kernel code typedef
 typedef struct amd_kernel_code_s amd_kernel_code_t;
+/// AMD kernel descriptor
+namespace llvm {namespace amdhsa {struct kernel_descriptor_t;} }
 
 namespace Util
 {
@@ -1862,7 +1864,6 @@ struct Viewport
 struct ViewportParams
 {
     uint32     count;                   ///< Number of viewports.
-    Viewport   viewports[MaxViewports]; ///< Array of desciptors for each viewport.
     float      horzDiscardRatio;        ///< The ratio between guardband discard rect width and viewport width.
                                         ///  For all guard band ratio settings, values less than 1.0f are illegal.
                                         ///  Value FLT_MAX opens the guardband as wide as the HW supports.
@@ -1871,6 +1872,8 @@ struct ViewportParams
     float      horzClipRatio;           ///< The ratio between guardband clip rect width and viewport width.
     float      vertClipRatio;           ///< The ratio between guardband clip rect height and viewport height.
     DepthRange depthRange;              ///< Specifies the target range of Z values
+    // Define viewports array at the end of the structure as it is common to only access the first N from the CPU.
+    Viewport   viewports[MaxViewports]; ///< Array of desciptors for each viewport.
 };
 
 /// Specifies the parameters for specifing the scissor rectangle.
@@ -1991,26 +1994,33 @@ struct CmdBufInfo
     {
         struct
         {
-            uint32 isValid            : 1;  ///< Indicate if this CmdBufInfo is valid and should be submitted
-            uint32 frameBegin         : 1;  ///< First command buffer after Queue creation or Present.
-            uint32 dfSpmTraceBegin    : 1;  ///< This command buffer begins a DF SPM trace.
-            uint32 dfSpmTraceEnd      : 1;  ///< This command buffer ends a DF SPM trace.
-            uint32 frameEnd           : 1;  ///< Last command buffer before Present.
-            uint32 p2pCmd             : 1;  ///< Is P2P copy command. See CmdBufInfo comments for details.
-            uint32 captureBegin       : 1;  ///< This command buffer begins a Direct Capture frame capture.
-            uint32 captureEnd         : 1;  ///< This command buffer ends a Direct Capture frame capture.
-            uint32 rayTracingExecuted : 1;  ///< This command buffer contains ray tracing work.
-            uint32 preflip            : 1;  ///< This command buffer has pre-flip access to DirectCapture resource
-            uint32 postflip           : 1;  ///< This command buffer has post-flip access to DirectCapture resource
-            uint32 privateFlip        : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
-            uint32 vpBltExecuted      : 1;  ///< This command buffer comtains VP Blt work.
-            uint32 disableDccRejected : 1;  ///< Reject KMD's DisableDcc request to avoid writing to front buffer.
-            uint32 noFlip             : 1;  ///< No flip when DirectCapture access submission completes
-            uint32 frameGenIndex      : 4;  ///< Index of the DirectCapture feature generated frames
-            uint32 noRenderPresent    : 1;  ///< Last command buffer before present which is no render present or not
-            uint32 reserved           : 12; ///< Reserved for future usage.
+            uint32 isValid                 : 1;  ///< Indicate if this CmdBufInfo is valid and should be submitted
+            uint32 frameBegin              : 1;  ///< First command buffer after Queue creation or Present.
+            uint32 dfSpmTraceBegin         : 1;  ///< This command buffer begins a DF SPM trace.
+            uint32 dfSpmTraceEnd           : 1;  ///< This command buffer ends a DF SPM trace.
+            uint32 frameEnd                : 1;  ///< Last command buffer before Present.
+            uint32 p2pCmd                  : 1;  ///< Is P2P copy command. See CmdBufInfo comments for details.
+            uint32 captureBegin            : 1;  ///< This command buffer begins a Direct Capture frame capture.
+            uint32 captureEnd              : 1;  ///< This command buffer ends a Direct Capture frame capture.
+            uint32 rayTracingExecuted      : 1;  ///< This command buffer contains ray tracing work.
+            uint32 preflip                 : 1;  ///< This command buffer has pre-flip access to DirectCapture resource
+            uint32 postflip                : 1;  ///< This command buffer has post-flip access to DirectCapture resource
+            uint32 privateFlip             : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
+            uint32 vpBltExecuted           : 1;  ///< This command buffer comtains VP Blt work.
+            uint32 disableDccRejected      : 1;  ///< Reject KMD's DisableDcc request to avoid writing to front buffer.
+            uint32 noFlip                  : 1;  ///< No flip when DirectCapture access submission completes
+            uint32 frameGenIndex           : 4;  ///< Index of the DirectCapture feature generated frames
+            uint32 noRenderPresent         : 1;  ///< Last command buffer before present which is no render present or not
+            uint32 motionVectorPropChanged : 1;  ///< Indicates whether motion vector properties changed
+            uint32 depthPropChanged        : 1;  ///< Indicates whether depth properties changed
+            uint32 cameraPropChanged       : 1;  ///< Indicates whether camera matrix properties changed
+            uint32 capturePrimary          : 1;  ///< Has Direct Capture primary surface capture
+            uint32 captureMotionVector     : 1;  ///< Has Direct Capture motion vector capture
+            uint32 captureDepth            : 1;  ///< Has Direct Capture depth capture
+            uint32 captureCamera           : 1;  ///< Has Direct Capture camera matrix capture
+            uint32 reserved                : 5;  ///< Reserved for future usage.
         };
-        uint32 u32All;                  ///< Flags packed as uint32.
+        uint32 u32All;                           ///< Flags packed as uint32.
     };
 
     const IGpuMemory*  pPrimaryMemory;     ///< The primary's gpu memory object used for passing its allocation handle
@@ -2032,6 +2042,9 @@ struct CmdBufInfo
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 865
     uint64             frameId;            ///< Present frame index, incremented at each present
 #endif
+    const IGpuMemory* pMotionVectorMemory; ///< The motion vector gpu memory object for the DirectCapture feature.
+    const IGpuMemory* pDepthMemory;        ///< The depth gpu memory object for the DirectCapture feature.
+    const IGpuMemory* pCameraMemory;       ///< The camera gpu memory object for the DirectCapture feature.
 };
 
 /// Specifies rotation angle between two images.  Used as input to ICmdBuffer::CmdScaledCopyImage.

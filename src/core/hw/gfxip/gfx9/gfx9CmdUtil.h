@@ -126,7 +126,7 @@ struct ReleaseMemGeneric
     gpusize          dstAddr;        // The the selected data here, must be aligned to the data byte size.
     uint64           data;           // data to write, ignored except for *_send_32_bit_low or *_send_64_bit_data.
     bool             gfx11WaitCpDma; // If wait CP DMA to be idle, only available on gfx11 with supported PFP version.
-                                     // Clients must query EnableReleaseMemWaitCpDma() to make sure ReleaseMem packet
+                                     // Caller must query EnableReleaseMemWaitCpDma() to make sure ReleaseMem packet
                                      // supports waiting CP DMA before setting it true.
 };
 
@@ -238,6 +238,8 @@ class CmdUtil
 public:
     explicit CmdUtil(const Device& device);
     ~CmdUtil() {}
+
+    void LateInit(const Device& device);
 
     // Returns the number of DWORDs that are required to chain two chunks
     static uint32 ChainSizeInDwords(EngineType engineType);
@@ -429,6 +431,13 @@ public:
         uint32       startInstLoc,
         Pm4Predicate predicate,
         void*        pBuffer);
+    template <bool IsGfx11>
+    size_t BuildDrawIndexIndirect(
+        gpusize      offset,
+        uint32       baseVtxLoc,
+        uint32       startInstLoc,
+        Pm4Predicate predicate,
+        void*        pBuffer) const;
     size_t BuildDrawIndexIndirect(
         gpusize      offset,
         uint32       baseVtxLoc,
@@ -562,14 +571,10 @@ public:
         uint32  startRegAddr,
         uint32  count,
         void*   pBuffer);
-    template <bool directAddress>
+    template <bool DirectAddress>
     size_t BuildLoadContextRegsIndex(
         gpusize gpuVirtAddrOrAddrOffset,
         uint32  startRegAddr,
-        uint32  count,
-        void*   pBuffer) const;
-    size_t BuildLoadContextRegsIndex(
-        gpusize gpuVirtAddr,
         uint32  count,
         void*   pBuffer) const;
 
@@ -724,7 +729,12 @@ public:
         gpusize srcGpuVirtAddr,
         gpusize controlBufAddr,
         void*   pBuffer);
-    size_t BuildWaitCsIdle(EngineType engineType, gpusize timestampGpuAddr, void* pBuffer) const;
+    size_t BuildWaitCsIdle(
+        EngineType engineType,
+        gpusize    timestampGpuAddr,
+        uint32     timestampValue,
+        bool       timestampValueValid,
+        void*      pBuffer) const;
     static size_t BuildWaitDmaData(void* pBuffer);
     size_t BuildWaitEopPws(
         AcquirePoint waitPoint,
@@ -827,14 +837,38 @@ private:
     void CheckShadowedUserConfigRegs(uint32 startRegAddr, uint32 endRegAddr) const;
 #endif
 
-    const Device&            m_device;
-    const GpuChipProperties& m_chipProps;
-    RegisterInfo             m_registerInfo;    // Addresses for registers whose addresses vary between hardware families.
+    RegisterInfo     m_registerInfo;    // Addresses for registers whose addresses vary between hardware families.
+
+    uint32 m_prefetchClampSize;
+
+    struct
+    {
+        uint32 isGfx10                            :  1;
+        uint32 isGfx101                           :  1;
+        uint32 isGfx103                           :  1;
+        uint32 isGfx103CorePlus                   :  1;
+        uint32 isGfx11                            :  1;
+        uint32 supportsSwStrmout                  :  1;
+        uint32 gfx11EnableReleaseMemWaitCpDma     :  1;
+        uint32 waReplaceEventsWithTsEvents        :  1;
+        uint32 gfx11EnableZpassPacketOptimization :  1;
+        uint32 disableAceCsPartialFlush           :  1;
+        uint32 waIndexBufferZeroSize              :  1;
+        uint32 usePwsLateAcquirePoint             :  1;
+        uint32 supportsExpandedPackedRegPairs     :  1;
+        uint32 pfpSupportsPerfCounterWindow       :  1;
+        uint32 mecSupportsPerfCounterWindow       :  1;
+        uint32 uCodeSupportsLoadShRegIndexIndAddr :  1;
+        uint32 uCodeSupportsCsPartialFlush10_1    :  1;
+        uint32 uCodeSupportsCsPartialFlush10_3    :  1;
+        uint32 reserved                           : 14;
+    } m_flags;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // If this is set, PAL will verify that all register writes fall within the ranges which get shadowed to GPU
     // memory when mid command buffer preemption is enabled.
-    const bool  m_verifyShadowedRegisters;
+    bool m_verifyShadowedRegisters;
+    const Device& m_device;
 #endif
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdUtil);

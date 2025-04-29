@@ -23,8 +23,8 @@
  *
  **********************************************************************************************************************/
 
-#include "palHashLiteralString.h"
 #include "palHsaAbiMetadata.h"
+#include "palInlineFuncs.h"
 #include "palMsgPackImpl.h"
 
 namespace Util
@@ -90,91 +90,91 @@ static Result UnpackNextValueKind(
 
         switch(HashString(static_cast<const char*>(str.start), str.length))
         {
-        case HashLiteralString("by_value"):
+        case CompileTimeHashString("by_value"):
             *pEnum = ValueKind::ByValue;
             break;
-        case HashLiteralString("global_buffer"):
+        case CompileTimeHashString("global_buffer"):
             *pEnum = ValueKind::GlobalBuffer;
             break;
-        case HashLiteralString("dynamic_shared_pointer"):
+        case CompileTimeHashString("dynamic_shared_pointer"):
             *pEnum = ValueKind::DynamicSharedPointer;
             break;
-        case HashLiteralString("sampler"):
+        case CompileTimeHashString("sampler"):
             *pEnum = ValueKind::Sampler;
             break;
-        case HashLiteralString("image"):
+        case CompileTimeHashString("image"):
             *pEnum = ValueKind::Image;
             break;
-        case HashLiteralString("pipe"):
+        case CompileTimeHashString("pipe"):
             *pEnum = ValueKind::Pipe;
             break;
-        case HashLiteralString("queue"):
+        case CompileTimeHashString("queue"):
             *pEnum = ValueKind::Queue;
             break;
-        case HashLiteralString("hidden_global_offset_x"):
+        case CompileTimeHashString("hidden_global_offset_x"):
             *pEnum = ValueKind::HiddenGlobalOffsetX;
             break;
-        case HashLiteralString("hidden_global_offset_y"):
+        case CompileTimeHashString("hidden_global_offset_y"):
             *pEnum = ValueKind::HiddenGlobalOffsetY;
             break;
-        case HashLiteralString("hidden_global_offset_z"):
+        case CompileTimeHashString("hidden_global_offset_z"):
             *pEnum = ValueKind::HiddenGlobalOffsetZ;
             break;
-        case HashLiteralString("hidden_none"):
+        case CompileTimeHashString("hidden_none"):
             *pEnum = ValueKind::HiddenNone;
             break;
-        case HashLiteralString("hidden_printf_buffer"):
+        case CompileTimeHashString("hidden_printf_buffer"):
             *pEnum = ValueKind::HiddenPrintfBuffer;
             break;
-        case HashLiteralString("hidden_hostcall_buffer"):
+        case CompileTimeHashString("hidden_hostcall_buffer"):
             *pEnum = ValueKind::HiddenHostcallBuffer;
             break;
-        case HashLiteralString("hidden_default_queue"):
+        case CompileTimeHashString("hidden_default_queue"):
             *pEnum = ValueKind::HiddenDefaultQueue;
             break;
-        case HashLiteralString("hidden_completion_action"):
+        case CompileTimeHashString("hidden_completion_action"):
             *pEnum = ValueKind::HiddenCompletionAction;
             break;
-        case HashLiteralString("hidden_multigrid_sync_arg"):
+        case CompileTimeHashString("hidden_multigrid_sync_arg"):
             *pEnum = ValueKind::HiddenMultigridSyncArg;
             break;
-        case HashLiteralString("hidden_block_count_x"):
+        case CompileTimeHashString("hidden_block_count_x"):
             *pEnum = ValueKind::HiddenBlockCountX;
             break;
-        case HashLiteralString("hidden_block_count_y"):
+        case CompileTimeHashString("hidden_block_count_y"):
             *pEnum = ValueKind::HiddenBlockCountY;
             break;
-        case HashLiteralString("hidden_block_count_z"):
+        case CompileTimeHashString("hidden_block_count_z"):
             *pEnum = ValueKind::HiddenBlockCountZ;
             break;
-        case HashLiteralString("hidden_group_size_x"):
+        case CompileTimeHashString("hidden_group_size_x"):
             *pEnum = ValueKind::HiddenGroupSizeX;
             break;
-        case HashLiteralString("hidden_group_size_y"):
+        case CompileTimeHashString("hidden_group_size_y"):
             *pEnum = ValueKind::HiddenGroupSizeY;
             break;
-        case HashLiteralString("hidden_group_size_z"):
+        case CompileTimeHashString("hidden_group_size_z"):
             *pEnum = ValueKind::HiddenGroupSizeZ;
             break;
-        case HashLiteralString("hidden_remainder_x"):
+        case CompileTimeHashString("hidden_remainder_x"):
             *pEnum = ValueKind::HiddenRemainderX;
             break;
-        case HashLiteralString("hidden_remainder_y"):
+        case CompileTimeHashString("hidden_remainder_y"):
             *pEnum = ValueKind::HiddenRemainderY;
             break;
-        case HashLiteralString("hidden_remainder_z"):
+        case CompileTimeHashString("hidden_remainder_z"):
             *pEnum = ValueKind::HiddenRemainderZ;
             break;
-        case HashLiteralString("hidden_grid_dims"):
+        case CompileTimeHashString("hidden_grid_dims"):
             *pEnum = ValueKind::HiddenGridDims;
             break;
-        case HashLiteralString("hidden_heap_v1"):
+        case CompileTimeHashString("hidden_heap_v1"):
             *pEnum = ValueKind::HiddenHeapV1;
             break;
-        case HashLiteralString("hidden_dynamic_lds_size"):
+        case CompileTimeHashString("hidden_dynamic_lds_size"):
             *pEnum = ValueKind::HiddenDynamicLdsSize;
             break;
-        case HashLiteralString("hidden_queue_ptr"):
+        case CompileTimeHashString("hidden_queue_ptr"):
             *pEnum = ValueKind::HiddenQueuePtr;
             break;
         default:
@@ -202,22 +202,22 @@ static Result UnpackNextAddressSpace(
 
         switch(HashString(static_cast<const char*>(str.start), str.length))
         {
-        case HashLiteralString("private"):
+        case CompileTimeHashString("private"):
             *pEnum = AddressSpace::Private;
             break;
-        case HashLiteralString("global"):
+        case CompileTimeHashString("global"):
             *pEnum = AddressSpace::Global;
             break;
-        case HashLiteralString("constant"):
+        case CompileTimeHashString("constant"):
             *pEnum = AddressSpace::Constant;
             break;
-        case HashLiteralString("local"):
+        case CompileTimeHashString("local"):
             *pEnum = AddressSpace::Local;
             break;
-        case HashLiteralString("generic"):
+        case CompileTimeHashString("generic"):
             *pEnum = AddressSpace::Generic;
             break;
-        case HashLiteralString("region"):
+        case CompileTimeHashString("region"):
             *pEnum = AddressSpace::Region;
             break;
         default:
@@ -245,13 +245,13 @@ static Result UnpackNextAccess(
 
         switch(HashString(static_cast<const char*>(str.start), str.length))
         {
-        case HashLiteralString("read_only"):
+        case CompileTimeHashString("read_only"):
             *pEnum = Access::ReadOnly;
             break;
-        case HashLiteralString("write_only"):
+        case CompileTimeHashString("write_only"):
             *pEnum = Access::WriteOnly;
             break;
-        case HashLiteralString("read_write"):
+        case CompileTimeHashString("read_write"):
             *pEnum = Access::ReadWrite;
             break;
         default:
@@ -279,13 +279,13 @@ static Result UnpackNextKind(
 
         switch(HashString(static_cast<const char*>(str.start), str.length))
         {
-        case HashLiteralString("normal"):
+        case CompileTimeHashString("normal"):
             *pEnum = Kind::Normal;
             break;
-        case HashLiteralString("init"):
+        case CompileTimeHashString("init"):
             *pEnum = Kind::Init;
             break;
-        case HashLiteralString("fini"):
+        case CompileTimeHashString("fini"):
             *pEnum = Kind::Fini;
             break;
         default:
@@ -360,7 +360,7 @@ static Result IsMatchingKernelName(
         {
             switch (HashString(keyName))
             {
-            case HashLiteralString(KernelMetadataKey::Name):
+            case CompileTimeHashString(KernelMetadataKey::Name):
                 found = true;
                 result = reader.UnpackNext(&name);
                 break;
@@ -457,67 +457,67 @@ Result CodeObjectMetadata::DeserializeKernelArgs(
                 // These cases follow the same order as the spec.
                 switch(HashString(static_cast<const char*>(str.start), str.length))
                 {
-                case HashLiteralString(KernArgsMetadataKey::Name):
+                case CompileTimeHashString(KernArgsMetadataKey::Name):
                     PAL_ASSERT(hasEntry.name == 0);
                     hasEntry.name = 1;
                     result = UnpackNextString(pReader, &m_allocator, &pArg->pName);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::TypeName):
+                case CompileTimeHashString(KernArgsMetadataKey::TypeName):
                     PAL_ASSERT(hasEntry.typeName == 0);
                     hasEntry.typeName = 1;
                     result = UnpackNextString(pReader, &m_allocator, &pArg->pTypeName);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::Size):
+                case CompileTimeHashString(KernArgsMetadataKey::Size):
                     PAL_ASSERT(hasEntry.size == 0);
                     hasEntry.size = 1;
                     result = pReader->UnpackNext(&pArg->size);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::Offset):
+                case CompileTimeHashString(KernArgsMetadataKey::Offset):
                     PAL_ASSERT(hasEntry.offset == 0);
                     hasEntry.offset = 1;
                     result = pReader->UnpackNext(&pArg->offset);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::ValueKind):
+                case CompileTimeHashString(KernArgsMetadataKey::ValueKind):
                     PAL_ASSERT(hasEntry.valueKind == 0);
                     hasEntry.valueKind = 1;
                     result = UnpackNextValueKind(pReader, &pArg->valueKind);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::PointeeAlign):
+                case CompileTimeHashString(KernArgsMetadataKey::PointeeAlign):
                     PAL_ASSERT(hasEntry.pointeeAlign == 0);
                     hasEntry.pointeeAlign = 1;
                     result = pReader->UnpackNext(&pArg->pointeeAlign);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::AddressSpace):
+                case CompileTimeHashString(KernArgsMetadataKey::AddressSpace):
                     PAL_ASSERT(hasEntry.addressSpace == 0);
                     hasEntry.addressSpace = 1;
                     result = UnpackNextAddressSpace(pReader, &pArg->addressSpace);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::Access):
+                case CompileTimeHashString(KernArgsMetadataKey::Access):
                     PAL_ASSERT(hasEntry.access == 0);
                     hasEntry.access = 1;
                     result = UnpackNextAccess(pReader, &pArg->access);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::ActualAccess):
+                case CompileTimeHashString(KernArgsMetadataKey::ActualAccess):
                     PAL_ASSERT(hasEntry.actualAccess == 0);
                     hasEntry.actualAccess = 1;
                     result = UnpackNextAccess(pReader, &pArg->actualAccess);
                     break;
-                case HashLiteralString(KernArgsMetadataKey::IsConst):
+                case CompileTimeHashString(KernArgsMetadataKey::IsConst):
                     PAL_ASSERT(pArg->flags.isConst == 0);
                     result = pReader->UnpackNext(&flag);
                     pArg->flags.isConst = flag;
                     break;
-                case HashLiteralString(KernArgsMetadataKey::IsPipe):
+                case CompileTimeHashString(KernArgsMetadataKey::IsPipe):
                     PAL_ASSERT(pArg->flags.isPipe == 0);
                     result = pReader->UnpackNext(&flag);
                     pArg->flags.isPipe = flag;
                     break;
-                case HashLiteralString(KernArgsMetadataKey::IsRestrict):
+                case CompileTimeHashString(KernArgsMetadataKey::IsRestrict):
                     PAL_ASSERT(pArg->flags.isRestrict == 0);
                     result = pReader->UnpackNext(&flag);
                     pArg->flags.isRestrict = flag;
                     break;
-                case HashLiteralString(KernArgsMetadataKey::IsVolatile):
+                case CompileTimeHashString(KernArgsMetadataKey::IsVolatile):
                     PAL_ASSERT(pArg->flags.isVolatile == 0);
                     result = pReader->UnpackNext(&flag);
                     pArg->flags.isVolatile = flag;
@@ -593,117 +593,117 @@ Result CodeObjectMetadata::DeserializeKernel(
             // These cases follow the same order as the spec.
             switch (HashString(static_cast<const char*>(str.start), str.length))
             {
-            case HashLiteralString(KernelMetadataKey::Name):
+            case CompileTimeHashString(KernelMetadataKey::Name):
                 PAL_ASSERT(hasEntry.name == 0);
                 hasEntry.name = 1;
                 result = UnpackNextString(pReader, &m_allocator, &m_pName);
                 break;
-            case HashLiteralString(KernelMetadataKey::Symbol):
+            case CompileTimeHashString(KernelMetadataKey::Symbol):
                 PAL_ASSERT(hasEntry.symbol == 0);
                 hasEntry.symbol = 1;
                 result = UnpackNextString(pReader, &m_allocator, &m_pSymbol);
                 break;
-            case HashLiteralString(KernelMetadataKey::Language):
+            case CompileTimeHashString(KernelMetadataKey::Language):
                 PAL_ASSERT(hasEntry.language == 0);
                 hasEntry.language = 1;
                 result = UnpackNextString(pReader, &m_allocator, &m_pLanguage);
                 break;
-            case HashLiteralString(KernelMetadataKey::LanguageVersion):
+            case CompileTimeHashString(KernelMetadataKey::LanguageVersion):
                 PAL_ASSERT(hasEntry.languageVersion == 0);
                 hasEntry.languageVersion = 1;
                 result = pReader->UnpackNext(&m_languageVersion);
                 break;
-            case HashLiteralString(KernelMetadataKey::Args):
+            case CompileTimeHashString(KernelMetadataKey::Args):
                 PAL_ASSERT(hasEntry.args == 0);
                 hasEntry.args = 1;
                 result = DeserializeKernelArgs(pReader);
                 break;
-            case HashLiteralString(KernelMetadataKey::ReqdWorkgroupSize):
+            case CompileTimeHashString(KernelMetadataKey::ReqdWorkgroupSize):
                 PAL_ASSERT(hasEntry.reqdWorkgroupSize == 0);
                 hasEntry.reqdWorkgroupSize = 1;
                 result = pReader->UnpackNext(&m_reqdWorkgroupSize);
                 break;
-            case HashLiteralString(KernelMetadataKey::WorkgroupSizeHint):
+            case CompileTimeHashString(KernelMetadataKey::WorkgroupSizeHint):
                 PAL_ASSERT(hasEntry.workgroupSizeHint == 0);
                 hasEntry.workgroupSizeHint = 1;
                 result = pReader->UnpackNext(&m_workgroupSizeHint);
                 break;
-            case HashLiteralString(KernelMetadataKey::VecTypeHint):
+            case CompileTimeHashString(KernelMetadataKey::VecTypeHint):
                 PAL_ASSERT(hasEntry.vecTypeHint == 0);
                 hasEntry.vecTypeHint = 1;
                 result = UnpackNextString(pReader, &m_allocator, &m_pVecTypeHint);
                 break;
-            case HashLiteralString(KernelMetadataKey::DeviceEnqueueSymbol):
+            case CompileTimeHashString(KernelMetadataKey::DeviceEnqueueSymbol):
                 PAL_ASSERT(hasEntry.deviceEnqueueSymbol == 0);
                 hasEntry.deviceEnqueueSymbol = 1;
                 result = UnpackNextString(pReader, &m_allocator, &m_pDeviceEnqueueSymbol);
                 break;
-            case HashLiteralString(KernelMetadataKey::KernargSegmentSize):
+            case CompileTimeHashString(KernelMetadataKey::KernargSegmentSize):
                 PAL_ASSERT(hasEntry.kernargSegmentSize == 0);
                 hasEntry.kernargSegmentSize = 1;
                 result = pReader->UnpackNext(&m_kernargSegmentSize);
                 break;
-            case HashLiteralString(KernelMetadataKey::GroupSegmentFixedSize):
+            case CompileTimeHashString(KernelMetadataKey::GroupSegmentFixedSize):
                 PAL_ASSERT(hasEntry.groupSegmentFixedSize == 0);
                 hasEntry.groupSegmentFixedSize = 1;
                 result = pReader->UnpackNext(&m_groupSegmentFixedSize);
                 break;
-            case HashLiteralString(KernelMetadataKey::PrivateSegmentFixedSize):
+            case CompileTimeHashString(KernelMetadataKey::PrivateSegmentFixedSize):
                 PAL_ASSERT(hasEntry.privateSegmentFixedSize == 0);
                 hasEntry.privateSegmentFixedSize = 1;
                 result = pReader->UnpackNext(&m_privateSegmentFixedSize);
                 break;
-            case HashLiteralString(KernelMetadataKey::KernargSegmentAlign):
+            case CompileTimeHashString(KernelMetadataKey::KernargSegmentAlign):
                 PAL_ASSERT(hasEntry.kernargSegmentAlign == 0);
                 hasEntry.kernargSegmentAlign = 1;
                 result = pReader->UnpackNext(&m_kernargSegmentAlign);
                 break;
-            case HashLiteralString(KernelMetadataKey::WavefrontSize):
+            case CompileTimeHashString(KernelMetadataKey::WavefrontSize):
                 PAL_ASSERT(hasEntry.wavefrontSize == 0);
                 hasEntry.wavefrontSize = 1;
                 result = pReader->UnpackNext(&m_wavefrontSize);
                 break;
-            case HashLiteralString(KernelMetadataKey::SgprCount):
+            case CompileTimeHashString(KernelMetadataKey::SgprCount):
                 PAL_ASSERT(hasEntry.sgprCount == 0);
                 hasEntry.sgprCount = 1;
                 result = pReader->UnpackNext(&m_sgprCount);
                 break;
-            case HashLiteralString(KernelMetadataKey::VgprCount):
+            case CompileTimeHashString(KernelMetadataKey::VgprCount):
                 PAL_ASSERT(hasEntry.vgprCount == 0);
                 hasEntry.vgprCount = 1;
                 result = pReader->UnpackNext(&m_vgprCount);
                 break;
-            case HashLiteralString(KernelMetadataKey::MaxFlatWorkgroupSize):
+            case CompileTimeHashString(KernelMetadataKey::MaxFlatWorkgroupSize):
                 PAL_ASSERT(hasEntry.maxFlatWorkgroupSize == 0);
                 hasEntry.maxFlatWorkgroupSize = 1;
                 result = pReader->UnpackNext(&m_maxFlatWorkgroupSize);
                 break;
-            case HashLiteralString(KernelMetadataKey::SgprSpillCount):
+            case CompileTimeHashString(KernelMetadataKey::SgprSpillCount):
                 PAL_ASSERT(hasEntry.sgprSpillCount == 0);
                 hasEntry.sgprSpillCount = 1;
                 result = pReader->UnpackNext(&m_sgprSpillCount);
                 break;
-            case HashLiteralString(KernelMetadataKey::VgprSpillCount):
+            case CompileTimeHashString(KernelMetadataKey::VgprSpillCount):
                 PAL_ASSERT(hasEntry.vgprSpillCount == 0);
                 hasEntry.vgprSpillCount = 1;
                 result = pReader->UnpackNext(&m_vgprSpillCount);
                 break;
-            case HashLiteralString(KernelMetadataKey::Kind):
+            case CompileTimeHashString(KernelMetadataKey::Kind):
                 PAL_ASSERT(hasEntry.kind == 0);
                 hasEntry.kind = 1;
                 result = UnpackNextKind(pReader, &m_kind);
                 break;
-            case HashLiteralString(KernelMetadataKey::UniformWorkgroupSize):
+            case CompileTimeHashString(KernelMetadataKey::UniformWorkgroupSize):
                 PAL_ASSERT(hasEntry.workgroupProcessorMode == 0);
                 hasEntry.uniformWorkgroupSize = 1;
                 result = pReader->UnpackNext(&m_uniformWorkgroupSize);
                 break;
-            case HashLiteralString(KernelMetadataKey::UsesDynamicStack):
+            case CompileTimeHashString(KernelMetadataKey::UsesDynamicStack):
                 PAL_ASSERT(hasEntry.usesDynamicStack == 0);
                 hasEntry.usesDynamicStack = 1;
                 result = pReader->UnpackNext(&m_usesDynamicStack);
                 break;
-            case HashLiteralString(KernelMetadataKey::WorkgroupProcessorMode):
+            case CompileTimeHashString(KernelMetadataKey::WorkgroupProcessorMode):
                 PAL_ASSERT(hasEntry.workgroupProcessorMode == 0);
                 hasEntry.workgroupProcessorMode = 1;
                 result = pReader->UnpackNext(&m_workgroupProcessorMode);
@@ -786,7 +786,7 @@ Result CodeObjectMetadata::DeserializeNote(
 
             switch (HashString(static_cast<const char*>(str.start), str.length))
             {
-            case HashLiteralString(PipelineMetadataKey::Kernels):
+            case CompileTimeHashString(PipelineMetadataKey::Kernels):
                 // Handle the kernels array.
                 result = pReader->Next(CWP_ITEM_ARRAY);
 

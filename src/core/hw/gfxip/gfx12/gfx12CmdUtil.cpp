@@ -1879,7 +1879,7 @@ size_t CmdUtil::BuildReleaseMemGeneric(
         }
     }
 
-    // Clients must query EnableReleaseMemWaitCpDma() to make sure ReleaseMem packet supports waiting CP DMA before
+    // Caller must query EnableReleaseMemWaitCpDma() to make sure ReleaseMem packet supports waiting CP DMA before
     // setting info.waitCpDma to true here.
     PAL_ASSERT((info.waitCpDma == false) || (m_device.Settings().enableReleaseMemWaitCpDma));
 

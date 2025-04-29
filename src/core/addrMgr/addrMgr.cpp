@@ -269,7 +269,7 @@ bool SubResIterator::Next()
     const ImageCreateInfo& createInfo = m_image.GetImageCreateInfo();
     const ImageInfo&       imageInfo  = m_image.GetImageInfo();
 
-    if (Formats::IsYuv(createInfo.swizzledFormat.format))
+    if (Formats::IsYuvPlanar(createInfo.swizzledFormat.format))
     {
         // Images with YUV formats are stored in plane-major order where all planes of an array slice preceed
         // the all planes of the next array slice.

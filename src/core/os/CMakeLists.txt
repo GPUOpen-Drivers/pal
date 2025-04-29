@@ -29,6 +29,4 @@ endif()
 
 add_subdirectory(nullDevice)
 
-target_include_directories(pal PRIVATE ${PAL_GLOBAL_INCLUDES})
-
 target_sources(pal PRIVATE CMakeLists.txt)

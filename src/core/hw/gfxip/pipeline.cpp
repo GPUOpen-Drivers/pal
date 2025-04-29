@@ -354,9 +354,26 @@ Result Pipeline::GetShaderCode(
 
     if (result == Result::Success)
     {
-        const Abi::PipelineSymbolType symbolType =
-            Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderMainEntry, pInfo->stageId);
-        result = abiReader.CopySymbol(symbolType, pSize, pBuffer);
+        MsgPackReader reader;
+        PalAbi::CodeObjectMetadata metadata = { };
+
+        result = abiReader.GetMetadata(&reader, &metadata);
+
+        if (result == Result::Success)
+        {
+            const PalAbi::HardwareStageMetadata& stageMetadata =
+                metadata.pipeline.hardwareStage[uint32(pInfo->stageId)];
+            const Abi::PipelineSymbolType defaultSym =
+                Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderMainEntry, pInfo->stageId);
+            const StringView<char> defaultSymName    = Abi::PipelineAbiSymbolNameStrings[uint32(defaultSym)];
+
+            const bool isDefaultEntryPoint = (PipelineSupportsGenericEntryPoint(metadata) == false) ||
+                (stageMetadata.hasEntry.entryPointSymbol == 0) || (stageMetadata.entryPointSymbol == defaultSymName);
+
+            result = ((pInfo->stageId == Abi::HardwareStage::Cs) && (isDefaultEntryPoint == false)) ?
+                abiReader.CopySymbol(stageMetadata.entryPointSymbol, pSize, pBuffer) :
+                abiReader.CopySymbol(defaultSym, pSize, pBuffer);
+        }
 
         if (result == Result::NotFound)
         {

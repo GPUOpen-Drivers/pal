@@ -59,8 +59,6 @@ struct GsRegs
 
     struct Context
     {
-        regVGT_GS_MAX_VERT_OUT        vgtGsMaxVertOut;
-        regVGT_GS_INSTANCE_CNT        vgtGsInstanceCnt;
         regVGT_ESGS_RING_ITEMSIZE     vgtEsGsRingItemSize;
         regVGT_GSVS_RING_ITEMSIZE     vgtGsVsRingItemSize;
         regVGT_GS_PER_VS              vgtGsPerVs;
@@ -72,10 +70,16 @@ struct GsRegs
         regVGT_GS_VERT_ITEMSIZE_1     vgtGsVertItemSize1;
         regVGT_GS_VERT_ITEMSIZE_2     vgtGsVertItemSize2;
         regVGT_GS_VERT_ITEMSIZE_3     vgtGsVertItemSize3;
+    } context;
+
+    struct LowFreqContext
+    {
+        regVGT_GS_INSTANCE_CNT        vgtGsInstanceCnt;
+        regPA_CL_NGG_CNTL             paClNggCntl;
         regGE_MAX_OUTPUT_PER_SUBGROUP geMaxOutputPerSubgroup;
         regGE_NGG_SUBGRP_CNTL         geNggSubgrpCntl;
-        regPA_CL_NGG_CNTL             paClNggCntl;
-    } context;
+        regVGT_GS_MAX_VERT_OUT        vgtGsMaxVertOut;
+    } lowFreqContext;
 
     struct Dynamic
     {
@@ -120,9 +124,9 @@ public:
         const bool              hasMeshShader) const;
     template <bool Pm4OptEnabled>
     uint32* WriteDynamicRegs(
-        CmdStream*              pCmdStream,
-        uint32*                 pCmdSpace,
-        const DynamicStageInfo& gsStageInfo) const;
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace,
+        uint8      wavesPerSeInUnitsOf16) const;
 
     template <bool Pm4OptEnabled>
     uint32* WriteContextCommands(
@@ -135,9 +139,15 @@ public:
         uint32*             pNumRegs,
         const bool          hasMeshShader) const;
 
-    static constexpr uint32 AccumulateContextRegsMaxRegs = 6;
+    static constexpr uint32 AccumulateContextRegsMaxRegs = 1;
     template <typename T>
     void AccumulateContextRegs(
+        T*      pRegPairs,
+        uint32* pNumRegs) const;
+
+    static constexpr uint32 AccumulateLowFreqContextRegsMaxRegs = 5;
+    template <typename T>
+    void AccumulateLowFreqContextRegs(
         T*      pRegPairs,
         uint32* pNumRegs) const;
 
@@ -155,11 +165,17 @@ public:
 
     const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
 
-    uint32 PrimAmpFactor() const { return m_regs.context.geNggSubgrpCntl.bits.PRIM_AMP_FACTOR; }
+    uint32 PrimAmpFactor() const { return m_regs.lowFreqContext.geNggSubgrpCntl.bits.PRIM_AMP_FACTOR; }
 
     void Clone(const PipelineChunkGs& chunkGs);
 
-    void AccumulateRegistersHash(Util::MetroHash64& hasher) const { hasher.Update(m_regs.context); }
+    void AccumulateRegistersHash(Util::MetroHash64* pHasher) const
+    {
+        pHasher->Update(m_regs.context);
+        pHasher->Update(m_regs.lowFreqContext);
+    }
+    void AccumulateLowFreqRegistersHash(Util::MetroHash64* pHasher) const { pHasher->Update(m_regs.lowFreqContext); }
+    void AccumulateDynRegistersHash(Util::MetroHash64* pHasher) const { pHasher->Update(m_regs.dynamic); }
 private:
     struct
     {

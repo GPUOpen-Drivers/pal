@@ -49,6 +49,20 @@ char* SettingsFileMgr<Allocator>::SkipLeadingSpaces(
 
 // =====================================================================================================================
 template <typename Allocator>
+void SettingsFileMgr<Allocator>::RemoveTrailingSpaces(
+    char* pStr)
+{
+    // Remove trailing whitespace
+    char* pEnd = pStr + strlen(pStr) - 1;
+    while ((pEnd > pStr) && isspace(static_cast<uint8>(*pEnd)))
+    {
+        pEnd--;
+    }
+    pEnd[1] = '\0';
+}
+
+// =====================================================================================================================
+template <typename Allocator>
 SettingsFileMgr<Allocator>::~SettingsFileMgr()
 {
     // Clean up the settings list
@@ -81,11 +95,7 @@ Result SettingsFileMgr<Allocator>::Init(
 
         Snprintf(&fileAbsPath[0],
                  sizeof(fileAbsPath),
-#if defined(__unix__)
-                 "%s/%s",
-#else
-                 "%s\\%s",
-#endif
+                 "%s" PAL_PATH_SEP "%s",
                  pSettingsPath,
                  m_pSettingsFileName);
 
@@ -94,11 +104,7 @@ Result SettingsFileMgr<Allocator>::Init(
             char fallbackFileAbsPath[512];
             Snprintf(&fallbackFileAbsPath[0],
                      sizeof(fallbackFileAbsPath),
-#if defined(__unix__)
-                     "%s/amdPalSettings.cfg",
-#else
-                     "%s\\amdPalSettings.cfg",
-#endif
+                     "%s" PAL_PATH_SEP "amdPalSettings.cfg",
                      pSettingsPath);
 
             if (File::Exists(&fallbackFileAbsPath[0]) == false)
@@ -194,6 +200,7 @@ Result SettingsFileMgr<Allocator>::Init(
 
                         if (strlen(pToken) > 0)
                         {
+                            RemoveTrailingSpaces(pToken);
                             SettingValueInfo info = { .hashName = hashedName, .strValue = {0}, .componentName = {0} };
                             PAL_ASSERT(strlen(pToken) < sizeof(info.strValue));
                             strncpy(&info.strValue[0], pToken, sizeof(info.strValue));

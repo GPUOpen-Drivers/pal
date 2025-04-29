@@ -368,6 +368,15 @@ uint32* WriteStaticGraphicsRegisters(
                                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                                   pCmdSpace);
 
+    const Device* pGfxDevice = static_cast<Device*>(pDevice->GetGfxDevice());
+    StartingPerfcounterState perfctrBehavior = pGfxDevice->CoreSettings().startingPerfcounterState;
+    if (perfctrBehavior != StartingPerfcounterStateUntouched)
+    {
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(PERFCOUNTER_START,
+                                                       EngineTypeUniversal,
+                                                       pCmdSpace);
+    }
+
     return pCmdSpace;
 }
 

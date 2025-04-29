@@ -32,7 +32,7 @@ target_sources(pal PRIVATE
     PalCompileDefinitions.cmake
     PalCompilerOptions.cmake
     PalCompilerWarnings.cmake
-    PalOptions.cmake
+    PalOnlyBuildParameters.cmake
     PalOverrides.cmake
     PalPrecompiledHeaders.cmake
     PalVersionHelper.cmake

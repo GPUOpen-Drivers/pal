@@ -54,6 +54,12 @@ struct GraphicsPipelineLoadInfo
     uint16  esGsLdsSizeRegVs;   // User-SGPR where the ES/GS ring size in LDS is passed to the VS stage
 };
 
+// Contains stage information calculated at pipeline bind time.
+struct DynamicStageInfo
+{
+    uint8 wavesPerSeInUnitsOf16;
+};
+
 // Contains graphics stage information calculated at pipeline bind time.
 struct DynamicStageInfos
 {
@@ -61,6 +67,14 @@ struct DynamicStageInfos
     DynamicStageInfo vs;
     DynamicStageInfo gs;
     DynamicStageInfo hs;
+};
+
+// Cached chip info used when writting dynamic registers. This saves pointer chasing to the device on a hot path.
+struct CachedChipInfo
+{
+    uint8  numShaderArrays;
+    uint8  numCuPerSh;
+    uint16 maxWavesPerShInUnitsOf16;
 };
 
 // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
@@ -78,21 +92,25 @@ struct GfxPipelineRegs
     {
         regVGT_SHADER_STAGES_EN         vgtShaderStagesEn;
         regVGT_GS_MODE                  vgtGsMode;
-        regVGT_REUSE_OFF                vgtReuseOff;
-        regPA_SU_VTX_CNTL               paSuVtxCntl;
-        regPA_CL_VTE_CNTL               paClVteCntl;
-        regPA_SC_EDGERULE               paScEdgerule;
-        regPA_STEREO_CNTL               paStereoCntl;
-        regSPI_INTERP_CONTROL_0         spiInterpControl0;
         regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
-        regCB_COVERAGE_OUT_CONTROL      cbCoverageOutCntl;
         regVGT_GS_ONCHIP_CNTL           vgtGsOnchipCntl;
-        regVGT_DRAW_PAYLOAD_CNTL        vgtDrawPayloadCntl;
         regSPI_SHADER_IDX_FORMAT        spiShaderIdxFormat;
         regSPI_SHADER_POS_FORMAT        spiShaderPosFormat;
         regSPI_SHADER_Z_FORMAT          spiShaderZFormat;
         regSPI_SHADER_COL_FORMAT        spiShaderColFormat;
     } context;
+
+    struct LowFreqContext
+    {
+        regVGT_REUSE_OFF                vgtReuseOff;
+        regVGT_DRAW_PAYLOAD_CNTL        vgtDrawPayloadCntl;
+        regPA_SU_VTX_CNTL               paSuVtxCntl;
+        regPA_CL_VTE_CNTL               paClVteCntl;
+        regPA_SC_EDGERULE               paScEdgerule;
+        regPA_STEREO_CNTL               paStereoCntl;
+        regCB_COVERAGE_OUT_CONTROL      cbCoverageOutCntl;
+        regSPI_INTERP_CONTROL_0         spiInterpControl0;
+    } lowFreqContext;
 
     struct
     {
@@ -134,7 +152,6 @@ struct GfxPipelineRegs
     {
         regGE_STEREO_CNTL        geStereoCntl;
         regGE_PC_ALLOC           gePcAlloc;
-        regGE_USER_VGPR_EN       geUserVgprEn;
         regVGT_GS_OUT_PRIM_TYPE  vgtGsOutPrimType;
     } uconfig;
 };
@@ -196,11 +213,10 @@ public:
     regCB_SHADER_MASK CbShaderMask() const { return m_regs.other.cbShaderMask; }
     regCB_COLOR_CONTROL CbColorControl() const { return m_regs.other.cbColorControl; }
     regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
-    regPA_SU_VTX_CNTL PaSuVtxCntl() const { return m_regs.context.paSuVtxCntl; }
+    regPA_SU_VTX_CNTL PaSuVtxCntl() const { return m_regs.lowFreqContext.paSuVtxCntl; }
     regPA_SC_LINE_CNTL PaScLineCntl() const { return m_regs.other.paScLineCntl; }
-    regPA_CL_VTE_CNTL PaClVteCntl() const { return m_regs.context.paClVteCntl; }
+    regPA_CL_VTE_CNTL PaClVteCntl() const { return m_regs.lowFreqContext.paClVteCntl; }
     regSPI_PS_INPUT_ENA SpiPsInputEna() const { return m_chunkVsPs.SpiPsInputEna(); }
-    regSPI_BARYC_CNTL SpiBarycCntl() const { return m_chunkVsPs.SpiBarycCntl(); }
     regDB_SHADER_CONTROL DbShaderControl() const { return m_chunkVsPs.DbShaderControl(); }
     regVGT_TF_PARAM   VgtTfParam()const { return m_regs.other.vgtTfParam; }
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
@@ -242,10 +258,11 @@ public:
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
         uint32*                           pCmdSpace,
+        uint64*                           pPrevDynRegHash,
         const DynamicGraphicsShaderInfos& graphicsInfo) const;
 
     template <bool Pm4OptEnabled>
-    uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace, uint64* pPrevLowFreqHash) const;
     uint32* WriteConfigCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     uint32 GetContextRegHash() const { return m_contextRegHash; }
@@ -296,6 +313,10 @@ public:
     bool CanRbPlusOptimizeDepthOnly() const;
     const PipelineChunkGs& GetChunkGs() const { return m_chunkGs; }
     const PipelineChunkVsPs& GetChunkVsPs() const { return m_chunkVsPs; }
+
+    // Special hash value used to indicate that we should skip any redundant state filter based on this hash.
+    static constexpr uint64 HashInvalidValue = 0;
+
 protected:
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo&       createInfo,
@@ -318,21 +339,6 @@ protected:
     Device*const m_pDevice;
 
 private:
-    uint32 CalcMaxWavesPerSe(
-        float maxWavesPerCu1,
-        float maxWavesPerCu2) const;
-
-    uint32 CalcMaxWavesPerSh(
-        float maxWavesPerCu1,
-        float maxWavesPerCu2) const;
-
-    void CalcDynamicStageInfo(
-        const DynamicGraphicsShaderInfo& shaderInfo,
-        DynamicStageInfo*                pStageInfo) const;
-    void CalcDynamicStageInfo(
-        const DynamicGraphicsShaderInfo& shaderInfo1,
-        const DynamicGraphicsShaderInfo& shaderInfo2,
-        DynamicStageInfo*                pStageInfo) const;
     void CalcDynamicStageInfos(
         const DynamicGraphicsShaderInfos& graphicsInfo,
         DynamicStageInfos*                pStageInfos) const;
@@ -345,9 +351,13 @@ private:
     template <bool Pm4OptEnabled>
     uint32* WriteContextCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    static constexpr uint32 AccumulateContextRegistersMaxRegs = 14;
+    static constexpr uint32 AccumulateContextRegistersMaxRegs = 5;
     template <typename T>
     void AccumulateContextRegisters(T* pRegPairs, uint32* pNumRegs) const;
+
+    static constexpr uint32 AccumulateLowFreqContextRegsMaxRegs = 8;
+    template <typename T>
+    void AccumulateLowFreqContextRegs(T* pRegPairs, uint32* pNumRegs) const;
 
     void UpdateRingSizes(
         const Util::PalAbi::CodeObjectMetadata& metadata);
@@ -413,23 +423,27 @@ private:
     uint32            m_rbplusRegHash;
     uint32            m_rbplusRegHashDual;
     uint32            m_configRegHash;
+    uint64            m_lowFreqCtxRegHash;
+    uint64            m_dynShRegHash;
     GsFastLaunchMode  m_fastLaunchMode;
     uint32            m_nggSubgroupSize;
     union
     {
         struct
         {
-            uint8 binningAllowed              : 1;
-            uint8 alphaToCoverageEnable       : 1;
-            uint8 contextPairsPacketSupported : 1;
-            uint8 shPairsPacketSupported      : 1;
-            uint8 writeVgtGsOutPrimType       : 1;
-            uint8 supportsHwVs                : 1;
-            uint8 isGfx11F32                  : 1;
-            uint8 reserved                    : 1;
+            uint8 binningAllowed        : 1;
+            uint8 alphaToCoverageEnable : 1;
+            uint8 usePackedCtxRegPairs  : 1;
+            uint8 usePackedShRegPairs   : 1;
+            uint8 writeVgtGsOutPrimType : 1;
+            uint8 supportsHwVs          : 1;
+            uint8 useUnpackedRegPairs   : 1;
+            uint8 reserved              : 1;
         };
         uint8 u8All;
     } m_flags;
+
+    CachedChipInfo m_cachedChipInfo;
 
     uint16 m_strmoutVtxStride[MaxStreamOutTargets];
     uint32 m_primAmpFactor; // Only valid on GFX10 and later with NGG enabled.
@@ -451,23 +465,35 @@ private:
     static constexpr uint32 Gfx11MaxNumShPackedPairs = Pow2Align(Gfx11MaxNumShRegs, 2) / 2;
     union
     {
-        RegisterValuePair  m_gfx11F32ShRegPairs[Gfx11MaxNumShRegs];
-        PackedRegisterPair m_gfx11Rs64ShRegPairs[Gfx11MaxNumShPackedPairs];
+        RegisterValuePair  m_gfx11UnpackedShRegPairs[Gfx11MaxNumShRegs];
+        PackedRegisterPair m_gfx11PackedShRegPairs[Gfx11MaxNumShPackedPairs];
     };
     uint32 m_numShRegPairsRegs;
 
     static constexpr uint32 Gfx11MaxNumCtxRegisters = AccumulateContextRegistersMaxRegs             +
-                                                      HsRegs::NumContextReg                         +
                                                       PipelineChunkGs::AccumulateContextRegsMaxRegs +
                                                       PipelineChunkVsPs::AccumulateContextRegsMaxRegs;
     static constexpr uint32 Gfx11MaxNumCtxPackedPairs = Pow2Align(Gfx11MaxNumCtxRegisters, 2) / 2;
 
     union
     {
-        RegisterValuePair  m_gfx11F32CtxRegPairs[Gfx11MaxNumCtxRegisters];
-        PackedRegisterPair m_gfx11Rs64CtxRegPairs[Gfx11MaxNumCtxPackedPairs];
+        RegisterValuePair  m_gfx11UnpackedCtxRegPairs[Gfx11MaxNumCtxRegisters];
+        PackedRegisterPair m_gfx11PackedCtxRegPairs[Gfx11MaxNumCtxPackedPairs];
     };
     uint32 m_numCtxRegPairsRegs;
+
+    static constexpr uint32 Gfx11MaxNumLowFreqCtxRegisters   = AccumulateLowFreqContextRegsMaxRegs                  +
+                                                               HsRegs::NumLowFreqContextReg                         +
+                                                               PipelineChunkGs::AccumulateLowFreqContextRegsMaxRegs +
+                                                               PipelineChunkVsPs::AccumulateLowFreqContextRegsMaxRegs;
+    static constexpr uint32 Gfx11MaxNumLowFreqCtxPackedPairs = Pow2Align(Gfx11MaxNumLowFreqCtxRegisters, 2) / 2;
+
+    union
+    {
+        RegisterValuePair  m_gfx11UnpackedLowFreqCtxRegPairs[Gfx11MaxNumLowFreqCtxRegisters];
+        PackedRegisterPair m_gfx11PackedLowFreqCtxRegPairs[Gfx11MaxNumLowFreqCtxPackedPairs];
+    };
+    uint32 m_numLowFreqCtxRegPairsRegs;
 
     constexpr static uint32    MaxPreFetchRangeCount = 3;
     PrimeGpuCacheRange         m_prefetch[MaxPreFetchRangeCount];

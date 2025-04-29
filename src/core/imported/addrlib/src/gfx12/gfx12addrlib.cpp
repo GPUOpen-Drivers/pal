@@ -249,15 +249,7 @@ UINT_32 Gfx12Lib::HwlGetEquationIndex(
     const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn    ///< [in] input structure
     ) const
 {
-    UINT_32 equationIdx = ADDR_INVALID_EQUATION_INDEX;
-
-    if ((pIn->resourceType == ADDR_RSRC_TEX_2D) ||
-        (pIn->resourceType == ADDR_RSRC_TEX_3D))
-    {
-        equationIdx = GetEquationTableEntry(pIn->swizzleMode, Log2(pIn->numSamples), Log2(pIn->bpp >> 3));
-    }
-
-    return equationIdx;
+    return GetEquationTableEntry(pIn->swizzleMode, Log2(pIn->numSamples), Log2(pIn->bpp >> 3));
 }
 
 /**
@@ -712,7 +704,7 @@ UINT_32 Gfx12Lib::GetMaxNumMipsInTail(
     UINT_32 effectiveLog2 = blockSizeLog2;
     UINT_32 mipsInTail    = 1;
 
-    if (Is3dSwizzle(pSurfInfo->swizzleMode))
+    if (Is3dSwizzle(pSurfInfo->swizzleMode) && (blockSizeLog2 >= 8))
     {
         effectiveLog2 -= (blockSizeLog2 - 8) / 3;
     }
@@ -982,7 +974,7 @@ ADDR_E_RETURNCODE Gfx12Lib::HwlCopyMemToSurface(
     // optimized for a particular micro-swizzle mode if available.
     ADDR3_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
     ADDR3_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
-    ADDR3_MIP_INFO                    mipInfo[MaxMipLevels] = {0};
+    ADDR3_MIP_INFO                    mipInfo[MaxMipLevels] = {{0}};
     ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
@@ -1094,7 +1086,7 @@ ADDR_E_RETURNCODE Gfx12Lib::HwlCopySurfaceToMem(
     // optimized for a particular micro-swizzle mode if available.
     ADDR3_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
     ADDR3_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
-    ADDR3_MIP_INFO                    mipInfo[MaxMipLevels] = {0};
+    ADDR3_MIP_INFO                    mipInfo[MaxMipLevels] = {{0}};
     ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 

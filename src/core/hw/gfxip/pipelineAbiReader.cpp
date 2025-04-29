@@ -24,9 +24,9 @@
  **********************************************************************************************************************/
 
 #include "palAssert.h"
-#include "palHashLiteralString.h"
 #include "palHashMapImpl.h"
 #include "palHsaAbiMetadata.h"
+#include "palInlineFuncs.h"
 #include "palMsgPackImpl.h"
 #include "palPipelineAbiReader.h"
 #include "palPipelineAbiUtils.h"
@@ -242,6 +242,22 @@ Result PipelineAbiReader::InitSymbolCache(
                 }
                 else
                 {
+                    if (strncmp(pName, AmdGpuPipelineLinkPrefix, strlen(AmdGpuPipelineLinkPrefix)) == 0)
+                    {
+                        // This is an _amdgpu_pipelineLinkN symbol for index N.
+                        char* pEnd = nullptr;
+                        uint32 index = uint32(strtoul(pName + strlen(AmdGpuPipelineLinkPrefix), &pEnd, 10));
+                        if (*pEnd == '\0')
+                        {
+                            result = m_pipelineLinkSymbols.Resize(Max(m_pipelineLinkSymbols.NumElements(), index + 1));
+                            if (result != Result::Success)
+                            {
+                                break;
+                            }
+                            m_pipelineLinkSymbols[index] = {sectionIndex, symbolIndex, elfIdx};
+                        }
+                    }
+
                     result = m_genericSymbolsMap.Insert(
                         HashString(pName, strlen(pName)), {sectionIndex, symbolIndex, elfIdx});
 
@@ -395,7 +411,7 @@ Result PipelineAbiReader::GetMetadata(
                 metadataSize = descSize;
 
                 result = GetMetadataVersion(pReader, pDesc, descSize,
-                                            HashLiteralString(HsaAbi::PipelineMetadataKey::Version),
+                                            CompileTimeHashString(HsaAbi::PipelineMetadataKey::Version),
                                             &metadataMajorVer, &metadataMinorVer);
                 break;
             }

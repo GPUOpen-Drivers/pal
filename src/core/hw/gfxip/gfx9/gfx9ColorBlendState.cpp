@@ -318,6 +318,7 @@ void ColorBlendState::Init(
         m_regs.cbBlendControl[i].bits.ALPHA_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendAlpha);
         m_regs.cbBlendControl[i].bits.COLOR_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncColor);
         m_regs.cbBlendControl[i].bits.ALPHA_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncAlpha);
+        m_regs.cbBlendControl[i].bits.DISABLE_ROP3         = blend.targets[i].disableLogicOp;
 
         // BlendOps are forced to ONE for MIN/MAX blend funcs
         if ((blend.targets[i].blendFuncColor == BlendFunc::Min) ||

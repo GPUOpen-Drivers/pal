@@ -48,10 +48,35 @@ template<typename Key,
 Result HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Insert(
     const Key& key)
 {
+    Key* pKey = const_cast<Key*>(&key);
+    bool existed;
+    const Result result = FindAllocate(&pKey, &existed);
+    if (existed == false)
+    {
+        *pKey = key;
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Finds a given entry; if no entry was found, allocate it.
+template<typename Key,
+         typename Allocator,
+         template<typename> class HashFunc,
+         template<typename> class EqualFunc,
+         typename AllocFunc,
+         size_t GroupSize>
+Result HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::FindAllocate(
+    Key** ppKey,
+    bool* pExisted)
+{
+    PAL_ASSERT(ppKey != nullptr);
+    PAL_ASSERT(pExisted != nullptr);
+
     Result result = Result::ErrorOutOfMemory;
 
     // Get the bucket base address.
-    Entry* pGroup = this->InitAndFindBucket(key);
+    Entry* pGroup = this->InitAndFindBucket(**ppKey);
 
     Entry* pMatchingEntry = nullptr;
 
@@ -62,18 +87,20 @@ Result HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Inser
         uint32 i = 0;
         for (; i < numEntries; i++)
         {
-            if (this->m_equalFunc(pGroup[i].key, key))
+            if (this->m_equalFunc(pGroup[i].key, **ppKey))
             {
                 // We've found the entry.
                 pMatchingEntry = &(pGroup[i]);
+                *pExisted = true;
                 break;
             }
         }
 
         if ((pMatchingEntry == nullptr) && (i < Base::EntriesInGroup))
         {
-            // We've reached the end of the bucket and the entry was not found.  Allocate this entry for the key.
-            pGroup[i].key = key;
+            // We've reached the end of the bucket and the entry was not found. Allocate this entry for the key.
+            *pExisted = false;
+            *ppKey = &pGroup[i].key;
             pMatchingEntry = &(pGroup[i]);
             this->m_numEntries++;
             this->SetGroupFooterNumEntries(pGroup, numEntries + 1);

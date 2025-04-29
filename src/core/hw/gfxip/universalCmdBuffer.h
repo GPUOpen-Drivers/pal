@@ -256,7 +256,7 @@ public:
         SwizzledFormat            swizzledFormat,
         uint32                    targetIndex) override;
 
-    void CmdCloneImageData(const IImage& srcImage, const IImage& dstImage);
+    virtual void CmdCloneImageData(const IImage& srcImage, const IImage& dstImage) override;
 
 protected:
     UniversalCmdBuffer(

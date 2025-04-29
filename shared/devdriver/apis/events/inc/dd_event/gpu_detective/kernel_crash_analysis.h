@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,10 +26,12 @@
 #pragma once
 
 #include "../common.h"
+#include "ddPlatform.h"
 
 #include <stdint.h>
 #include <string.h>
-#include <algorithm>
+
+using namespace DevDriver;
 
 namespace KernelCrashAnalysisEvents
 {
@@ -136,9 +138,7 @@ struct MmrRegistersData
 
     static size_t CalculateStructureSize(uint32_t numRegisterInfoForCalculation)
     {
-        // std::max wrapped in parenthesis to ensure use of std::max instead of
-        // Windows header 'max' macro
-        numRegisterInfoForCalculation = (std::max)(1U, numRegisterInfoForCalculation);
+        numRegisterInfoForCalculation = Platform::Max(1U, numRegisterInfoForCalculation);
         return sizeof(MmrRegistersData) +
                sizeof(MmrRegisterInfo) * (numRegisterInfoForCalculation - 1);
     }
@@ -237,9 +237,7 @@ struct ShaderWaves
 
     static size_t CalculateStructureSize(uint32_t numWaveInfoForCalculation)
     {
-        // std::max wrapped in parenthesis to ensure use of std::max instead of
-        // Windows header 'max' macro
-        numWaveInfoForCalculation = (std::max)(1U, numWaveInfoForCalculation);
+        numWaveInfoForCalculation = Platform::Max(1U, numWaveInfoForCalculation);
         return sizeof(ShaderWaves) +
                sizeof(WaveInfo) * (numWaveInfoForCalculation - 1);
     }
@@ -302,9 +300,7 @@ struct SeInfo
 
     static size_t CalculateStructureSize(uint32_t numSeRegsInfoForCalculation)
     {
-        // std::max wrapped in parenthesis to ensure use of std::max instead of
-        // Windows header 'max' macro
-        numSeRegsInfoForCalculation = (std::max)(1U, numSeRegsInfoForCalculation);
+        numSeRegsInfoForCalculation = Platform::Max(1U, numSeRegsInfoForCalculation);
         return sizeof(SeInfo) +
                sizeof(SeRegsInfo) * (numSeRegsInfoForCalculation - 1);
     }
@@ -360,9 +356,7 @@ struct WaveRegistersData
 
     static size_t CalculateStructureSize(uint32_t numRegisterInfoForCalculation)
     {
-        // std::max wrapped in parenthesis to ensure use of std::max instead of
-        // Windows header 'max' macro
-        numRegisterInfoForCalculation = (std::max)(1U, numRegisterInfoForCalculation);
+        numRegisterInfoForCalculation = Platform::Max(1U, numRegisterInfoForCalculation);
         return sizeof(WaveRegistersData) +
                sizeof(WaveRegisterInfo) * (numRegisterInfoForCalculation - 1);
     }

@@ -46,6 +46,12 @@ static bool UpdateRegState(
     uint32 regOffset,
     void*  pCurRegState) // [in,out] Current state of register being set, will be updated.
 {
+#if PAL_DEVELOPER_BUILD
+    PAL_ASSERT((RegisterCount == CntxRegUsedRangeSize) ?
+               (Pm4Optimizer::IsRegisterMustWrite(regOffset + CONTEXT_SPACE_START)    == false) :
+               (Pm4Optimizer::IsRegisterMustWrite(regOffset + PERSISTENT_SPACE_START) == false));
+#endif
+
     bool mustKeep = false;
 
     RegGroupState<RegisterCount>* pRegState = static_cast<RegGroupState<RegisterCount>*>(pCurRegState);
@@ -55,9 +61,8 @@ static bool UpdateRegState(
     // - The previous state is invalid.
     // - We must always write this register.
     // - Optimizer is temporarily disabled.
-    if ((pRegState->state[regOffset].value           != newRegVal) ||
-        (pRegState->state[regOffset].flags.valid     == 0)         ||
-        (pRegState->state[regOffset].flags.mustWrite == 1))
+    if ((pRegState->state[regOffset].value       != newRegVal) ||
+        (pRegState->state[regOffset].flags.valid == 0))
     {
 #if PAL_DEVELOPER_BUILD
         pRegState->keptSets[regOffset]++;
@@ -80,44 +85,20 @@ static bool UpdateRegState(
 Pm4Optimizer::Pm4Optimizer(
     const Device& device)
     :
+#if PAL_DEVELOPER_BUILD
     m_device(device),
-    m_cmdUtil(device.CmdUtil()),
-    m_splitPackets(device.CoreSettings().cmdBufOptimizePm4Split)
+#endif
+    m_cmdUtil(device.CmdUtil())
 {
     Reset();
 }
 
 // =====================================================================================================================
-// Resets the optimizer so that it's ready to begin optimizing a new command stream. Each time this is called we have
-// to reset all mustWrite flags which is a bit wasteful but we'd rather not add two more big arrays to this class.
+// Resets the optimizer so that it's ready to begin optimizing a new command stream.
 void Pm4Optimizer::Reset()
 {
     // Reset the context register state.
     memset(&m_cntxRegs, 0, sizeof(m_cntxRegs));
-
-    // Mark the "vector" context registers as mustWrite. There are some PA registers that require setting the entire
-    // vector if any register in the vector needs to change. According to the PA and SC hardware team, these registers
-    // consist of the viewport scale/offset regs, viewport scissor regs, and guardband regs.
-    constexpr uint32 VportStart = mmPA_CL_VPORT_XSCALE     - CONTEXT_SPACE_START;
-    constexpr uint32 VportEnd   = mmPA_CL_VPORT_ZOFFSET_15 - CONTEXT_SPACE_START;
-    for (uint32 regOffset = VportStart; regOffset <= VportEnd; ++regOffset)
-    {
-        m_cntxRegs.state[regOffset].flags.mustWrite = 1;
-    }
-
-    constexpr uint32 VportScissorStart = mmPA_SC_VPORT_SCISSOR_0_TL - CONTEXT_SPACE_START;
-    constexpr uint32 VportScissorEnd   = mmPA_SC_VPORT_ZMAX_15      - CONTEXT_SPACE_START;
-    for (uint32 regOffset = VportScissorStart; regOffset <= VportScissorEnd; ++regOffset)
-    {
-        m_cntxRegs.state[regOffset].flags.mustWrite = 1;
-    }
-
-    constexpr uint32 GuardbandStart = mmPA_CL_GB_VERT_CLIP_ADJ - CONTEXT_SPACE_START;
-    constexpr uint32 GuardbandEnd   = mmPA_CL_GB_HORZ_DISC_ADJ - CONTEXT_SPACE_START;
-    for (uint32 regOffset = GuardbandStart; regOffset <= GuardbandEnd; ++regOffset)
-    {
-        m_cntxRegs.state[regOffset].flags.mustWrite = 1;
-    }
 
     // Reset the SH register state.
     memset(&m_shRegs, 0, sizeof(m_shRegs));
@@ -221,28 +202,6 @@ bool Pm4Optimizer::MustKeepSetBase(
 }
 
 // =====================================================================================================================
-// Writes an optimized version of the given SET_DATA packet into pCmdSpace (along with the appropriate register data).
-// Returns a pointer to the next unused DWORD in pCmdSpace.
-uint32* Pm4Optimizer::WriteOptimizedSetSeqShRegs(
-    PM4_ME_SET_SH_REG setData,
-    const uint32*     pData,
-    uint32*           pCmdSpace)
-{
-    return OptimizePm4SetReg(setData, pData, pCmdSpace, &m_shRegs);
-}
-
-// =====================================================================================================================
-// Writes an optimized version of the given SET_DATA packet into pCmdSpace (along with the appropriate register data).
-// Returns a pointer to the next unused DWORD in pCmdSpace.
-uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
-    PM4_PFP_SET_CONTEXT_REG setData,
-    const uint32*           pData,
-    uint32*                 pCmdSpace)
-{
-    return OptimizePm4SetReg(setData, pData, pCmdSpace, &m_cntxRegs);
-}
-
-// =====================================================================================================================
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <Pm4ShaderType ShaderType>
 uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs(
@@ -281,6 +240,11 @@ uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs(
 
 template
 uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs<ShaderGraphics>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegs,
+    uint32*                  pCmdSpace);
+template
+uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs<ShaderCompute>(
     const RegisterValuePair* pRegPairs,
     uint32                   numRegs,
     uint32*                  pCmdSpace);
@@ -365,6 +329,11 @@ uint32* Pm4Optimizer::OptimizePm4SetRegPairs<RegRangeContext>(
     const RegisterValuePair* pRegPairs,
     uint32                   numRegs,
     uint32*                  pCmdSpace);
+template
+uint32* Pm4Optimizer::OptimizePm4SetRegPairs<RegRangeCsSh>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegs,
+    uint32*                  pCmdSpace);
 
 static constexpr uint32 PackedRegisterPairSizeInDws = sizeof(PackedRegisterPair) / sizeof(uint32);
 
@@ -406,6 +375,71 @@ static uint32* OptPm4SetRegPairsPackedAddRegHelper(
 
     return pDstCmd;
 }
+
+// =====================================================================================================================
+// Optimize a sequential SET register packet.
+// This method determines if the packet needs to be issued or not (fully redundant or not).
+// If it is not fully redundant, modified start/end addresses and pData pointers are returned which strip out any
+// leading or trailing redundant register writes.
+template <StateType RegType>
+bool Pm4Optimizer::OptimizePm4SetRegSeq(
+    uint32*        pStartRegAddr,
+    uint32*        pEndRegAddr,
+    const uint32** ppData)
+{
+    static_assert((RegType == Context) || (RegType == Sh));
+
+    constexpr uint32 RegisterCount = (RegType == Context) ? CntxRegUsedRangeSize : ShRegUsedRangeSize;
+    constexpr uint32 SpaceStart    = (RegType == Context) ? CONTEXT_SPACE_START  : PERSISTENT_SPACE_START;
+
+    const uint32  origStartAddr      = *pStartRegAddr;
+    void*         pRegState          = (RegType == Context) ? static_cast<void*>(&m_cntxRegs) :
+                                                              static_cast<void*>(&m_shRegs);
+    const uint32  numRegs            = (*pEndRegAddr - *pStartRegAddr + 1);
+    bool          packetNeeded       = false;
+    uint32        firstKeptRegOffset = 0;
+    uint32        lastRegAddrNeeded  = 0;
+    const uint32* pData              = *ppData;
+
+    // Loop over every reg being updated.
+    for (uint32 i = 0; i < numRegs; i++)
+    {
+        const uint32 regAddr = (origStartAddr + i);
+        const uint32 regData = pData[i];
+
+        // Check if we must keep this register.
+        if (UpdateRegState<RegisterCount>(regData, regAddr - SpaceStart, pRegState))
+        {
+            if (packetNeeded == false)
+            {
+                firstKeptRegOffset = i;
+                packetNeeded       = true;
+            }
+
+            lastRegAddrNeeded = regAddr;
+        }
+    }
+
+    if (packetNeeded)
+    {
+        *pStartRegAddr += firstKeptRegOffset;
+        *pEndRegAddr   =  lastRegAddrNeeded;
+        *ppData        =  pData + firstKeptRegOffset;
+    }
+
+    return packetNeeded;
+}
+
+template
+bool Pm4Optimizer::OptimizePm4SetRegSeq<StateType::Sh>(
+    uint32*        pStartRegAddr,
+    uint32*        pEndRegAddr,
+    const uint32** ppData);
+template
+bool Pm4Optimizer::OptimizePm4SetRegSeq<StateType::Context>(
+    uint32*        pStartRegAddr,
+    uint32*        pEndRegAddr,
+    const uint32** ppData);
 
 // =====================================================================================================================
 // Returns a pointer to the next free location in the optimized command stream.
@@ -507,226 +541,6 @@ uint32* Pm4Optimizer::OptimizePm4SetRegPairsPacked(
     return pDstCmd;
 }
 
-// =====================================================================================================================
-// Optimize the specified PM4 SET packet. May remove the SET packet completely, reduce the range of registers it sets,
-// break it into multiple smaller SET commands, or leave it unmodified. Returns a pointer to the next free location in
-// the optimized command stream.
-template <typename SetDataPacket, size_t RegisterCount>
-uint32* Pm4Optimizer::OptimizePm4SetReg(
-    SetDataPacket                 setData,
-    const uint32*                 pRegData,
-    uint32*                       pDstCmd,
-    RegGroupState<RegisterCount>* pRegState)
-{
-    constexpr uint32 SetDataSize = sizeof(SetDataPacket) / sizeof(uint32);
-
-    const uint32 numRegs   = setData.ordinal1.header.count;
-    const uint32 regOffset = setData.ordinal2.bitfields.reg_offset;
-
-    // Determine which of the registers written by this set command can't be skipped because they must always be set or
-    // are taking on a new value.
-    //
-    // We assume that no more than 32 registers are being set. Currently the driver only sets more than 32 registers in
-    // the viewport state object. Luckily, those registers are vector regisers so we can't optimize them anyway. If we
-    // ever encounter a set command with more than 32 registers that has redundant values the assert below will trigger.
-    uint32 keepRegCount = 0;
-    uint32 keepRegMask  = 0;
-    for (uint32 i = 0; i < numRegs; i++)
-    {
-        if (UpdateRegState<RegisterCount>(pRegData[i], (regOffset + i), pRegState))
-        {
-            keepRegCount++;
-            keepRegMask |= 1 << i;
-        }
-    }
-
-    PAL_ASSERT((keepRegCount == numRegs) || (numRegs <= 32));
-
-    if ((keepRegCount == numRegs) || (numRegs > 32))
-    {
-        // No register writes can be skipped: emit all registers.
-        memcpy(pDstCmd, &setData, SetDataSize * sizeof(uint32));
-        pDstCmd += SetDataSize;
-
-        memmove(pDstCmd, pRegData, numRegs * sizeof(uint32));
-        pDstCmd += numRegs;
-    }
-    else if (keepRegCount > 0)
-    {
-        // A clause of optimized registers starts with a non-skipped register and continues until either 1) there is a
-        // big enough gap in the non-skipped registers that we can start a new clause, or 2) the source packet ends.
-        // When splitting is disabled, no gap is considered 'big enough'.
-        //
-        // The "big enough" gap size is set to the size of a SET_DATA command (two DWORDs). This prevents us from
-        // using more command space than an unoptimized command while conceeding that in some cases we may write
-        // redundant registers. The difference between clauseEndIdx and curRegIdx will be one greater than the gap size
-        // so we need to add one to the constant below.
-        const uint32 minClauseIdxGap = m_splitPackets ? (SetDataSize + 1) : UINT32_MAX;
-
-        // Since the keepRegCount is non-zero we must have at least one bit set, find it and use it to start a clause.
-        uint32 curRegIdx      = 0;
-        bool   foundNewIdx    = BitMaskScanForward(&curRegIdx, keepRegMask);
-        uint32 clauseStartIdx = curRegIdx;
-        uint32 clauseEndIdx   = curRegIdx;
-
-        do
-        {
-            // Find the next non-skipped register index, if any, for us to consider. We must mask off the bit that we
-            // queried last time to prevent an infinite loop.
-            keepRegMask &= ~(1 << curRegIdx);
-            foundNewIdx  = BitMaskScanForward(&curRegIdx, keepRegMask);
-
-            // Check our end-of-clause conditions as stated above.
-            if ((foundNewIdx == false) || (curRegIdx - clauseEndIdx >= minClauseIdxGap))
-            {
-                const uint32 clauseRegCount = clauseEndIdx - clauseStartIdx + 1;
-
-                setData.ordinal1.header.count         = clauseRegCount;
-                setData.ordinal2.bitfields.reg_offset = regOffset + clauseStartIdx;
-
-                memcpy(pDstCmd, &setData, SetDataSize * sizeof(uint32));
-                pDstCmd += SetDataSize;
-
-                memmove(pDstCmd, pRegData + clauseStartIdx, clauseRegCount * sizeof(uint32));
-                pDstCmd += clauseRegCount;
-
-                // The next clause begins at the current index.
-                clauseStartIdx = curRegIdx;
-                clauseEndIdx   = curRegIdx;
-            }
-            else
-            {
-                // There isn't enough space to end the clause so we must continue it through the current index.
-                clauseEndIdx = curRegIdx;
-            }
-        }
-        while (foundNewIdx);
-    }
-
-    return pDstCmd;
-}
-
-// =====================================================================================================================
-// Handle an occurrence of a PM4 LOAD packet: there's no optimization we can do on these, but we need to invalidate the
-// state of the affected register(s) because this packet will set them to unknowable values.
-template <typename LoadDataPacket, size_t RegisterCount>
-void Pm4Optimizer::HandlePm4LoadReg(
-    const LoadDataPacket&         loadData,
-    uint32                        loadDataSize,
-    RegGroupState<RegisterCount>* pRegState)
-{
-    // NOTE: IT_LOAD_*_REG is a variable-length packet which loads N groups of consecutive register values from GPU
-    // memory. The LOAD packet uses 3 DWORD's for the PM4 header and for the GPU virtual address to load from. The
-    // last two DWORD's in the packet can be repeated for each group of registers the packet will load from memory.
-
-    const uint32* pRegisterGroup = ((&loadData.ordinal1.u32All) + loadDataSize                   - 2);
-    const uint32* pNextHeader    = ((&loadData.ordinal1.u32All) + loadData.ordinal1.header.count + 2);
-
-    while (pRegisterGroup != pNextHeader)
-    {
-        const uint32& startRegOffset = pRegisterGroup[0];
-        const uint32  endRegOffset   = (startRegOffset + pRegisterGroup[1] - 1);
-        for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
-        {
-            pRegState->state[reg].flags.valid = 0;
-        }
-
-        pRegisterGroup += 2;
-    }
-}
-
-// =====================================================================================================================
-// Handle an occurrence of a PM4 LOAD INDEX packet: there's no optimization we can do on these, but we need to
-// invalidate the state of the affected register(s) because this packet will set them to unknowable values.
-template <typename LoadDataIndexPacket, size_t RegisterCount>
-void Pm4Optimizer::HandlePm4LoadRegIndex(
-    const LoadDataIndexPacket&    loadDataIndex,
-    uint32                        loadDataIndexSize,
-    RegGroupState<RegisterCount>* pRegState)
-{
-    // NOTE: IT_LOAD_*_REG_INDEX is nearly identical to IT_LOAD_*_REG except the register offset values in it are only
-    //       16 bits wide. This means we need to perform some special logic when traversing the dwords that follow the
-    //       packet header to avoid reading the reserved bits by accident.
-
-    const void* pRegisterGroup = ((&loadDataIndex.ordinal1.u32All) + loadDataIndexSize                   - 2);
-    const void* pNextHeader    = ((&loadDataIndex.ordinal1.u32All) + loadDataIndex.ordinal1.header.count + 2);
-
-    while (pRegisterGroup != pNextHeader)
-    {
-        const uint32 startRegOffset = *static_cast<const uint16*>(pRegisterGroup);
-        const uint32 numRegs        = *static_cast<const uint32*>(VoidPtrInc(pRegisterGroup, sizeof(uint32)));
-        const uint32 endRegOffset   = (startRegOffset + numRegs - 1);
-        for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
-        {
-            pRegState->state[reg].flags.valid = 0;
-        }
-
-        pRegisterGroup = VoidPtrInc(pRegisterGroup, sizeof(uint32) * 2);
-    }
-}
-
-// =====================================================================================================================
-// This function must be defined in the cpp file because it calls a template function that is defined in this file.
-void Pm4Optimizer::HandleLoadContextRegsIndex(
-     const PM4_PFP_LOAD_CONTEXT_REG_INDEX& loadData)
-{
-    HandlePm4LoadRegIndex<PM4_PFP_LOAD_CONTEXT_REG_INDEX>(loadData,
-                                                          PM4_PFP_LOAD_CONTEXT_REG_INDEX_SIZEDW__CORE,
-                                                          &m_cntxRegs);
-}
-
-// =====================================================================================================================
-// Handle an occurrence of a PM4 SET SH REG OFFSET packet: there's no optimization we can do on these, but we need to
-// invalidate the state of the affected register(s) because this packet will set them to unknowable values.
-void Pm4Optimizer::HandlePm4SetShRegOffset(
-    const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset)
-{
-    // Invalidate the register the packet is operating on.
-    m_shRegs.state[setShRegOffset.ordinal2.bitfields.reg_offset].flags.valid = 0;
-
-    // If the index value is set to 0, this packet actually operates on two sequential SH registers so we need to
-    // invalidate the following register as well.
-    if (setShRegOffset.ordinal2.bitfields.index == 0)
-    {
-        m_shRegs.state[setShRegOffset.ordinal2.bitfields.reg_offset + 1].flags.valid = 0;
-    }
-}
-
-// =====================================================================================================================
-// Handle an occurrence of a PM4 SET CONTEXT REG INDIRECT packet: there's no optimization we can do on these, but we
-// need to invalidate the state of the affected register(s) because this packet will set them to unknowable values.
-void Pm4Optimizer::HandlePm4SetContextRegIndirect(
-    const PM4_PFP_SET_CONTEXT_REG& setData)
-{
-    const uint32 startRegOffset = static_cast<uint32>(setData.ordinal2.bitfields.reg_offset);
-    const uint32  endRegOffset  = (startRegOffset + (setData.ordinal1.header.count - 1));
-
-    for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
-    {
-        m_cntxRegs.state[reg].flags.valid = 0;
-    }
-}
-
-// =====================================================================================================================
-// Decode PM4 header to determine the size. Returns the packet size of the specified PM4 header in dwords. Includes the
-// header itself.
-uint32 Pm4Optimizer::GetPm4PacketSize(
-    PM4_PFP_TYPE_3_HEADER pm4Header
-    ) const
-{
-    const uint32 pm4Count   = pm4Header.count;
-    uint32       packetSize = pm4Count + 2;
-
-    // Gfx9 ASICs have a one DWORD type-3 NOP packet. If the size field is its maximum value (0x3FFF), then the
-    // CP interprets this as having a size of one.
-    if ((pm4Count == 0x3FFF) && (pm4Header.opcode == IT_NOP))
-    {
-        packetSize = 1;
-    }
-
-    return packetSize;
-}
-
 #if PAL_DEVELOPER_BUILD
 // =====================================================================================================================
 // Calls the PAL developer callback to issue a report on how many times SET packets to each SH and context register were
@@ -746,6 +560,36 @@ void Pm4Optimizer::IssueHotRegisterReport(
                                   CONTEXT_SPACE_START);
 }
 #endif
+
+// =====================================================================================================================
+// Check if a given register value is a special "must write" because HW requires it is written in certain granularities.
+bool Pm4Optimizer::IsRegisterMustWrite(
+    uint32 regOffset)
+{
+    // There are some PA registers that require setting the entire vector if any register in the vector needs to change.
+    // According to the PA and SC hardware team, these registers consist of the viewport scale/offset regs, viewport
+    // scissor regs, and guardband regs. We are relying on the the main driver code to never call into the PM4Optimizer
+    // with these registers.
+    constexpr uint32 VportStart = mmPA_CL_VPORT_XSCALE;
+    constexpr uint32 VportEnd   = mmPA_CL_VPORT_ZOFFSET_15;
+
+    constexpr uint32 VportScissorStart = mmPA_SC_VPORT_SCISSOR_0_TL;
+    constexpr uint32 VportScissorEnd   = mmPA_SC_VPORT_ZMAX_15;
+
+    constexpr uint32 GuardbandStart = mmPA_CL_GB_VERT_CLIP_ADJ;
+    constexpr uint32 GuardbandEnd   = mmPA_CL_GB_HORZ_DISC_ADJ;
+
+    bool isMustWriteReg = false;
+
+    if (((regOffset >= VportStart)        && (regOffset <= VportEnd))        ||
+        ((regOffset >= VportScissorStart) && (regOffset <= VportScissorEnd)) ||
+        ((regOffset >= GuardbandStart)    && (regOffset <= GuardbandEnd)))
+    {
+        isMustWriteReg = true;
+    }
+
+    return isMustWriteReg;
+}
 
 } // Gfx9
 } // Pal

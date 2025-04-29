@@ -123,10 +123,7 @@ public:
     static Lib* GetLib(
         ADDR_HANDLE hLib);
 
-    virtual UINT_32 GetInterfaceVersion() const override
-    {
-        return 3;
-    }
+    UINT_32 GetInterfaceVersion() const override { return 3; }
 
     //
     // Interface stubs
@@ -308,13 +305,13 @@ protected:
 
     // The max alignment is tied to the swizzle mode and since the largest swizzle mode is 256kb, so the maximal
     // alignment is also 256kb.
-    virtual UINT_32 HwlComputeMaxBaseAlignments() const  { return Size256K; }
+    UINT_32 HwlComputeMaxBaseAlignments() const override { return Size256K; }
 
     virtual ADDR_E_RETURNCODE HwlGetPossibleSwizzleModes(
         const ADDR3_GET_POSSIBLE_SWIZZLE_MODE_INPUT*   pIn,
         ADDR3_GET_POSSIBLE_SWIZZLE_MODE_OUTPUT*        pOut) const = 0;
 
-    virtual UINT_32 HwlComputeMaxMetaBaseAlignments() const { return 0; }
+    UINT_32 HwlComputeMaxMetaBaseAlignments() const override { return 0; }
 
     virtual ADDR_E_RETURNCODE HwlComputeSurfaceInfo(
          const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn,

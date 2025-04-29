@@ -118,6 +118,13 @@ private:
     /// @return The modified string
     char* SkipLeadingSpaces(char* pStr);
 
+    /// Update string with the trailing spaces trimmed
+    ///
+    /// @param [in] pStr String to edit
+    ///
+    /// @return Nothing
+    void RemoveTrailingSpaces(char* pStr);
+
     // Describes a single { setting, value, componentName } triplet as loaded from a settings file.
     struct SettingValueInfo
     {

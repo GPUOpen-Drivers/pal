@@ -27,7 +27,7 @@
 #include "core/device.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx12/gfx12Barrier.h"
-#include "core/hw/gfxip/gfx12/gfx12CmdUtil.h"
+#include "core/hw/gfxip/gfx12/gfx12Device.h"
 #include "core/hw/gfxip/gfx12/gfx12Image.h"
 #include "core/hw/gfxip/gfx12/gfx12Metadata.h"
 #include "core/hw/gfxip/rpm/gfx12/gfx12RsrcProcMgr.h"
@@ -131,11 +131,11 @@ static ReleaseEvents GetReleaseEvents(
     constexpr uint32 StallReqStageMask[] =
     {
         // Pfp       = 0
-        VsWaitStageMask | PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        VsPsCsWaitStageMask | EopWaitStageMask,
         // Me        = 1
-        VsWaitStageMask | PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        VsPsCsWaitStageMask | EopWaitStageMask,
         // PreShader = 2
-        VsWaitStageMask | PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        VsPsCsWaitStageMask | EopWaitStageMask,
         // PreDepth  = 3
         PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
         // PrePs     = 4
@@ -254,58 +254,61 @@ AcquirePoint BarrierMgr::GetAcquirePoint(
 void BarrierMgr::OptimizeStageMask(
     const GfxCmdBuffer* pCmdBuf,
     BarrierType         barrierType,
-    uint32*             pSrcStageMask,
-    uint32*             pDstStageMask,
-    bool                isClearToTarget // Optimization hint, not used in gfx12.
+    uint32*             pSrcStageMask,  // Optional, can be nullptr
+    uint32*             pDstStageMask,  // Optional, can be nullptr
+    bool                isClearToTarget // Not used
     ) const
 {
-    PAL_ASSERT((pSrcStageMask != nullptr) && (pDstStageMask != nullptr));
-
     const GfxCmdBufferStateFlags stateFlags = pCmdBuf->GetCmdBufState().flags;
 
     // Should be no GFX BLT except auto syn clear where this flag is not set.
     PAL_ASSERT(stateFlags.gfxBltActive == 0);
 
-    // Update pipeline stages if valid input stage mask is provided.
-    if (TestAnyFlagSet(*pSrcStageMask, PipelineStageBlt))
+    if (pSrcStageMask != nullptr)
     {
-        *pSrcStageMask &= ~PipelineStageBlt;
-        *pSrcStageMask |= stateFlags.csBltActive ? PipelineStageCs : 0;
-
-        // Only buffer and global barrier use CP DMA blt potentially.
-        if (barrierType != BarrierType::Image)
+        // Update pipeline stages if valid input stage mask is provided.
+        if (TestAnyFlagSet(*pSrcStageMask, PipelineStageBlt))
         {
-            // Add back PipelineStageBlt because we cannot express it with a more accurate stage.
-            *pSrcStageMask |= stateFlags.cpBltActive ? PipelineStageBlt : 0;
+            *pSrcStageMask &= ~PipelineStageBlt;
+            *pSrcStageMask |= stateFlags.csBltActive ? PipelineStageCs : 0;
+
+            // Only buffer and global barrier use CP DMA blt potentially.
+            if (barrierType != BarrierType::Image)
+            {
+                // Add back PipelineStageBlt because we cannot express it with a more accurate stage.
+                *pSrcStageMask |= stateFlags.cpBltActive ? PipelineStageBlt : 0;
+            }
+        }
+
+        // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
+        if (pCmdBuf->GetEngineType() != EngineTypeUniversal)
+        {
+            *pSrcStageMask &= ~PipelineStagesGraphicsOnly;
         }
     }
 
-    // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
-    if (pCmdBuf->GetEngineType() != EngineTypeUniversal)
+    if (pDstStageMask != nullptr)
     {
-        *pSrcStageMask &= ~PipelineStagesGraphicsOnly;
-        *pDstStageMask &= ~PipelineStagesGraphicsOnly;
-    }
-
-    // No need acquire at PFP for image barriers. Image may have metadata that's accessed by PFP by
-    // it's handled properly internally and no need concern here.
-    if ((barrierType == BarrierType::Image) &&
-        TestAnyFlagSet(*pDstStageMask, PipelineStagePfpMask))
-    {
-        *pDstStageMask &= ~PipelineStagePfpMask;
-
-        // If no dstStageMask flag after removing PFP flags, force waiting at ME.
-        if (*pDstStageMask == 0)
+        // No need acquire at PFP for image barriers. Image may have metadata that's accessed by PFP by
+        // it's handled properly internally and no need concern here.
+        if ((barrierType == BarrierType::Image) &&
+            TestAnyFlagSet(*pDstStageMask, PipelineStagePfpMask))
         {
-            *pDstStageMask = PipelineStagePostPrefetch;
+            *pDstStageMask &= ~PipelineStagePfpMask;
+
+            // If no dstStageMask flag after removing PFP flags, force waiting at ME.
+            if (*pDstStageMask == 0)
+            {
+                *pDstStageMask = PipelineStagePostPrefetch;
+            }
+        }
+
+        // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
+        if (pCmdBuf->GetEngineType() != EngineTypeUniversal)
+        {
+            *pDstStageMask &= ~PipelineStagesGraphicsOnly;
         }
     }
-}
-
-// =====================================================================================================================
-bool BarrierMgr::EnableReleaseMemWaitCpDma() const
-{
-    return static_cast<Device*>(m_pGfxDevice)->EnableReleaseMemWaitCpDma();
 }
 
 // =====================================================================================================================
@@ -543,7 +546,8 @@ BarrierMgr::BarrierMgr(
     GfxDevice*     pGfxDevice)
     :
     GfxBarrierMgr(pGfxDevice),
-    m_cmdUtil(static_cast<Device*>(pGfxDevice)->CmdUtil())
+    m_gfxDevice(*static_cast<Device*>(pGfxDevice)),
+    m_cmdUtil(m_gfxDevice.CmdUtil())
 {
 }
 
@@ -765,7 +769,7 @@ ReleaseToken BarrierMgr::IssueReleaseSync(
 
         if (waitCpDma)
         {
-            if (EnableReleaseMemWaitCpDma() && (eventType != ReleaseTokenInvalid))
+            if (m_gfxDevice.EnableReleaseMemWaitCpDma() && (eventType != ReleaseTokenInvalid))
             {
                 releaseMemWaitCpDma = true;
             }
@@ -779,7 +783,7 @@ ReleaseToken BarrierMgr::IssueReleaseSync(
 
         if (cacheOps.timestamp)
         {
-            pCmdSpace = WriteTimestampSync(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace, m_cmdUtil);
+            pCmdSpace = WriteTimestampSync(engineType, pCmdBuf->GetReleaseMemTsGpuVa(), pCmdSpace, m_cmdUtil);
         }
 
         if (eventType != ReleaseTokenInvalid)
@@ -826,13 +830,13 @@ ReleaseToken BarrierMgr::IssueReleaseSync(
                         //       packet programming requirement for DATA_SEL field, where 0=none (Discard data) is not
                         //       a valid option when EVENT_INDEX=shader_done (PS_DONE/CS_DONE).
                         releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
-                        releaseMem.dstAddr = pCmdBuf->TimestampGpuVirtAddr();
+                        releaseMem.dstAddr = pCmdBuf->GetReleaseMemTsGpuVa();
                     }
                 }
                 else
                 {
                     releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
-                    releaseMem.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(eventType);
+                    releaseMem.dstAddr = pCmdBuf->GetAcqRelFenceGpuVa(eventType, &pCmdSpace);
                     releaseMem.data    = syncToken.fenceValue;
                 }
             }
@@ -1047,12 +1051,14 @@ void BarrierMgr::IssueAcquireSync(
                 {
                     if (syncTokenToWait[i] != 0)
                     {
+                        const gpusize fenceGpuVa = pCmdBuf->GetAcqRelFenceGpuVa(ReleaseTokenType(i), &pCmdSpace);
+
                         pCmdSpace +=
                             CmdUtil::BuildWaitRegMem(engineType,
                                                      mem_space__me_wait_reg_mem__memory_space,
                                                      function__me_wait_reg_mem__greater_than_or_equal_reference_value,
                                                      engine_sel__me_wait_reg_mem__micro_engine,
-                                                     pCmdBuf->AcqRelFenceValGpuVa(ReleaseTokenType(i)),
+                                                     fenceGpuVa,
                                                      syncTokenToWait[i],
                                                      UINT32_MAX,
                                                      pCmdSpace);
@@ -1175,7 +1181,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
 
     if (NeedWaitCpDma(pCmdBuf, srcStageMask))
     {
-        if (EnableReleaseMemWaitCpDma() &&
+        if (m_gfxDevice.EnableReleaseMemWaitCpDma() &&
             (usePws ||
              ((acquirePoint <= AcquirePointMe) && TestAnyFlagSet(releaseEvents.eventTypeMask, ReleaseTokenMaskEop)) ||
              ((acquirePoint == AcquirePointEop) && (releaseEvents.syncRbCache || (syncGlxFlags != SyncGlxNone)))))
@@ -1192,7 +1198,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
 
     if (cacheOps.timestamp)
     {
-        pCmdSpace = WriteTimestampSync(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace, m_cmdUtil);
+        pCmdSpace = WriteTimestampSync(engineType, pCmdBuf->GetReleaseMemTsGpuVa(), pCmdSpace, m_cmdUtil);
     }
 
     if (usePws)
@@ -1220,7 +1226,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             //       programming requirement for DATA_SEL field, where 0=none (Discard data) is not a valid option
             //       when EVENT_INDEX=shader_done (PS_DONE/CS_DONE).
             releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
-            releaseMem.dstAddr = pCmdBuf->TimestampGpuVirtAddr();
+            releaseMem.dstAddr = pCmdBuf->GetReleaseMemTsGpuVa();
 
             if (TestAnyFlagSet(releaseEvents.eventTypeMask, ReleaseTokenMaskPsDone))
             {
@@ -1503,10 +1509,9 @@ ReleaseToken BarrierMgr::ReleaseInternal(
         bool   releaseBufferCopyOnly = (releaseInfo.srcGlobalStageMask == 0)  &&
                                        (releaseInfo.srcGlobalAccessMask == 0) &&
                                        (releaseInfo.imageBarrierCount == 0);
-        uint32 unusedStageMask       = 0;
 
         // Optimize global stage masks.
-        OptimizeStageMask(pCmdBuf, BarrierType::Global, &srcGlobalStageMask, &unusedStageMask);
+        OptimizeStageMask(pCmdBuf, BarrierType::Global, &srcGlobalStageMask, nullptr);
 
         CacheSyncOps cacheOps = {};
         if (releaseInfo.srcGlobalAccessMask != 0)
@@ -1529,7 +1534,7 @@ ReleaseToken BarrierMgr::ReleaseInternal(
         }
 
         // Optimize buffer stage masks before OR together.
-        OptimizeStageMask(pCmdBuf, BarrierType::Buffer, &srcStageMask, &unusedStageMask);
+        OptimizeStageMask(pCmdBuf, BarrierType::Buffer, &srcStageMask, nullptr);
         srcGlobalStageMask |= srcStageMask;
 
         uint32 bltCount = 0;
@@ -1557,7 +1562,7 @@ ReleaseToken BarrierMgr::ReleaseInternal(
         }
 
         // Optimize image stage masks before OR together.
-        OptimizeStageMask(pCmdBuf, BarrierType::Image, &srcStageMask, &unusedStageMask);
+        OptimizeStageMask(pCmdBuf, BarrierType::Image, &srcStageMask, nullptr);
         srcGlobalStageMask |= srcStageMask;
 
         if (bltCount > 0)
@@ -1598,10 +1603,9 @@ void BarrierMgr::AcquireInternal(
     if (result == Result::Success)
     {
         uint32 dstGlobalStageMask = acquireInfo.dstGlobalStageMask;
-        uint32 unusedStageMask    = 0;
 
         // Optimize global stage masks.
-        OptimizeStageMask(pCmdBuf, BarrierType::Global, &unusedStageMask, &dstGlobalStageMask);
+        OptimizeStageMask(pCmdBuf, BarrierType::Global, nullptr, &dstGlobalStageMask);
 
         CacheSyncOps cacheOps = {};
         if (acquireInfo.dstGlobalAccessMask != 0)
@@ -1620,7 +1624,7 @@ void BarrierMgr::AcquireInternal(
         }
 
         // Optimize buffer stage masks before OR together.
-        OptimizeStageMask(pCmdBuf, BarrierType::Buffer, &unusedStageMask, &dstStageMask);
+        OptimizeStageMask(pCmdBuf, BarrierType::Buffer, nullptr, &dstStageMask);
         dstGlobalStageMask |= dstStageMask;
 
         uint32 bltCount = 0;
@@ -1649,7 +1653,7 @@ void BarrierMgr::AcquireInternal(
         }
 
         // Optimize image stage masks before OR together.
-        OptimizeStageMask(pCmdBuf, BarrierType::Image, &unusedStageMask, &dstStageMask);
+        OptimizeStageMask(pCmdBuf, BarrierType::Image, nullptr, &dstStageMask);
         dstGlobalStageMask |= dstStageMask;
 
         // Issue acquire for global or pre-BLT sync.
@@ -1683,32 +1687,6 @@ ReleaseToken BarrierMgr::Release(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    const EngineType engineType = pGfxCmdBuf->GetEngineType();
-
-    // PWS enabled case doesn't need fence GPU memory since internal PWS counter is used instead.
-    if ((pGfxCmdBuf->GetAcqRelFenceValBaseGpuVa() == 0) && (m_pDevice->UsePws(engineType) == false))
-    {
-        // Allocate acquire/release synchronization fence value GPU memory from the command allocator.
-        // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
-        // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
-        // to access, and sets m_status to a failure code.
-        const gpusize fenceAddr = pGfxCmdBuf->AllocateGpuScratchMem(ReleaseTokenCount, 1);
-
-        const uint32  data[ReleaseTokenCount] = {};
-        WriteDataInfo writeDataInfo           = {};
-        writeDataInfo.engineType = engineType;
-        writeDataInfo.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
-        writeDataInfo.dstSel     = dst_sel__pfp_write_data__memory;
-        writeDataInfo.dstAddr    = fenceAddr;
-
-        CmdStream* const pCmdStream = static_cast<CmdStream*>(pGfxCmdBuf->GetMainCmdStream());
-        uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
-        pCmdSpace += CmdUtil::BuildWriteData(writeDataInfo, (sizeof(data) / sizeof(uint32)), &data[0], pCmdSpace);
-        pCmdStream->CommitCommands(pCmdSpace);
-
-        pGfxCmdBuf->SetAcqRelFenceValBaseGpuVa(fenceAddr);
-    }
-
     return ReleaseInternal(pGfxCmdBuf, releaseInfo, nullptr, pBarrierOps);
 }
 

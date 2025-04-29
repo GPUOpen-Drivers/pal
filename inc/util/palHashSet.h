@@ -98,6 +98,16 @@ public:
     explicit HashSet(uint32 numBuckets, Allocator*const pAllocator) : Base::HashBase(numBuckets, pAllocator) {}
     virtual ~HashSet() { }
 
+    /// Finds a given entry; if no entry was found, allocate it.
+    ///
+    /// @param [in]  ppKey    Key to search for.
+    /// @param [out] pExisted True if an entry for the specified key existed before this call was made.
+    ///                       False indicates that a new entry was allocated as a result of this call.
+    ///
+    /// @returns @ref Success if the operation completed successfully
+    ///          @ref ErrorOutOfMemory if the operation failed because an internal memory allocation failed.
+    Result FindAllocate(Key** ppKey, bool* pExisted);
+
     /// Returns true if the specified key exists in the set.
     ///
     /// @param [in] key Key to search for.

@@ -200,8 +200,27 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
-    const gpusize address   = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
-    uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
+    // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
+    m_barrierMgr.OptimizeStageMask(this, BarrierType::Global, &stageMask, nullptr);
+
+    uint32*       pCmdSpace           = m_cmdStream.ReserveCommands();
+    const gpusize address             = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
+    const bool    issueReleaseMem     = TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBottomOfPipe);
+    bool          releaseMemWaitCpDma = false;
+
+    // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
+    // this function expect that the prior blts have completed by the time the event is written to memory.
+    // Given that our CP DMA blts are asynchronous to the pipeline stages the only way to satisfy this requirement
+    // is to force the ME to stall until the CP DMAs are completed.
+    if (GfxBarrierMgr::NeedWaitCpDma(this, stageMask))
+    {
+        releaseMemWaitCpDma = issueReleaseMem && m_deviceConfig.enableReleaseMemWaitCpDma;
+        if (releaseMemWaitCpDma == false)
+        {
+            pCmdSpace += CmdUtil::BuildWaitDmaData(pCmdSpace);
+        }
+        SetCpBltState(false);
+    }
 
     // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
     // This is easiest to implement in this order:
@@ -209,12 +228,13 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     // 2. The CP stages can write the value directly using COPY_DATA in the MEC.
     // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
     // doing an MEC write is probably the least impactful thing we could do in that case.
-    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
+    if (issueReleaseMem)
     {
         ReleaseMemGeneric info = {};
         info.dstAddr     = address;
         info.dataSel     = data_sel__mec_release_mem__send_gpu_clock_counter;
         info.vgtEvent    = BOTTOM_OF_PIPE_TS;
+        info.waitCpDma   = releaseMemWaitCpDma;
         info.noConfirmWr = true;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(info, pCmdSpace);
@@ -242,9 +262,27 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
-    const bool is32Bit = (dataSize == ImmediateDataWidth::ImmediateData32Bit);
+    // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
+    m_barrierMgr.OptimizeStageMask(this, BarrierType::Global, &stageMask, nullptr);
 
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    uint32*    pCmdSpace           = m_cmdStream.ReserveCommands();
+    const bool is32Bit             = (dataSize == ImmediateDataWidth::ImmediateData32Bit);
+    const bool issueReleaseMem     = TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBottomOfPipe);
+    bool       releaseMemWaitCpDma = false;
+
+    // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
+    // this function expect that the prior blts have completed by the time the event is written to memory.
+    // Given that our CP DMA blts are asynchronous to the pipeline stages the only way to satisfy this requirement
+    // is to force the ME to stall until the CP DMAs are completed.
+    if (GfxBarrierMgr::NeedWaitCpDma(this, stageMask))
+    {
+        releaseMemWaitCpDma = issueReleaseMem && m_deviceConfig.enableReleaseMemWaitCpDma;
+        if (releaseMemWaitCpDma == false)
+        {
+            pCmdSpace += CmdUtil::BuildWaitDmaData(pCmdSpace);
+        }
+        SetCpBltState(false);
+    }
 
     // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
     // This is easiest to implement in this order:
@@ -252,14 +290,15 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     // 2. The CP stages can write the value directly using COPY_DATA in the MEC.
     // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
     // doing an MEC write is probably the least impactful thing we could do in that case.
-    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
+    if (issueReleaseMem)
     {
         ReleaseMemGeneric releaseInfo{};
-        releaseInfo.dstAddr  = address;
-        releaseInfo.data     = data;
-        releaseInfo.dataSel  = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
-                                       : data_sel__mec_release_mem__send_64_bit_data;
-        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+        releaseInfo.dstAddr   = address;
+        releaseInfo.data      = data;
+        releaseInfo.dataSel   = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
+                                        : data_sel__mec_release_mem__send_64_bit_data;
+        releaseInfo.vgtEvent  = BOTTOM_OF_PIPE_TS;
+        releaseInfo.waitCpDma = releaseMemWaitCpDma;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
@@ -461,6 +500,22 @@ void ComputeCmdBuffer::CmdSetPredication(
 }
 
 // =====================================================================================================================
+size_t ComputeCmdBuffer::BuildWriteToZero(
+    gpusize       dstAddr,
+    uint32        numDwords,
+    const uint32* pZeros,
+    uint32*       pCmdSpace
+    ) const
+{
+    WriteDataInfo info = {};
+    info.engineType = EngineTypeCompute;
+    info.dstAddr    = dstAddr;
+    info.dstSel     = dst_sel__mec_write_data__memory;
+
+    return CmdUtil::BuildWriteData(info, numDwords, pZeros, pCmdSpace);
+}
+
+// =====================================================================================================================
 void ComputeCmdBuffer::CmdNop(
     const void* pPayload,
     uint32      payloadSize)
@@ -570,15 +625,7 @@ void ComputeCmdBuffer::CmdWaitBusAddressableMemoryMarker(
     CompareFunc       compareFunc)
 {
     const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&gpuMemory);
-
-    CmdUtil::BuildWaitRegMem(EngineTypeCompute,
-                             mem_space__mec_wait_reg_mem__memory_space,
-                             CmdUtil::WaitRegMemFunc(compareFunc),
-                             engine_sel__me_wait_reg_mem__micro_engine,
-                             pGpuMemory->GetBusAddrMarkerVa(),
-                             data,
-                             mask,
-                             m_cmdStream.AllocateCommands(CmdUtil::WaitRegMemSizeDwords));
+    CmdWaitMemoryValue(pGpuMemory->GetBusAddrMarkerVa(), data, mask, compareFunc);
 }
 
 // =====================================================================================================================
@@ -678,7 +725,8 @@ void ComputeCmdBuffer::PreprocessExecuteIndirect(
     const ComputePipeline*      pCsPipeline,
     ExecuteIndirectPacketInfo*  pPacketInfo,
     ExecuteIndirectMeta*        pMeta,
-    const EiDispatchOptions&    options)
+    const EiDispatchOptions&    options,
+    const EiUserDataRegs&       regs)
 {
     const GeneratorProperties& properties      = generator.Properties();
     const UserDataLayout*      pUserDataLayout = pUserDataLayout = pCsPipeline->UserDataLayout();
@@ -702,8 +750,6 @@ void ComputeCmdBuffer::PreprocessExecuteIndirect(
         PAL_ASSERT(pUserDataSpace != nullptr);
         memcpy(pUserDataSpace, m_computeState.csUserDataEntries.entries, (sizeof(uint32) * spillDwords));
     }
-
-    const EiUserDataRegs regs = {};
 
     generator.PopulateExecuteIndirectParams(pCsPipeline,
                                             false,       // isGfx is false for ComputeCmdBuffer.
@@ -759,12 +805,18 @@ void ComputeCmdBuffer::ExecuteIndirectPacket(
         .isWave32              = pCsPipeline->IsWave32()
     };
 
+    const EiUserDataRegs regs =
+    {   // All other fields are irrelevant here.
+        .numWorkGroupReg = uint16(pCsPipeline->UserDataLayout()->GetWorkgroup().regOffset),
+    };
+
     // The rest of the packet info needs to be filled based on the input param buffer.
     PreprocessExecuteIndirect(gfx12Generator,
                               pCsPipeline,
                               &packetInfo,
                               &meta,
-                              options);
+                              options,
+                              regs);
 
     // Step3:-> Setup and Build PM4(s).
 
@@ -934,20 +986,21 @@ void ComputeCmdBuffer::WriteEventCmd(
     uint32                stageMask,   // Bitmask of PipelineStageFlag
     uint32                data)
 {
-    uint32* pCmdSpace           = m_cmdStream.ReserveCommands();
-    bool    releaseMemWaitCpDma = false;
+    // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
+    m_barrierMgr.OptimizeStageMask(this, BarrierType::Global, &stageMask, nullptr);
 
+    uint32*    pCmdSpace           = m_cmdStream.ReserveCommands();
+    const bool issueReleaseMem     = TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBottomOfPipe);
+    bool       releaseMemWaitCpDma = false;
+
+    // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
+    // this function expect that the prior blts have completed by the time the event is written to memory.
+    // Given that our CP DMA blts are asynchronous to the pipeline stages the only way to satisfy this requirement
+    // is to force the ME to stall until the CP DMAs are completed.
     if (GfxBarrierMgr::NeedWaitCpDma(this, stageMask))
     {
-        // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
-        // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have completed by the time the event
-        // is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages the only way to
-        // satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
-        if (m_device.EnableReleaseMemWaitCpDma())
-        {
-            releaseMemWaitCpDma = true;
-        }
-        else
+        releaseMemWaitCpDma = issueReleaseMem && m_deviceConfig.enableReleaseMemWaitCpDma;
+        if (releaseMemWaitCpDma == false)
         {
             pCmdSpace += CmdUtil::BuildWaitDmaData(pCmdSpace);
         }
@@ -960,7 +1013,7 @@ void ComputeCmdBuffer::WriteEventCmd(
     // 2. Any other stages must be implemented by the MEC so just do a direct write.
     // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
     // doing an MEC write is probably the least impactful thing we could do in that case.
-    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
+    if (issueReleaseMem)
     {
         // Implement set/reset with an EOP event written when all prior GPU work completes. Note that waiting on an
         // EOS timestamp and waiting on an EOP timestamp are exactly equivalent on compute queues. There's no reason
@@ -1217,7 +1270,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     gpusize kernargsGpuVa = 0;
     uint32 ldsSize = metadata.GroupSegmentFixedSize();
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
     {
         GfxCmdBuffer::CopyHsaKernelArgsToMem(offset, threads, logicalSize, &kernargsGpuVa, &ldsSize, metadata);
     }
@@ -1243,11 +1296,12 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     // Many HSA ELFs request private segment buffer registers, but never actually use them. Space is reserved to
     // adhere to initialization order but will be unset as we do not support scratch space in this execution path.
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER))
+    if (TestAnyFlagSet(desc.kernel_code_properties,
+                       llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER))
     {
         startReg += 4;
     }
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_PTR))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_PTR))
     {
         const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
 
@@ -1284,18 +1338,18 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     // unable to infer if queue ptr will be used or not. As a result, the pass has to assume the queue ptr
     // might be used, so HSA ELFs request queue ptrs but never actually use them. SGPR Space is reserved to adhere to
     // initialization order for COV4 when ENABLE_SGPR_QUEUE_PTR is set, but is unset as we can't support queue ptr.
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_QUEUE_PTR))
     {
         startReg += 2;
     }
 
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
     {
         pCmdSpace = CmdStream::WriteSetSeqShRegs<ShaderCompute>(startReg, (startReg + 1), &kernargsGpuVa, pCmdSpace);
         startReg += 2;
     }
 
-    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_ID))
+    if (TestAnyFlagSet(desc.kernel_code_properties, llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_ID))
     {
         // This feature may be enabled as a side effect of indirect calls.
         // However, the compiler team confirmed that the dispatch id itself is not used,
@@ -1672,6 +1726,8 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
     const AcquirePoint acqPoint  = AcquirePoint(info.hwAcqPoint);
     const bool         waitCpDma = info.waitCpDma;
 
+    // Can optimize acquire at Eop case if hit it.
+    PAL_ASSERT(acqPoint != AcquirePointEop);
     PAL_ASSERT(info.hwRbSync == SyncRbNone);
 
     // Issue explicit waitCpDma packet if ReleaseMem doesn't support it.
@@ -1682,65 +1738,44 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
         releaseMemWaitCpDma = false;
     }
 
-    // We define an "EOP" wait to mean a release without a WaitRegMem.
-    // If glxSync still has some flags left over we still need a WaitRegMem to issue the GCR.
-    const bool    needWaitRegMem = (acqPoint != AcquirePointEop) || (glxSync != SyncGlxNone);
-    const gpusize timestampAddr  = TimestampGpuVirtAddr();
-
-    if (needWaitRegMem)
-    {
-        // Write a known value to the timestamp.
-        WriteDataInfo writeData = {};
-        writeData.engineType = EngineTypeUniversal;
-        writeData.dstAddr    = timestampAddr;
-        writeData.engineSel  = engine_sel__me_write_data__micro_engine;
-        writeData.dstSel     = dst_sel__me_write_data__tc_l2;
-
-        pCmdSpace += CmdUtil::BuildWriteData(writeData, ClearedTimestamp, pCmdSpace);
-    }
-
     // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
     // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
     // trailing acquire_mem packet.
     ReleaseMemGeneric releaseInfo = {};
     releaseInfo.vgtEvent  = BOTTOM_OF_PIPE_TS;
     releaseInfo.cacheSync = CmdUtil::SelectReleaseMemCaches(&glxSync);
-    releaseInfo.dataSel   = needWaitRegMem ? data_sel__me_release_mem__send_32_bit_low
-                                           : data_sel__me_release_mem__none;
-    releaseInfo.dstAddr   = timestampAddr;
-    releaseInfo.data      = CompletedTimestamp;
+    releaseInfo.dataSel   = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.dstAddr   = GetWaitIdleTsGpuVa(&pCmdSpace);
+    releaseInfo.data      = WaitIdleTsValue();
     releaseInfo.waitCpDma = releaseMemWaitCpDma;
 
     pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
 
-    if (needWaitRegMem)
+    pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
+                                          mem_space__me_wait_reg_mem__memory_space,
+                                          function__me_wait_reg_mem__equal_to_the_reference_value,
+                                          engine_sel__me_wait_reg_mem__micro_engine,
+                                          releaseInfo.dstAddr,
+                                          uint32(releaseInfo.data),
+                                          UINT32_MAX,
+                                          pCmdSpace);
+
+    // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
+    // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
+    if (glxSync != SyncGlxNone)
     {
-        pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
-                                              mem_space__me_wait_reg_mem__memory_space,
-                                              function__me_wait_reg_mem__equal_to_the_reference_value,
-                                              engine_sel__me_wait_reg_mem__micro_engine,
-                                              timestampAddr,
-                                              releaseInfo.data,
-                                              UINT32_MAX,
-                                              pCmdSpace);
+        AcquireMemGeneric acquireInfo = {};
+        acquireInfo.engineType = EngineTypeCompute;
+        acquireInfo.cacheSync  = glxSync;
 
-        // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
-        // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
-        if (glxSync != SyncGlxNone)
-        {
-            AcquireMemGeneric acquireInfo = {};
-            acquireInfo.engineType = EngineTypeCompute;
-            acquireInfo.cacheSync  = glxSync;
-
-            pCmdSpace += CmdUtil::BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
-        }
-
-        SetCsBltState(false);
-        SetPrevCmdBufInactive();
-
-        UpdateRetiredAcqRelFenceVal(ReleaseTokenEop, GetCurAcqRelFenceVal(ReleaseTokenEop));
-        UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, GetCurAcqRelFenceVal(ReleaseTokenCsDone));
+        pCmdSpace += CmdUtil::BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
     }
+
+    SetCsBltState(false);
+    SetPrevCmdBufInactive();
+
+    UpdateRetiredAcqRelFenceVal(ReleaseTokenEop, GetCurAcqRelFenceVal(ReleaseTokenEop));
+    UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, GetCurAcqRelFenceVal(ReleaseTokenCsDone));
 
     if (waitCpDma)
     {

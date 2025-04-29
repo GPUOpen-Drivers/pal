@@ -60,7 +60,7 @@ constexpr char        RenderOpTraceControllerName[]  = "renderop";
 class RenderOpTraceController : public ITraceController
 {
 public:
-#if PAL_CLIENT_MAJOR_INTERFACE_VERSION < 896
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 896
     using RenderOp = GpuUtil::RenderOp;
 #endif
     RenderOpTraceController(Pal::IPlatform* pPlatform, Pal::IDevice* pDevice);
@@ -78,7 +78,7 @@ public:
     virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
     virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
 
-#if PAL_CLIENT_MAJOR_INTERFACE_VERSION < 896
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 896
     void RecordRenderOp(Pal::IQueue* pQueue, RenderOp renderOp);
 #endif
 

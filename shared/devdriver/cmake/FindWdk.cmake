@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -56,25 +56,11 @@ if(NOT DEFINED WDK_TARGET_VERSION)
     set(WDK_TARGET_VERSION *)
 endif()
 
-# If AMD_DK_ROOT is not set, but DK_ROOT is, then use DK_ROOT
-if(DEFINED ENV{DK_ROOT} AND NOT DEFINED ENV{AMD_DK_ROOT})
-    set(ENV{AMD_DK_ROOT} $ENV{DK_ROOT})
-endif()
-
-if(DEFINED ENV{AMD_DK_ROOT})
-    # Try and locate ntddk.h in the AMD DK path first
-    message(STATUS "AMD_DK_ROOT=$ENV{AMD_DK_ROOT}")
-    message(STATUS "Looking for ntddk.h with GLOB: $ENV{AMD_DK_ROOT}/ms_wdk/n${WDK_TARGET_VERSION}/Include/10.0.${WDK_TARGET_VERSION}.0/km/ntddk.h")
-    file(GLOB WDK_NTDDK_FILES
-        "$ENV{AMD_DK_ROOT}/ms_wdk/n${WDK_TARGET_VERSION}/Include/10.0.${WDK_TARGET_VERSION}.0/km/ntddk.h"
-    )
-else()
-    # If that fails, search in the default install locations.
-    message(STATUS "Looking for ntddk.h with GLOB: C:/Program Files*/Windows Kits/10/Include/10.0.${WDK_TARGET_VERSION}.0/km/ntddk.h")
-    file(GLOB WDK_NTDDK_FILES
-        "C:/Program Files*/Windows Kits/10/Include/10.0.${WDK_TARGET_VERSION}.0/km/ntddk.h"
-    )
-endif()
+# If that fails, search in the default install locations.
+message(STATUS "Looking for ntddk.h with GLOB: C:/Program Files*/Windows Kits/10/Include/10.0.${WDK_TARGET_VERSION}.0/km/ntddk.h")
+file(GLOB WDK_NTDDK_FILES
+    "C:/Program Files*/Windows Kits/10/Include/10.0.${WDK_TARGET_VERSION}.0/km/ntddk.h"
+)
 
 message(STATUS "WDK_NTDDK_FILES: ${WDK_NTDDK_FILES}")
 if(WDK_NTDDK_FILES)

@@ -36,6 +36,7 @@ namespace Gfx12
 
 class CmdStream;
 class CmdUtil;
+class Device;
 
 // This family of constexpr bitmasks defines which source/prior stages require EOP or EOS events to wait for idle.
 // They're mainly used to pick our Release barrier event but are also reused in other places in PAL.
@@ -48,6 +49,8 @@ constexpr uint32 VsWaitStageMask  = (PipelineStageFetchIndices | PipelineStageSt
                                      PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs);
 constexpr uint32 PsWaitStageMask  = PipelineStagePs;
 constexpr uint32 CsWaitStageMask  = PipelineStageCs;
+
+constexpr uint32 VsPsCsWaitStageMask = VsWaitStageMask | PsWaitStageMask | CsWaitStageMask;
 
 // Required cache sync operations for the transition
 struct CacheSyncOps
@@ -217,11 +220,10 @@ private:
         CacheSyncOps                  cacheOps,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    bool EnableReleaseMemWaitCpDma() const;
-
     AcquirePoint GetAcquirePoint(uint32 dstStageMask, EngineType engineType) const;
 
-    const CmdUtil& m_cmdUtil;
+    const Gfx12::Device& m_gfxDevice;
+    const CmdUtil&       m_cmdUtil;
 
     PAL_DISALLOW_DEFAULT_CTOR(BarrierMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(BarrierMgr);

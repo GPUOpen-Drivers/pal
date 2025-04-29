@@ -42,8 +42,7 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
     GraphicsPipeline(pDevice, false),
     m_task(*pDevice, &m_taskStageInfo, &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
     m_taskStageInfo(),
-    m_taskSignature{pDevice->GetNullCsSignature()},
-    m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
+    m_taskSignature{pDevice->GetNullCsSignature()}
 {
 }
 
@@ -178,11 +177,10 @@ uint32* HybridGraphicsPipeline::WriteTaskCommands(
     bool                            prefetch
     ) const
 {
-    return m_task.WriteShCommands(static_cast<CmdStream*>(pCmdStream),
-                                  pCmdSpace,
-                                  m_shPairsPacketSupportedCs,
-                                  info,
-                                  prefetch);
+    return m_task.WriteShCommands<true>(static_cast<CmdStream*>(pCmdStream),
+                                        pCmdSpace,
+                                        info,
+                                        prefetch);
 }
 
 } // namespace Gfx9

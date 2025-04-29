@@ -683,6 +683,24 @@ Result CodeObjectUploader::End(
 }
 
 // =====================================================================================================================
+Result CodeObjectUploader::GetEntryPointGpuSymbol(
+    Abi::HardwareStage                stage,
+    const PalAbi::CodeObjectMetadata& metadata,
+    GpuSymbol*                        pSymbol
+    ) const
+{
+    const PalAbi::HardwareStageMetadata& stageMetadata = metadata.pipeline.hardwareStage[uint32(stage)];
+    const Abi::PipelineSymbolType defaultSym = Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderMainEntry, stage);
+    const StringView<char> defaultSymName    = Abi::PipelineAbiSymbolNameStrings[uint32(defaultSym)];
+
+    const bool isDefaultEntryPoint = (PipelineSupportsGenericEntryPoint(metadata) == false) ||
+        (stageMetadata.hasEntry.entryPointSymbol == 0) || (stageMetadata.entryPointSymbol == defaultSymName);
+
+    return isDefaultEntryPoint ? GetGpuSymbol(defaultSym, pSymbol)
+                               : GetGpuSymbol(stageMetadata.entryPointSymbol, pSymbol);
+}
+
+// =====================================================================================================================
 Result CodeObjectUploader::GetAbsoluteSymbolAddress(
     const Abi::SymbolEntry* pCoSymbol,
     GpuSymbol*              pGpuSymbol

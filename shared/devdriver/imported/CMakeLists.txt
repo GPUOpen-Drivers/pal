@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -41,9 +41,9 @@ if (DD_BP_ENABLE_TOOL_LIBRARIES)
         set(SYSTEM_INFO_BUILD_WRITER ON)
         set(SYSTEM_INFO_BUILD_RDF_INTERFACES ON)
         if (SYSTEM_INFO_UTILS_DIR)
-            add_subdirectory(${SYSTEM_INFO_UTILS_DIR} system_info_utils)
+            add_subdirectory(${SYSTEM_INFO_UTILS_DIR} sys_info_utils)
         else ()
-            add_subdirectory(system_info_utils)
+            add_subdirectory(sys_info_utils)
         endif ()
     endif ()
 endif ()

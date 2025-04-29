@@ -37,7 +37,6 @@ namespace Pal
 GfxBarrierMgr::GfxBarrierMgr(
     GfxDevice* pGfxDevice)
     :
-    m_pGfxDevice(pGfxDevice),
     m_pDevice(pGfxDevice->Parent()),
     m_pPlatform(m_pDevice->GetPlatform())
 {

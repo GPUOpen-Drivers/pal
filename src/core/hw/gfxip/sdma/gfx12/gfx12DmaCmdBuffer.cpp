@@ -475,9 +475,6 @@ uint32* DmaCmdBuffer::WriteCopyTypedBuffer(
     packet.SRC_ADDR_LO_UNION.src_addr_31_0  = LowPart(typedBufferInfo.src.baseAddr);
     packet.SRC_ADDR_HI_UNION.src_addr_63_32 = HighPart(typedBufferInfo.src.baseAddr);
 
-    // Setup the start of the source rect.
-    // Offset is 0 since the base address is the actual address of the sub-region
-
     // Setup the source surface dimensions.
     packet.DW_4_UNION.src_pitch             = typedBufferInfo.src.linearRowPitch - 1;
     packet.DW_5_UNION.src_slice_pitch       = typedBufferInfo.src.linearDepthPitch - 1;
@@ -485,9 +482,6 @@ uint32* DmaCmdBuffer::WriteCopyTypedBuffer(
     // Setup the destination base address.
     packet.DST_ADDR_LO_UNION.dst_addr_31_0  = LowPart(typedBufferInfo.dst.baseAddr);
     packet.DST_ADDR_HI_UNION.dst_addr_63_32 = HighPart(typedBufferInfo.dst.baseAddr);
-
-    // Setup the start of the destination rectangle.
-    // Offset is 0 since the base address is the actual address of the sub-region
 
     // Setup the destination surface dimensions.
     // The unit of linear pitch and linear slice is pixel number minus 1.
@@ -600,7 +594,7 @@ uint32* DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     packet.DW_5_UNION.src_height  = src.extent.height - 1;
     packet.DW_5_UNION.src_depth   = src.extent.depth - 1;
 
-    // Setup the tile mode of the destination surface.
+    // Setup the tile mode of the source surface.
     packet.DW_6_UNION.src_element_size  = Log2(src.bytesPerPixel);
     packet.DW_6_UNION.src_swizzle_mode  = pAddrMgr->GetHwSwizzleMode(srcSwizzle);
     packet.DW_6_UNION.src_dimension     = GetHwDimension(src);
@@ -744,8 +738,6 @@ uint32* DmaCmdBuffer::WriteCopyMemToLinearImageCmd(
     packet.SRC_ADDR_LO_UNION.src_addr_31_0  = LowPart(srcBaseAddr);
     packet.SRC_ADDR_HI_UNION.src_addr_63_32 = HighPart(srcBaseAddr);
 
-    // Setup the start of the source rect (all zeros).
-
     // Setup the source surface dimensions.
     ValidateLinearRowPitch(rgn.gpuMemoryRowPitch, rgn.imageExtent.height, dstImage.bytesPerPixel);
     packet.DW_4_UNION.src_pitch       = GetLinearRowPitch(rgn.gpuMemoryRowPitch, dstImage.bytesPerPixel);
@@ -814,8 +806,6 @@ uint32* DmaCmdBuffer::WriteCopyLinearImageToMemCmd(
     const gpusize dstBaseAddr = dstGpuMemory.Desc().gpuVirtAddr + rgn.gpuMemoryOffset;
     packet.DST_ADDR_LO_UNION.dst_addr_31_0  = LowPart(dstBaseAddr);
     packet.DST_ADDR_HI_UNION.dst_addr_63_32 = HighPart(dstBaseAddr);
-
-    // Setup the start of the destination rectangle (all zeros).
 
     // Setup the destination surface dimensions.
     ValidateLinearRowPitch(rgn.gpuMemoryRowPitch, rgn.imageExtent.height, srcImage.bytesPerPixel);
@@ -1325,8 +1315,6 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
     packet.LINEAR_ADDR_LO_UNION.linear_addr_31_0  = LowPart(linearBaseAddr);
     packet.LINEAR_ADDR_HI_UNION.linear_addr_63_32 = HighPart(linearBaseAddr);
 
-    // Setup the linear start location (all zeros).
-
     // Setup the linear surface dimensions.
     ValidateLinearRowPitch(rgn.gpuMemoryRowPitch, rgn.imageExtent.height, image.bytesPerPixel);
     packet.DW_10_UNION.linear_pitch       = GetLinearRowPitch(rgn.gpuMemoryRowPitch, image.bytesPerPixel);
@@ -1378,7 +1366,10 @@ uint32 DmaCmdBuffer::GetHwDimension(
 {
     const Pal::ImageType imageType = dmaImageInfo.pImage->GetImageCreateInfo().imageType;
 
-    // The HW dimension enumerations match our image-type dimensions.  i.e., 0 = linear/1d, 1 = 2d, 2 = 3d.
+    // The HW dimension enumerations should match our image-type dimensions.  i.e., 0 = linear/1d, 1 = 2d, 2 = 3d.
+    static_assert((static_cast<uint32>(Pal::ImageType::Tex1d) == 0) &&
+                  (static_cast<uint32>(Pal::ImageType::Tex2d) == 1) &&
+                  (static_cast<uint32>(Pal::ImageType::Tex3d) == 2));
     return uint32(imageType);
 }
 

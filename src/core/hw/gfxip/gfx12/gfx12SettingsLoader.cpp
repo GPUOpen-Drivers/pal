@@ -168,6 +168,8 @@ void SettingsLoader::OverrideDefaults(
     Platform* pPlatform                       = m_pDevice->GetPlatform();
     const PalExperimentsSettings& expSettings = pPlatform->GetExpSettings();
 
+    const Pal::GpuChipProperties& chipProperties = m_pDevice->ChipProperties();
+
     if (expSettings.expSynchronizationOptimizationOreoModeControl.ValueOr(false))
     {
         m_settings.oreoModeControl = OreoModeBlend;
@@ -180,10 +182,8 @@ void SettingsLoader::OverrideDefaults(
         m_settings.hiDepthRound = 2;
     }
 
-    const uint32 pfpUcodeVersion = m_pDevice->ChipProperties().pfpUcodeVersion;
-
     // Only enable for RS64 FW based GFX11 which adds the support.
-    if (pfpUcodeVersion < MinPfpVersionReleaseMemSupportsWaitCpDma)
+    if (chipProperties.pfpUcodeVersion < MinPfpVersionReleaseMemSupportsWaitCpDma)
     {
         m_settings.enableReleaseMemWaitCpDma = false;
     }

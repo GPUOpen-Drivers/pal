@@ -195,7 +195,16 @@ Result Image::CreatePresentableImage(
         // When it's multiGpu, the metadata of BO on other gpu can't be shared across GPUs since it's possible that
         // the metadata is meaningless for other GPUs. So, the GBM (amdgpu backend) set linear meta when the BO is
         // from other AMD GPUs. Enable Linear mode only when presenting on different GPU.
-        imgCreateInfo.tiling = pWindowSystem->PresentOnSameGpu() ? ImageTiling::Optimal : ImageTiling::Linear;
+        if (pWindowSystem->PresentOnSameGpu())
+        {
+            imgCreateInfo.tiling = ImageTiling::Optimal;
+            // MetadataMode is set to Default automatically.
+        }
+        else
+        {
+            imgCreateInfo.tiling          = ImageTiling::Linear;
+            imgCreateInfo.metadataMode    = MetadataMode::Disabled;
+        }
 
         imgCreateInfo.imageType             = ImageType::Tex2d;
         imgCreateInfo.swizzledFormat        = createInfo.swizzledFormat;
@@ -361,6 +370,19 @@ Result Image::CreatePresentableMemoryObject(
     createInfo.flags.initializeToZero = presentableImageCreateInfo.flags.initializeToZero;
     createInfo.flags.explicitSync     = pAmdgpuWindowSystem->GetWindowSystemProperties().useExplicitSync;
 
+#if PAL_BUILD_GFX12
+    if (IsGfx12Plus(*pDevice))
+    {
+        // We want to use PAL's default compression heuristic to enable distributed compression if it will help perf.
+        // However, cross-GPU peer transfers do not support distributed compression. We must disable compression if the
+        // windowing system might use a peer transfer during desktop composition. The image's create info controls this.
+        if (pAmdgpuWindowSystem->PresentOnSameGpu() == false)
+        {
+            createInfo.compression = TriState::Disable;
+        }
+    }
+#endif
+
     // If client creates presentable image without swapchain, TMZ state should be determined by PresentableImageCreateInfo.
     const bool tmzEnable = (presentableImageCreateInfo.pSwapChain == nullptr)
         ? presentableImageCreateInfo.flags.tmzProtected
@@ -391,6 +413,11 @@ Result Image::CreatePresentableMemoryObject(
     createInfo.priority           = GpuMemPriority::VeryHigh;
     createInfo.heapCount          = 0;
     createInfo.pImage             = pImage;
+    // On Linux, neither the app nor the OS will map swap chain images.
+    // It is safe to enable distributed compression for swap chain image which is not accessed by CPU,
+    // Since (m_flags.cpuVisible == 0) is used to check if compression can be enabled during memory allocation,
+    // Force cpuInvisible = 1 which means cpuVisible = 0.
+    createInfo.flags.cpuInvisible = 1;
 
     for (uint32 i = 0; i < memReqs.heapCount; i++)
     {
@@ -580,7 +607,7 @@ Result Image::GetExternalSharedImageCreateInfo(
             pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
 
 #if PAL_BUILD_GFX12
-            if (IsGfx12(device))
+            if (IsGfx12Plus(device))
             {
                 const auto swizzleMode =
                     static_cast<Addr3SwizzleMode>(
@@ -764,7 +791,7 @@ Result Image::CreateExternalSharedImage(
             internalCreateInfo.sharedMetadata.numPlanes = 1;
 
 #if PAL_BUILD_GFX12
-            if (IsGfx12(*pDevice))
+            if (IsGfx12Plus(*pDevice))
             {
                 internalCreateInfo.sharedMetadata.hiZOffset = pUmdSharedMetadata->gfx12.hiZ_offset;
                 internalCreateInfo.sharedMetadata.hiSOffset = pUmdSharedMetadata->gfx12.hiS_offset;

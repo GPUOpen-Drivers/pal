@@ -405,7 +405,7 @@ void PipelineChunkCs::SetComputeShaderState(
 
         if constexpr (H::Exist(mmCOMPUTE_PGM_RSRC3) || H::Exist(mmCOMPUTE_PGM_LO))
         {
-            if (uploader.GetGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
+            if (uploader.GetEntryPointGpuSymbol(Abi::HardwareStage::Cs, metadata, &symbol) == Result::Success)
             {
                 PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256));
 

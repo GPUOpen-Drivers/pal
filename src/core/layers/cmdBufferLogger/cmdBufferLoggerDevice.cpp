@@ -29,6 +29,7 @@
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
+#include "core/layers/cmdBufferLogger/cmdBufferLoggerQueryPool.h"
 #include "palSysUtil.h"
 
 using namespace Util;
@@ -365,6 +366,39 @@ Result Device::CreatePrivateScreenImage(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+Result Device::CreateQueryPool(
+    const QueryPoolCreateInfo& createInfo,
+    void*                      pPlacementAddr,
+    IQueryPool**               ppQueryPool
+    ) const
+{
+    IQueryPool* pNextPool = nullptr;
+
+    Result result = m_pNextLayer->CreateQueryPool(createInfo,
+                                                  NextObjectAddr<QueryPool>(pPlacementAddr),
+                                                  &pNextPool);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextPool != nullptr);
+        pNextPool->SetClientData(pPlacementAddr);
+
+        (*ppQueryPool) = PAL_PLACEMENT_NEW(pPlacementAddr) QueryPool(pNextPool, this);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetQueryPoolSize(
+    const QueryPoolCreateInfo& createInfo,
+    Result*                    pResult
+    ) const
+{
+    return m_pNextLayer->GetQueryPoolSize(createInfo, pResult) + sizeof(QueryPool);
 }
 
 } // CmdBufferLogger

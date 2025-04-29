@@ -120,6 +120,7 @@ extern IBorderColorPalette*   NextBorderColorPalette(const IBorderColorPalette* 
 extern ICmdAllocator*         NextCmdAllocator(const ICmdAllocator* pCmdAllocator);
 extern ICmdBuffer*            NextCmdBuffer(const ICmdBuffer* pCmdBuffer);
 extern CmdBufferBuildInfo     NextCmdBufferBuildInfo(const CmdBufferBuildInfo& info);
+extern void                   NextCmdBufInfo(const CmdBufInfo& origInfo, CmdBufInfo* pNextInfo);
 extern IColorBlendState*      NextColorBlendState(const IColorBlendState* pColorBlendState);
 extern const IColorTargetView*      NextColorTargetView(const IColorTargetView* pView);
 extern IDepthStencilState*    NextDepthStencilState(const IDepthStencilState* pDepthStencilState);
@@ -1043,6 +1044,14 @@ public:
         const ExternalQueueSemaphoreOpenInfo& openInfo,
         void*                                 pPlacementAddr,
         IQueueSemaphore**                     ppQueueSemaphore) override;
+
+#if ( PAL_AMDGPU_BUILD)
+    virtual Result QueryGpuMemoryBudgetInfo(
+        GpuMemoryBudgetInfo* pInfo) override
+    {
+        return m_pNextLayer->QueryGpuMemoryBudgetInfo(pInfo);
+    }
+#endif
 
     virtual size_t GetFenceSize(
         Result* pResult) const override;

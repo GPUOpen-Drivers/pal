@@ -468,6 +468,7 @@ void LogContext::Struct(
         KeyAndEnum("srcBlendAlpha", value.targets[idx].srcBlendAlpha);
         KeyAndEnum("dstBlendAlpha", value.targets[idx].dstBlendAlpha);
         KeyAndEnum("blendFuncAlpha", value.targets[idx].blendFuncAlpha);
+        KeyAndValue("disableLogicOp", value.targets[idx].disableLogicOp);
         EndMap();
     }
 
@@ -870,6 +871,41 @@ void LogContext::Struct(
         Value("noRenderPresent");
     }
 
+    if (value.motionVectorPropChanged)
+    {
+        Value("motionVectorPropChanged");
+    }
+
+    if (value.depthPropChanged)
+    {
+        Value("depthPropChanged");
+    }
+
+    if (value.cameraPropChanged)
+    {
+        Value("cameraPropChanged");
+    }
+
+    if (value.capturePrimary)
+    {
+        Value("capturePrimary");
+    }
+
+    if (value.captureMotionVector)
+    {
+        Value("captureMotionVector");
+    }
+
+    if (value.captureDepth)
+    {
+        Value("captureDepth");
+    }
+
+    if (value.captureCamera)
+    {
+        Value("captureCamera");
+    }
+
     EndList();
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
 
@@ -889,6 +925,21 @@ void LogContext::Struct(
     if (value.pEarlyPresentEvent != nullptr)
     {
         KeyAndValue("pEarlyPresentEvent", value.pEarlyPresentEvent);
+    }
+
+    if (value.captureMotionVector)
+    {
+        KeyAndObject("pMotionVectorMemory", value.pMotionVectorMemory);
+    }
+
+    if (value.captureDepth)
+    {
+        KeyAndObject("pDepthMemory", value.pDepthMemory);
+    }
+
+    if (value.captureCamera)
+    {
+        KeyAndObject("pCameraMemory", value.pCameraMemory);
     }
 
     EndMap();
@@ -1154,7 +1205,43 @@ void LogContext::Struct(
         Value("paceGeneratedFrame");
     }
 
-    static_assert(CheckReservedBits<decltype(value.usageFlags)>(32, 23), "Update interfaceLogger!");
+    if (value.usageFlags.requiresDisplayDcc)
+    {
+        Value("requiresDisplayDcc");
+    }
+
+    if (value.usageFlags.requestMotionVectors)
+    {
+        Value("requestMotionVectors");
+    }
+
+    if (value.usageFlags.requestDepth)
+    {
+        Value("requestDepth");
+    }
+
+    if (value.usageFlags.requestCamera)
+    {
+        Value("requestCamera");
+    }
+
+    if (value.usageFlags.initMotionVectors)
+    {
+        Value("initMotionVectors");
+    }
+
+    if (value.usageFlags.initDepth)
+    {
+        Value("initDepth");
+    }
+
+    if (value.usageFlags.initCamera)
+    {
+        Value("initCamera");
+    }
+
+    static_assert(CheckReservedBits<decltype(value.usageFlags)>(32, 16), "Update interfaceLogger!");
+
     EndList();
 
     KeyAndValue("hNewFrameEvent", value.hNewFrameEvent);
@@ -1493,6 +1580,21 @@ void LogContext::Struct(
         Value("postFrameTimerSubmission");
     }
 
+    if (value.sendMotionVectors)
+    {
+        Value("sendMotionVectors");
+    }
+
+    if (value.sendDepth)
+    {
+        Value("sendDepth");
+    }
+
+    if (value.sendCameraMatrix)
+    {
+        Value("sendCameraMatrix");
+    }
+
     EndList();
 }
 
@@ -1795,7 +1897,12 @@ void LogContext::Struct(
     }
 #endif
 
-    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 29), "Need to update interfaceLogger!");
+    if (value.directCaptureSource)
+    {
+        Value("directCaptureSource");
+    }
+
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 28), "Need to update interfaceLogger!");
 
     EndList();
 }

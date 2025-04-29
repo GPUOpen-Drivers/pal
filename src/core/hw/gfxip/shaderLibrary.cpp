@@ -33,11 +33,11 @@ namespace Pal
 ShaderLibrary::ShaderLibrary(
     Device* pDevice)
     :
-    Pal::IShaderLibrary(),
     m_pDevice(pDevice),
     m_info{},
     m_flags{},
-    m_codeObject{}
+    m_codeObject{},
+    m_pSelf(this)
 {
 }
 
@@ -246,46 +246,46 @@ Result ShaderLibrary::UnpackShaderFunctionStats(
                     {
                         switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
                         {
-                        case HashLiteralString(".stack_frame_size_in_bytes"):
+                        case CompileTimeHashString(".stack_frame_size_in_bytes"):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->stackFrameSizeInBytes);
                         }
                         break;
-                        case HashLiteralString(PalAbi::ShaderMetadataKey::ShaderSubtype):
+                        case CompileTimeHashString(PalAbi::ShaderMetadataKey::ShaderSubtype):
                         {
                             Abi::ApiShaderSubType shaderSubType;
                             result = PalAbi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
                             pShaderStats->shaderSubType = ShaderSubType(shaderSubType);
                         }
                         break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::VgprCount):
+                        case CompileTimeHashString(PalAbi::HardwareStageMetadataKey::VgprCount):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedVgprs);
                         }
                         break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::SgprCount):
+                        case CompileTimeHashString(PalAbi::HardwareStageMetadataKey::SgprCount):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedSgprs);
                         }
                         break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::LdsSize):
+                        case CompileTimeHashString(PalAbi::HardwareStageMetadataKey::LdsSize):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->common.ldsUsageSizeInBytes);
                         }
                         break;
-                        case HashLiteralString(PalAbi::ShaderMetadataKey::ApiShaderHash):
+                        case CompileTimeHashString(PalAbi::ShaderMetadataKey::ApiShaderHash):
                         {
                             uint64 shaderHash[2] = {};
                             result = pMetadataReader->UnpackNext(&shaderHash);
                             pShaderStats->shaderHash = { shaderHash[0], shaderHash[1] };
                         }
                         break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::FrontendStackSize):
+                        case CompileTimeHashString(PalAbi::HardwareStageMetadataKey::FrontendStackSize):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->cpsStackSizes.frontendSize);
                         }
                         break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::BackendStackSize):
+                        case CompileTimeHashString(PalAbi::HardwareStageMetadataKey::BackendStackSize):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->cpsStackSizes.backendSize);
                         }

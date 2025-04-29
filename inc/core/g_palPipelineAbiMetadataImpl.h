@@ -26,8 +26,8 @@
 #pragma once
 
 #include "g_palPipelineAbiMetadata.h"
+#include "palInlineFuncs.h"
 #include "palMsgPackImpl.h"
-#include "palHashLiteralString.h"
 
 namespace Util
 {
@@ -49,31 +49,31 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString("VsPs"):
+        case CompileTimeHashString("VsPs"):
             *pValue = Abi::PipelineType::VsPs;
             break;
-        case HashLiteralString("Gs"):
+        case CompileTimeHashString("Gs"):
             *pValue = Abi::PipelineType::Gs;
             break;
-        case HashLiteralString("Cs"):
+        case CompileTimeHashString("Cs"):
             *pValue = Abi::PipelineType::Cs;
             break;
-        case HashLiteralString("Ngg"):
+        case CompileTimeHashString("Ngg"):
             *pValue = Abi::PipelineType::Ngg;
             break;
-        case HashLiteralString("Tess"):
+        case CompileTimeHashString("Tess"):
             *pValue = Abi::PipelineType::Tess;
             break;
-        case HashLiteralString("GsTess"):
+        case CompileTimeHashString("GsTess"):
             *pValue = Abi::PipelineType::GsTess;
             break;
-        case HashLiteralString("NggTess"):
+        case CompileTimeHashString("NggTess"):
             *pValue = Abi::PipelineType::NggTess;
             break;
-        case HashLiteralString("Mesh"):
+        case CompileTimeHashString("Mesh"):
             *pValue = Abi::PipelineType::Mesh;
             break;
-        case HashLiteralString("TaskMesh"):
+        case CompileTimeHashString("TaskMesh"):
             *pValue = Abi::PipelineType::TaskMesh;
             break;
         default:
@@ -138,28 +138,28 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString(".compute"):
+        case CompileTimeHashString(".compute"):
             *pValue = Abi::ApiShaderType::Cs;
             break;
-        case HashLiteralString(".task"):
+        case CompileTimeHashString(".task"):
             *pValue = Abi::ApiShaderType::Task;
             break;
-        case HashLiteralString(".vertex"):
+        case CompileTimeHashString(".vertex"):
             *pValue = Abi::ApiShaderType::Vs;
             break;
-        case HashLiteralString(".hull"):
+        case CompileTimeHashString(".hull"):
             *pValue = Abi::ApiShaderType::Hs;
             break;
-        case HashLiteralString(".domain"):
+        case CompileTimeHashString(".domain"):
             *pValue = Abi::ApiShaderType::Ds;
             break;
-        case HashLiteralString(".geometry"):
+        case CompileTimeHashString(".geometry"):
             *pValue = Abi::ApiShaderType::Gs;
             break;
-        case HashLiteralString(".mesh"):
+        case CompileTimeHashString(".mesh"):
             *pValue = Abi::ApiShaderType::Mesh;
             break;
-        case HashLiteralString(".pixel"):
+        case CompileTimeHashString(".pixel"):
             *pValue = Abi::ApiShaderType::Ps;
             break;
         default:
@@ -221,31 +221,31 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString("Unknown"):
+        case CompileTimeHashString("Unknown"):
             *pValue = Abi::ApiShaderSubType::Unknown;
             break;
-        case HashLiteralString("Traversal"):
+        case CompileTimeHashString("Traversal"):
             *pValue = Abi::ApiShaderSubType::Traversal;
             break;
-        case HashLiteralString("RayGeneration"):
+        case CompileTimeHashString("RayGeneration"):
             *pValue = Abi::ApiShaderSubType::RayGeneration;
             break;
-        case HashLiteralString("Intersection"):
+        case CompileTimeHashString("Intersection"):
             *pValue = Abi::ApiShaderSubType::Intersection;
             break;
-        case HashLiteralString("AnyHit"):
+        case CompileTimeHashString("AnyHit"):
             *pValue = Abi::ApiShaderSubType::AnyHit;
             break;
-        case HashLiteralString("ClosestHit"):
+        case CompileTimeHashString("ClosestHit"):
             *pValue = Abi::ApiShaderSubType::ClosestHit;
             break;
-        case HashLiteralString("Miss"):
+        case CompileTimeHashString("Miss"):
             *pValue = Abi::ApiShaderSubType::Miss;
             break;
-        case HashLiteralString("Callable"):
+        case CompileTimeHashString("Callable"):
             *pValue = Abi::ApiShaderSubType::Callable;
             break;
-        case HashLiteralString("LaunchKernel"):
+        case CompileTimeHashString("LaunchKernel"):
             *pValue = Abi::ApiShaderSubType::LaunchKernel;
             break;
         default:
@@ -310,25 +310,25 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString(".ls"):
+        case CompileTimeHashString(".ls"):
             *pValue = Abi::HardwareStage::Ls;
             break;
-        case HashLiteralString(".hs"):
+        case CompileTimeHashString(".hs"):
             *pValue = Abi::HardwareStage::Hs;
             break;
-        case HashLiteralString(".es"):
+        case CompileTimeHashString(".es"):
             *pValue = Abi::HardwareStage::Es;
             break;
-        case HashLiteralString(".gs"):
+        case CompileTimeHashString(".gs"):
             *pValue = Abi::HardwareStage::Gs;
             break;
-        case HashLiteralString(".vs"):
+        case CompileTimeHashString(".vs"):
             *pValue = Abi::HardwareStage::Vs;
             break;
-        case HashLiteralString(".ps"):
+        case CompileTimeHashString(".ps"):
             *pValue = Abi::HardwareStage::Ps;
             break;
-        case HashLiteralString(".cs"):
+        case CompileTimeHashString(".cs"):
             *pValue = Abi::HardwareStage::Cs;
             break;
         default:
@@ -387,112 +387,112 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString("unknown"):
+        case CompileTimeHashString("unknown"):
             *pValue = Abi::PipelineSymbolType::Unknown;
             break;
-        case HashLiteralString("_amdgpu_ls_main"):
+        case CompileTimeHashString("_amdgpu_ls_main"):
             *pValue = Abi::PipelineSymbolType::LsMainEntry;
             break;
-        case HashLiteralString("_amdgpu_hs_main"):
+        case CompileTimeHashString("_amdgpu_hs_main"):
             *pValue = Abi::PipelineSymbolType::HsMainEntry;
             break;
-        case HashLiteralString("_amdgpu_es_main"):
+        case CompileTimeHashString("_amdgpu_es_main"):
             *pValue = Abi::PipelineSymbolType::EsMainEntry;
             break;
-        case HashLiteralString("_amdgpu_gs_main"):
+        case CompileTimeHashString("_amdgpu_gs_main"):
             *pValue = Abi::PipelineSymbolType::GsMainEntry;
             break;
-        case HashLiteralString("_amdgpu_vs_main"):
+        case CompileTimeHashString("_amdgpu_vs_main"):
             *pValue = Abi::PipelineSymbolType::VsMainEntry;
             break;
-        case HashLiteralString("_amdgpu_ps_main"):
+        case CompileTimeHashString("_amdgpu_ps_main"):
             *pValue = Abi::PipelineSymbolType::PsMainEntry;
             break;
-        case HashLiteralString("_amdgpu_cs_main"):
+        case CompileTimeHashString("_amdgpu_cs_main"):
             *pValue = Abi::PipelineSymbolType::CsMainEntry;
             break;
-        case HashLiteralString("_amdgpu_ls_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_ls_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::LsShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_hs_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_hs_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::HsShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_es_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_es_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::EsShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_gs_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_gs_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::GsShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_vs_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_vs_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::VsShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_ps_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_ps_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::PsShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_cs_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_cs_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::CsShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_ps_export_shader_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_ps_export_shader_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::PsExportShaderShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_ps_export_shader_dual_source_shdr_intrl_tbl"):
+        case CompileTimeHashString("_amdgpu_ps_export_shader_dual_source_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::PsExportShaderDualSourceShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_ls_disasm"):
+        case CompileTimeHashString("_amdgpu_ls_disasm"):
             *pValue = Abi::PipelineSymbolType::LsDisassembly;
             break;
-        case HashLiteralString("_amdgpu_hs_disasm"):
+        case CompileTimeHashString("_amdgpu_hs_disasm"):
             *pValue = Abi::PipelineSymbolType::HsDisassembly;
             break;
-        case HashLiteralString("_amdgpu_es_disasm"):
+        case CompileTimeHashString("_amdgpu_es_disasm"):
             *pValue = Abi::PipelineSymbolType::EsDisassembly;
             break;
-        case HashLiteralString("_amdgpu_gs_disasm"):
+        case CompileTimeHashString("_amdgpu_gs_disasm"):
             *pValue = Abi::PipelineSymbolType::GsDisassembly;
             break;
-        case HashLiteralString("_amdgpu_vs_disasm"):
+        case CompileTimeHashString("_amdgpu_vs_disasm"):
             *pValue = Abi::PipelineSymbolType::VsDisassembly;
             break;
-        case HashLiteralString("_amdgpu_ps_disasm"):
+        case CompileTimeHashString("_amdgpu_ps_disasm"):
             *pValue = Abi::PipelineSymbolType::PsDisassembly;
             break;
-        case HashLiteralString("_amdgpu_cs_disasm"):
+        case CompileTimeHashString("_amdgpu_cs_disasm"):
             *pValue = Abi::PipelineSymbolType::CsDisassembly;
             break;
-        case HashLiteralString("_amdgpu_ps_export_shader_disasm"):
+        case CompileTimeHashString("_amdgpu_ps_export_shader_disasm"):
             *pValue = Abi::PipelineSymbolType::PsExportShaderDisassembly;
             break;
-        case HashLiteralString("_amdgpu_ps_export_shader_dual_source_disasm"):
+        case CompileTimeHashString("_amdgpu_ps_export_shader_dual_source_disasm"):
             *pValue = Abi::PipelineSymbolType::PsExportShaderDualSourceDisassembly;
             break;
-        case HashLiteralString("_amdgpu_ls_shdr_intrl_data"):
+        case CompileTimeHashString("_amdgpu_ls_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::LsShdrIntrlData;
             break;
-        case HashLiteralString("_amdgpu_hs_shdr_intrl_data"):
+        case CompileTimeHashString("_amdgpu_hs_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::HsShdrIntrlData;
             break;
-        case HashLiteralString("_amdgpu_es_shdr_intrl_data"):
+        case CompileTimeHashString("_amdgpu_es_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::EsShdrIntrlData;
             break;
-        case HashLiteralString("_amdgpu_gs_shdr_intrl_data"):
+        case CompileTimeHashString("_amdgpu_gs_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::GsShdrIntrlData;
             break;
-        case HashLiteralString("_amdgpu_vs_shdr_intrl_data"):
+        case CompileTimeHashString("_amdgpu_vs_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::VsShdrIntrlData;
             break;
-        case HashLiteralString("_amdgpu_ps_shdr_intrl_data"):
+        case CompileTimeHashString("_amdgpu_ps_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::PsShdrIntrlData;
             break;
-        case HashLiteralString("_amdgpu_cs_shdr_intrl_data"):
+        case CompileTimeHashString("_amdgpu_cs_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::CsShdrIntrlData;
             break;
-        case HashLiteralString("_amdgpu_pipeline_intrl_data"):
+        case CompileTimeHashString("_amdgpu_pipeline_intrl_data"):
             *pValue = Abi::PipelineSymbolType::PipelineIntrlData;
             break;
-        case HashLiteralString("color_export_shader"):
+        case CompileTimeHashString("color_export_shader"):
             *pValue = Abi::PipelineSymbolType::PsColorExportEntry;
             break;
-        case HashLiteralString("color_export_shader_dual_source"):
+        case CompileTimeHashString("color_export_shader_dual_source"):
             *pValue = Abi::PipelineSymbolType::PsColorExportDualSourceEntry;
             break;
         default:
@@ -638,19 +638,19 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString("Zero"):
+        case CompileTimeHashString("Zero"):
             *pValue = Abi::PointSpriteSelect::Zero;
             break;
-        case HashLiteralString("One"):
+        case CompileTimeHashString("One"):
             *pValue = Abi::PointSpriteSelect::One;
             break;
-        case HashLiteralString("S"):
+        case CompileTimeHashString("S"):
             *pValue = Abi::PointSpriteSelect::S;
             break;
-        case HashLiteralString("T"):
+        case CompileTimeHashString("T"):
             *pValue = Abi::PointSpriteSelect::T;
             break;
-        case HashLiteralString("None"):
+        case CompileTimeHashString("None"):
             *pValue = Abi::PointSpriteSelect::None;
             break;
         default:
@@ -703,19 +703,19 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString("PointList"):
+        case CompileTimeHashString("PointList"):
             *pValue = Abi::GsOutPrimType::PointList;
             break;
-        case HashLiteralString("LineStrip"):
+        case CompileTimeHashString("LineStrip"):
             *pValue = Abi::GsOutPrimType::LineStrip;
             break;
-        case HashLiteralString("TriStrip"):
+        case CompileTimeHashString("TriStrip"):
             *pValue = Abi::GsOutPrimType::TriStrip;
             break;
-        case HashLiteralString("Rect2d"):
+        case CompileTimeHashString("Rect2d"):
             *pValue = Abi::GsOutPrimType::Rect2d;
             break;
-        case HashLiteralString("RectList"):
+        case CompileTimeHashString("RectList"):
             *pValue = Abi::GsOutPrimType::RectList;
             break;
         default:
@@ -768,16 +768,16 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString("InputCoverage"):
+        case CompileTimeHashString("InputCoverage"):
             *pValue = Abi::CoverageToShaderSel::InputCoverage;
             break;
-        case HashLiteralString("InputInnerCoverage"):
+        case CompileTimeHashString("InputInnerCoverage"):
             *pValue = Abi::CoverageToShaderSel::InputInnerCoverage;
             break;
-        case HashLiteralString("InputDepthCoverage"):
+        case CompileTimeHashString("InputDepthCoverage"):
             *pValue = Abi::CoverageToShaderSel::InputDepthCoverage;
             break;
-        case HashLiteralString("Raw"):
+        case CompileTimeHashString("Raw"):
             *pValue = Abi::CoverageToShaderSel::Raw;
             break;
         default:
@@ -827,28 +827,28 @@ inline Result DeserializeEnum(
     {
         switch (HashString(key))
         {
-        case HashLiteralString("LoopIter"):
+        case CompileTimeHashString("LoopIter"):
             *pValue = Abi::CbConstUsageType::LoopIter;
             break;
-        case HashLiteralString("Eq0Float"):
+        case CompileTimeHashString("Eq0Float"):
             *pValue = Abi::CbConstUsageType::Eq0Float;
             break;
-        case HashLiteralString("Lt0Float"):
+        case CompileTimeHashString("Lt0Float"):
             *pValue = Abi::CbConstUsageType::Lt0Float;
             break;
-        case HashLiteralString("Gt0Float"):
+        case CompileTimeHashString("Gt0Float"):
             *pValue = Abi::CbConstUsageType::Gt0Float;
             break;
-        case HashLiteralString("Eq0Int"):
+        case CompileTimeHashString("Eq0Int"):
             *pValue = Abi::CbConstUsageType::Eq0Int;
             break;
-        case HashLiteralString("Lt0Int"):
+        case CompileTimeHashString("Lt0Int"):
             *pValue = Abi::CbConstUsageType::Lt0Int;
             break;
-        case HashLiteralString("Gt0Int"):
+        case CompileTimeHashString("Gt0Int"):
             *pValue = Abi::CbConstUsageType::Gt0Int;
             break;
-        case HashLiteralString("Other"):
+        case CompileTimeHashString("Other"):
             *pValue = Abi::CbConstUsageType::Other;
             break;
         default:
@@ -958,19 +958,19 @@ inline Result DeserializeShaderMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(ShaderMetadataKey::ApiShaderHash):
+            case CompileTimeHashString(ShaderMetadataKey::ApiShaderHash):
                 PAL_ASSERT(pMetadata->hasEntry.apiShaderHash == 0);
                 result = pReader->UnpackNext(&pMetadata->apiShaderHash);
                 pMetadata->hasEntry.apiShaderHash = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(ShaderMetadataKey::HardwareMapping):
+            case CompileTimeHashString(ShaderMetadataKey::HardwareMapping):
                 PAL_ASSERT(pMetadata->hasEntry.hardwareMapping == 0);
                 result = DeserializeEnumBitflags<Abi::HardwareStage>(pReader, &pMetadata->hardwareMapping);
                 pMetadata->hasEntry.hardwareMapping = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(ShaderMetadataKey::ShaderSubtype):
+            case CompileTimeHashString(ShaderMetadataKey::ShaderSubtype):
                 PAL_ASSERT(pMetadata->hasEntry.shaderSubtype == 0);
                 result = DeserializeEnum(pReader, &pMetadata->shaderSubtype);
                 pMetadata->hasEntry.shaderSubtype = (result == Result::Success);;
@@ -1036,31 +1036,31 @@ inline Result DeserializeCbConstUsageMetadata(
             {
                 switch (HashString(key))
                 {
-                case HashLiteralString(CbConstUsageMetadataKey::BufferId):
+                case CompileTimeHashString(CbConstUsageMetadataKey::BufferId):
                     PAL_ASSERT(pMetadata[j].hasEntry.bufferId == 0);
                     result = pReader->UnpackNext(&pMetadata[j].bufferId);
                     pMetadata[j].hasEntry.bufferId = (result == Result::Success);;
                     break;
 
-                case HashLiteralString(CbConstUsageMetadataKey::BufferIndex):
+                case CompileTimeHashString(CbConstUsageMetadataKey::BufferIndex):
                     PAL_ASSERT(pMetadata[j].hasEntry.bufferIndex == 0);
                     result = pReader->UnpackNext(&pMetadata[j].bufferIndex);
                     pMetadata[j].hasEntry.bufferIndex = (result == Result::Success);;
                     break;
 
-                case HashLiteralString(CbConstUsageMetadataKey::Elem):
+                case CompileTimeHashString(CbConstUsageMetadataKey::Elem):
                     PAL_ASSERT(pMetadata[j].hasEntry.elem == 0);
                     result = pReader->UnpackNext(&pMetadata[j].elem);
                     pMetadata[j].hasEntry.elem = (result == Result::Success);;
                     break;
 
-                case HashLiteralString(CbConstUsageMetadataKey::Chan):
+                case CompileTimeHashString(CbConstUsageMetadataKey::Chan):
                     PAL_ASSERT(pMetadata[j].hasEntry.chan == 0);
                     result = pReader->UnpackNext(&pMetadata[j].chan);
                     pMetadata[j].hasEntry.chan = (result == Result::Success);;
                     break;
 
-                case HashLiteralString(CbConstUsageMetadataKey::Usage):
+                case CompileTimeHashString(CbConstUsageMetadataKey::Usage):
                     PAL_ASSERT(pMetadata[j].hasEntry.usage == 0);
                     result = DeserializeEnum(pReader, &pMetadata[j].usage);
                     pMetadata[j].hasEntry.usage = (result == Result::Success);;
@@ -1092,14 +1092,14 @@ inline Result DeserializeHardwareStageMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(HardwareStageMetadataKey::EntryPointSymbol):
+            case CompileTimeHashString(HardwareStageMetadataKey::EntryPointSymbol):
                 PAL_ASSERT(pMetadata->hasEntry.entryPointSymbol == 0);
                 result = pReader->UnpackNext(&pMetadata->entryPointSymbol);
                 pMetadata->hasEntry.entryPointSymbol = (result == Result::Success);;
                 break;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 911
-            case HashLiteralString(HardwareStageMetadataKey::EntryPoint):
+            case CompileTimeHashString(HardwareStageMetadataKey::EntryPoint):
                 PAL_ASSERT(pMetadata->hasEntry.entryPoint == 0);
                 result = DeserializeEnum(pReader, &pMetadata->entryPoint);
                 pMetadata->hasEntry.entryPoint = (result == Result::Success);;
@@ -1107,44 +1107,44 @@ inline Result DeserializeHardwareStageMetadata(
 
 #endif
 
-            case HashLiteralString(HardwareStageMetadataKey::ScratchMemorySize):
+            case CompileTimeHashString(HardwareStageMetadataKey::ScratchMemorySize):
                 PAL_ASSERT(pMetadata->hasEntry.scratchMemorySize == 0);
                 result = pReader->UnpackNext(&pMetadata->scratchMemorySize);
                 pMetadata->hasEntry.scratchMemorySize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::BackendStackSize):
+            case CompileTimeHashString(HardwareStageMetadataKey::BackendStackSize):
                 PAL_ASSERT(pMetadata->hasEntry.backendStackSize == 0);
                 result = pReader->UnpackNext(&pMetadata->backendStackSize);
                 pMetadata->hasEntry.backendStackSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::FrontendStackSize):
+            case CompileTimeHashString(HardwareStageMetadataKey::FrontendStackSize):
                 PAL_ASSERT(pMetadata->hasEntry.frontendStackSize == 0);
                 result = pReader->UnpackNext(&pMetadata->frontendStackSize);
                 pMetadata->hasEntry.frontendStackSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::LdsSize):
+            case CompileTimeHashString(HardwareStageMetadataKey::LdsSize):
                 PAL_ASSERT(pMetadata->hasEntry.ldsSize == 0);
                 result = pReader->UnpackNext(&pMetadata->ldsSize);
                 pMetadata->hasEntry.ldsSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::PerfDataBufferSize):
+            case CompileTimeHashString(HardwareStageMetadataKey::PerfDataBufferSize):
                 PAL_ASSERT(pMetadata->hasEntry.perfDataBufferSize == 0);
                 result = pReader->UnpackNext(&pMetadata->perfDataBufferSize);
                 pMetadata->hasEntry.perfDataBufferSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::VgprCount):
+            case CompileTimeHashString(HardwareStageMetadataKey::VgprCount):
                 PAL_ASSERT(pMetadata->hasEntry.vgprCount == 0);
                 result = pReader->UnpackNext(&pMetadata->vgprCount);
                 pMetadata->hasEntry.vgprCount = (result == Result::Success);;
                 break;
 
 #if PAL_BUILD_GFX12
-            case HashLiteralString(HardwareStageMetadataKey::DynamicVgprSavedCount):
+            case CompileTimeHashString(HardwareStageMetadataKey::DynamicVgprSavedCount):
                 PAL_ASSERT(pMetadata->hasEntry.dynamicVgprSavedCount == 0);
                 result = pReader->UnpackNext(&pMetadata->dynamicVgprSavedCount);
                 pMetadata->hasEntry.dynamicVgprSavedCount = (result == Result::Success);;
@@ -1152,26 +1152,26 @@ inline Result DeserializeHardwareStageMetadata(
 
 #endif
 
-            case HashLiteralString(HardwareStageMetadataKey::SgprCount):
+            case CompileTimeHashString(HardwareStageMetadataKey::SgprCount):
                 PAL_ASSERT(pMetadata->hasEntry.sgprCount == 0);
                 result = pReader->UnpackNext(&pMetadata->sgprCount);
                 pMetadata->hasEntry.sgprCount = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::VgprLimit):
+            case CompileTimeHashString(HardwareStageMetadataKey::VgprLimit):
                 PAL_ASSERT(pMetadata->hasEntry.vgprLimit == 0);
                 result = pReader->UnpackNext(&pMetadata->vgprLimit);
                 pMetadata->hasEntry.vgprLimit = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::SgprLimit):
+            case CompileTimeHashString(HardwareStageMetadataKey::SgprLimit):
                 PAL_ASSERT(pMetadata->hasEntry.sgprLimit == 0);
                 result = pReader->UnpackNext(&pMetadata->sgprLimit);
                 pMetadata->hasEntry.sgprLimit = (result == Result::Success);;
                 break;
 
 #if PAL_BUILD_GFX12
-            case HashLiteralString(HardwareStageMetadataKey::OutgoingVgprCount):
+            case CompileTimeHashString(HardwareStageMetadataKey::OutgoingVgprCount):
                 PAL_ASSERT(pMetadata->hasEntry.outgoingVgprCount == 0);
                 result = pReader->UnpackNext(&pMetadata->outgoingVgprCount);
                 pMetadata->hasEntry.outgoingVgprCount = (result == Result::Success);;
@@ -1179,62 +1179,62 @@ inline Result DeserializeHardwareStageMetadata(
 
 #endif
 
-            case HashLiteralString(HardwareStageMetadataKey::ThreadgroupDimensions):
+            case CompileTimeHashString(HardwareStageMetadataKey::ThreadgroupDimensions):
                 PAL_ASSERT(pMetadata->hasEntry.threadgroupDimensions == 0);
                 result = pReader->UnpackNext(&pMetadata->threadgroupDimensions);
                 pMetadata->hasEntry.threadgroupDimensions = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::OrigThreadgroupDimensions):
+            case CompileTimeHashString(HardwareStageMetadataKey::OrigThreadgroupDimensions):
                 PAL_ASSERT(pMetadata->hasEntry.origThreadgroupDimensions == 0);
                 result = pReader->UnpackNext(&pMetadata->origThreadgroupDimensions);
                 pMetadata->hasEntry.origThreadgroupDimensions = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::CbConstUsages):
+            case CompileTimeHashString(HardwareStageMetadataKey::CbConstUsages):
                 pReader->Next();
                 result = DeserializeCbConstUsageMetadata(
                         pReader, &pMetadata->cbConstUsage[0]);
                     pMetadata->hasEntry.cbConstUsage = (result == Result::Success);
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::NumCbConstUsages):
+            case CompileTimeHashString(HardwareStageMetadataKey::NumCbConstUsages):
                 PAL_ASSERT(pMetadata->hasEntry.numCbConstUsages == 0);
                 result = pReader->UnpackNext(&pMetadata->numCbConstUsages);
                 pMetadata->hasEntry.numCbConstUsages = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::UnusedImmConst):
+            case CompileTimeHashString(HardwareStageMetadataKey::UnusedImmConst):
                 PAL_ASSERT(pMetadata->hasEntry.unusedImmConst == 0);
                 result = pReader->UnpackNext(&pMetadata->unusedImmConst);
                 pMetadata->hasEntry.unusedImmConst = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::WavefrontSize):
+            case CompileTimeHashString(HardwareStageMetadataKey::WavefrontSize):
                 PAL_ASSERT(pMetadata->hasEntry.wavefrontSize == 0);
                 result = pReader->UnpackNext(&pMetadata->wavefrontSize);
                 pMetadata->hasEntry.wavefrontSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::UserDataRegMap):
+            case CompileTimeHashString(HardwareStageMetadataKey::UserDataRegMap):
                 PAL_ASSERT(pMetadata->hasEntry.userDataRegMap == 0);
                 result = pReader->UnpackNext(&pMetadata->userDataRegMap);
                 pMetadata->hasEntry.userDataRegMap = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::ChecksumValue):
+            case CompileTimeHashString(HardwareStageMetadataKey::ChecksumValue):
                 PAL_ASSERT(pMetadata->hasEntry.checksumValue == 0);
                 result = pReader->UnpackNext(&pMetadata->checksumValue);
                 pMetadata->hasEntry.checksumValue = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::FloatMode):
+            case CompileTimeHashString(HardwareStageMetadataKey::FloatMode):
                 PAL_ASSERT(pMetadata->hasEntry.floatMode == 0);
                 result = pReader->UnpackNext(&pMetadata->floatMode);
                 pMetadata->hasEntry.floatMode = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::Fp16Overflow):
+            case CompileTimeHashString(HardwareStageMetadataKey::Fp16Overflow):
             {
                 PAL_ASSERT(pMetadata->hasEntry.fp16Overflow == 0);
                 bool value = false;
@@ -1249,7 +1249,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::IeeeMode):
+            case CompileTimeHashString(HardwareStageMetadataKey::IeeeMode):
             {
                 PAL_ASSERT(pMetadata->hasEntry.ieeeMode == 0);
                 bool value = false;
@@ -1264,7 +1264,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::WgpMode):
+            case CompileTimeHashString(HardwareStageMetadataKey::WgpMode):
             {
                 PAL_ASSERT(pMetadata->hasEntry.wgpMode == 0);
                 bool value = false;
@@ -1279,7 +1279,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::MemOrdered):
+            case CompileTimeHashString(HardwareStageMetadataKey::MemOrdered):
             {
                 PAL_ASSERT(pMetadata->hasEntry.memOrdered == 0);
                 bool value = false;
@@ -1294,7 +1294,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::ForwardProgress):
+            case CompileTimeHashString(HardwareStageMetadataKey::ForwardProgress):
             {
                 PAL_ASSERT(pMetadata->hasEntry.forwardProgress == 0);
                 bool value = false;
@@ -1309,7 +1309,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::DebugMode):
+            case CompileTimeHashString(HardwareStageMetadataKey::DebugMode):
             {
                 PAL_ASSERT(pMetadata->hasEntry.debugMode == 0);
                 bool value = false;
@@ -1324,7 +1324,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::ScratchEn):
+            case CompileTimeHashString(HardwareStageMetadataKey::ScratchEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.scratchEn == 0);
                 bool value = false;
@@ -1339,7 +1339,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::TrapPresent):
+            case CompileTimeHashString(HardwareStageMetadataKey::TrapPresent):
             {
                 PAL_ASSERT(pMetadata->hasEntry.trapPresent == 0);
                 bool value = false;
@@ -1354,19 +1354,19 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::UserSgprs):
+            case CompileTimeHashString(HardwareStageMetadataKey::UserSgprs):
                 PAL_ASSERT(pMetadata->hasEntry.userSgprs == 0);
                 result = pReader->UnpackNext(&pMetadata->userSgprs);
                 pMetadata->hasEntry.userSgprs = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::ExcpEn):
+            case CompileTimeHashString(HardwareStageMetadataKey::ExcpEn):
                 PAL_ASSERT(pMetadata->hasEntry.excpEn == 0);
                 result = pReader->UnpackNext(&pMetadata->excpEn);
                 pMetadata->hasEntry.excpEn = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::OffchipLdsEn):
+            case CompileTimeHashString(HardwareStageMetadataKey::OffchipLdsEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.offchipLdsEn == 0);
                 bool value = false;
@@ -1381,19 +1381,19 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::SharedVgprCnt):
+            case CompileTimeHashString(HardwareStageMetadataKey::SharedVgprCnt):
                 PAL_ASSERT(pMetadata->hasEntry.sharedVgprCnt == 0);
                 result = pReader->UnpackNext(&pMetadata->sharedVgprCnt);
                 pMetadata->hasEntry.sharedVgprCnt = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::WavesPerSe):
+            case CompileTimeHashString(HardwareStageMetadataKey::WavesPerSe):
                 PAL_ASSERT(pMetadata->hasEntry.wavesPerSe == 0);
                 result = pReader->UnpackNext(&pMetadata->wavesPerSe);
                 pMetadata->hasEntry.wavesPerSe = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::UsesUavs):
+            case CompileTimeHashString(HardwareStageMetadataKey::UsesUavs):
             {
                 PAL_ASSERT(pMetadata->hasEntry.usesUavs == 0);
                 bool value = false;
@@ -1408,7 +1408,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::UsesRovs):
+            case CompileTimeHashString(HardwareStageMetadataKey::UsesRovs):
             {
                 PAL_ASSERT(pMetadata->hasEntry.usesRovs == 0);
                 bool value = false;
@@ -1423,7 +1423,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::WritesUavs):
+            case CompileTimeHashString(HardwareStageMetadataKey::WritesUavs):
             {
                 PAL_ASSERT(pMetadata->hasEntry.writesUavs == 0);
                 bool value = false;
@@ -1438,7 +1438,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::WritesDepth):
+            case CompileTimeHashString(HardwareStageMetadataKey::WritesDepth):
             {
                 PAL_ASSERT(pMetadata->hasEntry.writesDepth == 0);
                 bool value = false;
@@ -1453,7 +1453,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::UsesAppendConsume):
+            case CompileTimeHashString(HardwareStageMetadataKey::UsesAppendConsume):
             {
                 PAL_ASSERT(pMetadata->hasEntry.usesAppendConsume == 0);
                 bool value = false;
@@ -1468,7 +1468,7 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-            case HashLiteralString(HardwareStageMetadataKey::UsesPrimId):
+            case CompileTimeHashString(HardwareStageMetadataKey::UsesPrimId):
             {
                 PAL_ASSERT(pMetadata->hasEntry.usesPrimId == 0);
                 bool value = false;
@@ -1484,7 +1484,7 @@ inline Result DeserializeHardwareStageMetadata(
             }
 
 #if PAL_BUILD_GFX12
-            case HashLiteralString(HardwareStageMetadataKey::WgRoundRobin):
+            case CompileTimeHashString(HardwareStageMetadataKey::WgRoundRobin):
             {
                 PAL_ASSERT(pMetadata->hasEntry.wgRoundRobin == 0);
                 bool value = false;
@@ -1561,7 +1561,7 @@ inline Result DeserializePsInputSemanticMetadata(
             {
                 switch (HashString(key))
                 {
-                case HashLiteralString(PsInputSemanticMetadataKey::Semantic):
+                case CompileTimeHashString(PsInputSemanticMetadataKey::Semantic):
                     PAL_ASSERT(pMetadata[j].hasEntry.semantic == 0);
                     result = pReader->UnpackNext(&pMetadata[j].semantic);
                     pMetadata[j].hasEntry.semantic = (result == Result::Success);;
@@ -1599,13 +1599,13 @@ inline Result DeserializePrerasterOutputSemanticMetadata(
             {
                 switch (HashString(key))
                 {
-                case HashLiteralString(PrerasterOutputSemanticMetadataKey::Semantic):
+                case CompileTimeHashString(PrerasterOutputSemanticMetadataKey::Semantic):
                     PAL_ASSERT(pMetadata[j].hasEntry.semantic == 0);
                     result = pReader->UnpackNext(&pMetadata[j].semantic);
                     pMetadata[j].hasEntry.semantic = (result == Result::Success);;
                     break;
 
-                case HashLiteralString(PrerasterOutputSemanticMetadataKey::Index):
+                case CompileTimeHashString(PrerasterOutputSemanticMetadataKey::Index):
                     PAL_ASSERT(pMetadata[j].hasEntry.index == 0);
                     result = pReader->UnpackNext(&pMetadata[j].index);
                     pMetadata[j].hasEntry.index = (result == Result::Success);;
@@ -1637,7 +1637,7 @@ inline Result DeserializePaClClipCntlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(PaClClipCntlMetadataKey::UserClipPlane0Ena):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::UserClipPlane0Ena):
             {
                 PAL_ASSERT(pMetadata->hasEntry.userClipPlane0Ena == 0);
                 bool value = false;
@@ -1652,7 +1652,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::UserClipPlane1Ena):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::UserClipPlane1Ena):
             {
                 PAL_ASSERT(pMetadata->hasEntry.userClipPlane1Ena == 0);
                 bool value = false;
@@ -1667,7 +1667,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::UserClipPlane2Ena):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::UserClipPlane2Ena):
             {
                 PAL_ASSERT(pMetadata->hasEntry.userClipPlane2Ena == 0);
                 bool value = false;
@@ -1682,7 +1682,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::UserClipPlane3Ena):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::UserClipPlane3Ena):
             {
                 PAL_ASSERT(pMetadata->hasEntry.userClipPlane3Ena == 0);
                 bool value = false;
@@ -1697,7 +1697,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::UserClipPlane4Ena):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::UserClipPlane4Ena):
             {
                 PAL_ASSERT(pMetadata->hasEntry.userClipPlane4Ena == 0);
                 bool value = false;
@@ -1712,7 +1712,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::UserClipPlane5Ena):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::UserClipPlane5Ena):
             {
                 PAL_ASSERT(pMetadata->hasEntry.userClipPlane5Ena == 0);
                 bool value = false;
@@ -1727,7 +1727,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::DxLinearAttrClipEna):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::DxLinearAttrClipEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.dxLinearAttrClipEna == 0);
                 bool value = false;
@@ -1742,7 +1742,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::ZclipNearDisable):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::ZclipNearDisable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.zclipNearDisable == 0);
                 bool value = false;
@@ -1757,7 +1757,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::ZclipFarDisable):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::ZclipFarDisable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.zclipFarDisable == 0);
                 bool value = false;
@@ -1772,7 +1772,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::RasterizationKill):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::RasterizationKill):
             {
                 PAL_ASSERT(pMetadata->hasEntry.rasterizationKill == 0);
                 bool value = false;
@@ -1787,7 +1787,7 @@ inline Result DeserializePaClClipCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClClipCntlMetadataKey::ClipDisable):
+            case CompileTimeHashString(PaClClipCntlMetadataKey::ClipDisable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDisable == 0);
                 bool value = false;
@@ -1828,7 +1828,7 @@ inline Result DeserializePaClVteCntlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(PaClVteCntlMetadataKey::VtxXyFmt):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::VtxXyFmt):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vtxXyFmt == 0);
                 bool value = false;
@@ -1843,7 +1843,7 @@ inline Result DeserializePaClVteCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVteCntlMetadataKey::VtxZFmt):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::VtxZFmt):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vtxZFmt == 0);
                 bool value = false;
@@ -1858,7 +1858,7 @@ inline Result DeserializePaClVteCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVteCntlMetadataKey::XScaleEna):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::XScaleEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.xScaleEna == 0);
                 bool value = false;
@@ -1873,7 +1873,7 @@ inline Result DeserializePaClVteCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVteCntlMetadataKey::XOffsetEna):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::XOffsetEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.xOffsetEna == 0);
                 bool value = false;
@@ -1888,7 +1888,7 @@ inline Result DeserializePaClVteCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVteCntlMetadataKey::YScaleEna):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::YScaleEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.yScaleEna == 0);
                 bool value = false;
@@ -1903,7 +1903,7 @@ inline Result DeserializePaClVteCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVteCntlMetadataKey::YOffsetEna):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::YOffsetEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.yOffsetEna == 0);
                 bool value = false;
@@ -1918,7 +1918,7 @@ inline Result DeserializePaClVteCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVteCntlMetadataKey::ZScaleEna):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::ZScaleEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.zScaleEna == 0);
                 bool value = false;
@@ -1933,7 +1933,7 @@ inline Result DeserializePaClVteCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVteCntlMetadataKey::ZOffsetEna):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::ZOffsetEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.zOffsetEna == 0);
                 bool value = false;
@@ -1948,7 +1948,7 @@ inline Result DeserializePaClVteCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVteCntlMetadataKey::VtxW0Fmt):
+            case CompileTimeHashString(PaClVteCntlMetadataKey::VtxW0Fmt):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vtxW0Fmt == 0);
                 bool value = false;
@@ -1989,7 +1989,7 @@ inline Result DeserializePaSuVtxCntlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(PaSuVtxCntlMetadataKey::PixCenter):
+            case CompileTimeHashString(PaSuVtxCntlMetadataKey::PixCenter):
             {
                 PAL_ASSERT(pMetadata->hasEntry.pixCenter == 0);
                 bool value = false;
@@ -2004,13 +2004,13 @@ inline Result DeserializePaSuVtxCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaSuVtxCntlMetadataKey::RoundMode):
+            case CompileTimeHashString(PaSuVtxCntlMetadataKey::RoundMode):
                 PAL_ASSERT(pMetadata->hasEntry.roundMode == 0);
                 result = pReader->UnpackNext(&pMetadata->roundMode);
                 pMetadata->hasEntry.roundMode = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PaSuVtxCntlMetadataKey::QuantMode):
+            case CompileTimeHashString(PaSuVtxCntlMetadataKey::QuantMode):
                 PAL_ASSERT(pMetadata->hasEntry.quantMode == 0);
                 result = pReader->UnpackNext(&pMetadata->quantMode);
                 pMetadata->hasEntry.quantMode = (result == Result::Success);;
@@ -2042,7 +2042,7 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::LsStageEn):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::LsStageEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.lsStageEn == 0);
                 bool value = false;
@@ -2057,7 +2057,7 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::HsStageEn):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::HsStageEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.hsStageEn == 0);
                 bool value = false;
@@ -2072,13 +2072,13 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::EsStageEn):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::EsStageEn):
                 PAL_ASSERT(pMetadata->hasEntry.esStageEn == 0);
                 result = pReader->UnpackNext(&pMetadata->esStageEn);
                 pMetadata->hasEntry.esStageEn = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::GsStageEn):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::GsStageEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.gsStageEn == 0);
                 bool value = false;
@@ -2093,13 +2093,13 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::VsStageEn):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::VsStageEn):
                 PAL_ASSERT(pMetadata->hasEntry.vsStageEn == 0);
                 result = pReader->UnpackNext(&pMetadata->vsStageEn);
                 pMetadata->hasEntry.vsStageEn = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::DynamicHs):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::DynamicHs):
             {
                 PAL_ASSERT(pMetadata->hasEntry.dynamicHs == 0);
                 bool value = false;
@@ -2114,13 +2114,13 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::MaxPrimgroupInWave):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::MaxPrimgroupInWave):
                 PAL_ASSERT(pMetadata->hasEntry.maxPrimgroupInWave == 0);
                 result = pReader->UnpackNext(&pMetadata->maxPrimgroupInWave);
                 pMetadata->hasEntry.maxPrimgroupInWave = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::PrimgenEn):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::PrimgenEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.primgenEn == 0);
                 bool value = false;
@@ -2135,7 +2135,7 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::OrderedIdMode):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::OrderedIdMode):
             {
                 PAL_ASSERT(pMetadata->hasEntry.orderedIdMode == 0);
                 bool value = false;
@@ -2150,7 +2150,7 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::NggWaveIdEn):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::NggWaveIdEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.nggWaveIdEn == 0);
                 bool value = false;
@@ -2165,13 +2165,13 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::GsFastLaunch):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::GsFastLaunch):
                 PAL_ASSERT(pMetadata->hasEntry.gsFastLaunch == 0);
                 result = pReader->UnpackNext(&pMetadata->gsFastLaunch);
                 pMetadata->hasEntry.gsFastLaunch = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::PrimgenPassthruEn):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::PrimgenPassthruEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.primgenPassthruEn == 0);
                 bool value = false;
@@ -2186,7 +2186,7 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtShaderStagesEnMetadataKey::PrimgenPassthruNoMsg):
+            case CompileTimeHashString(VgtShaderStagesEnMetadataKey::PrimgenPassthruNoMsg):
             {
                 PAL_ASSERT(pMetadata->hasEntry.primgenPassthruNoMsg == 0);
                 bool value = false;
@@ -2227,19 +2227,19 @@ inline Result DeserializeVgtGsModeMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtGsModeMetadataKey::Mode):
+            case CompileTimeHashString(VgtGsModeMetadataKey::Mode):
                 PAL_ASSERT(pMetadata->hasEntry.mode == 0);
                 result = pReader->UnpackNext(&pMetadata->mode);
                 pMetadata->hasEntry.mode = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsModeMetadataKey::Onchip):
+            case CompileTimeHashString(VgtGsModeMetadataKey::Onchip):
                 PAL_ASSERT(pMetadata->hasEntry.onchip == 0);
                 result = pReader->UnpackNext(&pMetadata->onchip);
                 pMetadata->hasEntry.onchip = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsModeMetadataKey::EsWriteOptimize):
+            case CompileTimeHashString(VgtGsModeMetadataKey::EsWriteOptimize):
             {
                 PAL_ASSERT(pMetadata->hasEntry.esWriteOptimize == 0);
                 bool value = false;
@@ -2254,7 +2254,7 @@ inline Result DeserializeVgtGsModeMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtGsModeMetadataKey::GsWriteOptimize):
+            case CompileTimeHashString(VgtGsModeMetadataKey::GsWriteOptimize):
             {
                 PAL_ASSERT(pMetadata->hasEntry.gsWriteOptimize == 0);
                 bool value = false;
@@ -2269,7 +2269,7 @@ inline Result DeserializeVgtGsModeMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtGsModeMetadataKey::CutMode):
+            case CompileTimeHashString(VgtGsModeMetadataKey::CutMode):
                 PAL_ASSERT(pMetadata->hasEntry.cutMode == 0);
                 result = pReader->UnpackNext(&pMetadata->cutMode);
                 pMetadata->hasEntry.cutMode = (result == Result::Success);;
@@ -2301,25 +2301,25 @@ inline Result DeserializeVgtTfParamMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtTfParamMetadataKey::Type):
+            case CompileTimeHashString(VgtTfParamMetadataKey::Type):
                 PAL_ASSERT(pMetadata->hasEntry.type == 0);
                 result = pReader->UnpackNext(&pMetadata->type);
                 pMetadata->hasEntry.type = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtTfParamMetadataKey::Partitioning):
+            case CompileTimeHashString(VgtTfParamMetadataKey::Partitioning):
                 PAL_ASSERT(pMetadata->hasEntry.partitioning == 0);
                 result = pReader->UnpackNext(&pMetadata->partitioning);
                 pMetadata->hasEntry.partitioning = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtTfParamMetadataKey::Topology):
+            case CompileTimeHashString(VgtTfParamMetadataKey::Topology):
                 PAL_ASSERT(pMetadata->hasEntry.topology == 0);
                 result = pReader->UnpackNext(&pMetadata->topology);
                 pMetadata->hasEntry.topology = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtTfParamMetadataKey::DisableDonuts):
+            case CompileTimeHashString(VgtTfParamMetadataKey::DisableDonuts):
             {
                 PAL_ASSERT(pMetadata->hasEntry.disableDonuts == 0);
                 bool value = false;
@@ -2334,13 +2334,13 @@ inline Result DeserializeVgtTfParamMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtTfParamMetadataKey::NumDsWavesPerSimd):
+            case CompileTimeHashString(VgtTfParamMetadataKey::NumDsWavesPerSimd):
                 PAL_ASSERT(pMetadata->hasEntry.numDsWavesPerSimd == 0);
                 result = pReader->UnpackNext(&pMetadata->numDsWavesPerSimd);
                 pMetadata->hasEntry.numDsWavesPerSimd = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtTfParamMetadataKey::DistributionMode):
+            case CompileTimeHashString(VgtTfParamMetadataKey::DistributionMode):
                 PAL_ASSERT(pMetadata->hasEntry.distributionMode == 0);
                 result = pReader->UnpackNext(&pMetadata->distributionMode);
                 pMetadata->hasEntry.distributionMode = (result == Result::Success);;
@@ -2372,19 +2372,19 @@ inline Result DeserializeVgtLsHsConfigMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtLsHsConfigMetadataKey::NumPatches):
+            case CompileTimeHashString(VgtLsHsConfigMetadataKey::NumPatches):
                 PAL_ASSERT(pMetadata->hasEntry.numPatches == 0);
                 result = pReader->UnpackNext(&pMetadata->numPatches);
                 pMetadata->hasEntry.numPatches = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtLsHsConfigMetadataKey::HsNumInputCp):
+            case CompileTimeHashString(VgtLsHsConfigMetadataKey::HsNumInputCp):
                 PAL_ASSERT(pMetadata->hasEntry.hsNumInputCp == 0);
                 result = pReader->UnpackNext(&pMetadata->hsNumInputCp);
                 pMetadata->hasEntry.hsNumInputCp = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtLsHsConfigMetadataKey::HsNumOutputCp):
+            case CompileTimeHashString(VgtLsHsConfigMetadataKey::HsNumOutputCp):
                 PAL_ASSERT(pMetadata->hasEntry.hsNumOutputCp == 0);
                 result = pReader->UnpackNext(&pMetadata->hsNumOutputCp);
                 pMetadata->hasEntry.hsNumOutputCp = (result == Result::Success);;
@@ -2416,13 +2416,13 @@ inline Result DeserializeIaMultiVgtParamMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(IaMultiVgtParamMetadataKey::PrimgroupSize):
+            case CompileTimeHashString(IaMultiVgtParamMetadataKey::PrimgroupSize):
                 PAL_ASSERT(pMetadata->hasEntry.primgroupSize == 0);
                 result = pReader->UnpackNext(&pMetadata->primgroupSize);
                 pMetadata->hasEntry.primgroupSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(IaMultiVgtParamMetadataKey::PartialVsWaveOn):
+            case CompileTimeHashString(IaMultiVgtParamMetadataKey::PartialVsWaveOn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.partialVsWaveOn == 0);
                 bool value = false;
@@ -2437,7 +2437,7 @@ inline Result DeserializeIaMultiVgtParamMetadata(
                 break;
             }
 
-            case HashLiteralString(IaMultiVgtParamMetadataKey::PartialEsWaveOn):
+            case CompileTimeHashString(IaMultiVgtParamMetadataKey::PartialEsWaveOn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.partialEsWaveOn == 0);
                 bool value = false;
@@ -2452,7 +2452,7 @@ inline Result DeserializeIaMultiVgtParamMetadata(
                 break;
             }
 
-            case HashLiteralString(IaMultiVgtParamMetadataKey::SwitchOnEop):
+            case CompileTimeHashString(IaMultiVgtParamMetadataKey::SwitchOnEop):
             {
                 PAL_ASSERT(pMetadata->hasEntry.switchOnEop == 0);
                 bool value = false;
@@ -2467,7 +2467,7 @@ inline Result DeserializeIaMultiVgtParamMetadata(
                 break;
             }
 
-            case HashLiteralString(IaMultiVgtParamMetadataKey::SwitchOnEoi):
+            case CompileTimeHashString(IaMultiVgtParamMetadataKey::SwitchOnEoi):
             {
                 PAL_ASSERT(pMetadata->hasEntry.switchOnEoi == 0);
                 bool value = false;
@@ -2508,7 +2508,7 @@ inline Result DeserializeSpiInterpControlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiInterpControlMetadataKey::PointSpriteEna):
+            case CompileTimeHashString(SpiInterpControlMetadataKey::PointSpriteEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.pointSpriteEna == 0);
                 bool value = false;
@@ -2523,25 +2523,25 @@ inline Result DeserializeSpiInterpControlMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiInterpControlMetadataKey::PointSpriteOverrideX):
+            case CompileTimeHashString(SpiInterpControlMetadataKey::PointSpriteOverrideX):
                 PAL_ASSERT(pMetadata->hasEntry.pointSpriteOverrideX == 0);
                 result = DeserializeEnum(pReader, &pMetadata->pointSpriteOverrideX);
                 pMetadata->hasEntry.pointSpriteOverrideX = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiInterpControlMetadataKey::PointSpriteOverrideY):
+            case CompileTimeHashString(SpiInterpControlMetadataKey::PointSpriteOverrideY):
                 PAL_ASSERT(pMetadata->hasEntry.pointSpriteOverrideY == 0);
                 result = DeserializeEnum(pReader, &pMetadata->pointSpriteOverrideY);
                 pMetadata->hasEntry.pointSpriteOverrideY = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiInterpControlMetadataKey::PointSpriteOverrideZ):
+            case CompileTimeHashString(SpiInterpControlMetadataKey::PointSpriteOverrideZ):
                 PAL_ASSERT(pMetadata->hasEntry.pointSpriteOverrideZ == 0);
                 result = DeserializeEnum(pReader, &pMetadata->pointSpriteOverrideZ);
                 pMetadata->hasEntry.pointSpriteOverrideZ = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiInterpControlMetadataKey::PointSpriteOverrideW):
+            case CompileTimeHashString(SpiInterpControlMetadataKey::PointSpriteOverrideW):
                 PAL_ASSERT(pMetadata->hasEntry.pointSpriteOverrideW == 0);
                 result = DeserializeEnum(pReader, &pMetadata->pointSpriteOverrideW);
                 pMetadata->hasEntry.pointSpriteOverrideW = (result == Result::Success);;
@@ -2579,19 +2579,19 @@ inline Result DeserializeSpiPsInputCntlMetadata(
             {
                 switch (HashString(key))
                 {
-                case HashLiteralString(SpiPsInputCntlMetadataKey::Offset):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::Offset):
                     PAL_ASSERT(pMetadata[j].hasEntry.offset == 0);
                     result = pReader->UnpackNext(&pMetadata[j].offset);
                     pMetadata[j].hasEntry.offset = (result == Result::Success);;
                     break;
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::DefaultVal):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::DefaultVal):
                     PAL_ASSERT(pMetadata[j].hasEntry.defaultVal == 0);
                     result = pReader->UnpackNext(&pMetadata[j].defaultVal);
                     pMetadata[j].hasEntry.defaultVal = (result == Result::Success);;
                     break;
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::FlatShade):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::FlatShade):
                 {
                     PAL_ASSERT(pMetadata[j].hasEntry.flatShade == 0);
                     bool value = false;
@@ -2606,13 +2606,13 @@ inline Result DeserializeSpiPsInputCntlMetadata(
                     break;
                 }
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::CylWrap):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::CylWrap):
                     PAL_ASSERT(pMetadata[j].hasEntry.cylWrap == 0);
                     result = pReader->UnpackNext(&pMetadata[j].cylWrap);
                     pMetadata[j].hasEntry.cylWrap = (result == Result::Success);;
                     break;
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::PtSpriteTex):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::PtSpriteTex):
                 {
                     PAL_ASSERT(pMetadata[j].hasEntry.ptSpriteTex == 0);
                     bool value = false;
@@ -2627,7 +2627,7 @@ inline Result DeserializeSpiPsInputCntlMetadata(
                     break;
                 }
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::Fp16InterpMode):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::Fp16InterpMode):
                 {
                     PAL_ASSERT(pMetadata[j].hasEntry.fp16InterpMode == 0);
                     bool value = false;
@@ -2642,7 +2642,7 @@ inline Result DeserializeSpiPsInputCntlMetadata(
                     break;
                 }
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::Attr0Valid):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::Attr0Valid):
                 {
                     PAL_ASSERT(pMetadata[j].hasEntry.attr0Valid == 0);
                     bool value = false;
@@ -2657,7 +2657,7 @@ inline Result DeserializeSpiPsInputCntlMetadata(
                     break;
                 }
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::Attr1Valid):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::Attr1Valid):
                 {
                     PAL_ASSERT(pMetadata[j].hasEntry.attr1Valid == 0);
                     bool value = false;
@@ -2672,7 +2672,7 @@ inline Result DeserializeSpiPsInputCntlMetadata(
                     break;
                 }
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::RotatePcPtr):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::RotatePcPtr):
                 {
                     PAL_ASSERT(pMetadata[j].hasEntry.rotatePcPtr == 0);
                     bool value = false;
@@ -2687,7 +2687,7 @@ inline Result DeserializeSpiPsInputCntlMetadata(
                     break;
                 }
 
-                case HashLiteralString(SpiPsInputCntlMetadataKey::PrimAttr):
+                case CompileTimeHashString(SpiPsInputCntlMetadataKey::PrimAttr):
                 {
                     PAL_ASSERT(pMetadata[j].hasEntry.primAttr == 0);
                     bool value = false;
@@ -2728,25 +2728,25 @@ inline Result DeserializeSpiShaderGsMeshletDimMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiShaderGsMeshletDimMetadataKey::NumThreadX):
+            case CompileTimeHashString(SpiShaderGsMeshletDimMetadataKey::NumThreadX):
                 PAL_ASSERT(pMetadata->hasEntry.numThreadX == 0);
                 result = pReader->UnpackNext(&pMetadata->numThreadX);
                 pMetadata->hasEntry.numThreadX = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderGsMeshletDimMetadataKey::NumThreadY):
+            case CompileTimeHashString(SpiShaderGsMeshletDimMetadataKey::NumThreadY):
                 PAL_ASSERT(pMetadata->hasEntry.numThreadY == 0);
                 result = pReader->UnpackNext(&pMetadata->numThreadY);
                 pMetadata->hasEntry.numThreadY = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderGsMeshletDimMetadataKey::NumThreadZ):
+            case CompileTimeHashString(SpiShaderGsMeshletDimMetadataKey::NumThreadZ):
                 PAL_ASSERT(pMetadata->hasEntry.numThreadZ == 0);
                 result = pReader->UnpackNext(&pMetadata->numThreadZ);
                 pMetadata->hasEntry.numThreadZ = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderGsMeshletDimMetadataKey::ThreadgroupSize):
+            case CompileTimeHashString(SpiShaderGsMeshletDimMetadataKey::ThreadgroupSize):
                 PAL_ASSERT(pMetadata->hasEntry.threadgroupSize == 0);
                 result = pReader->UnpackNext(&pMetadata->threadgroupSize);
                 pMetadata->hasEntry.threadgroupSize = (result == Result::Success);;
@@ -2778,13 +2778,13 @@ inline Result DeserializeSpiShaderGsMeshletExpAllocMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiShaderGsMeshletExpAllocMetadataKey::MaxExpVerts):
+            case CompileTimeHashString(SpiShaderGsMeshletExpAllocMetadataKey::MaxExpVerts):
                 PAL_ASSERT(pMetadata->hasEntry.maxExpVerts == 0);
                 result = pReader->UnpackNext(&pMetadata->maxExpVerts);
                 pMetadata->hasEntry.maxExpVerts = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderGsMeshletExpAllocMetadataKey::MaxExpPrims):
+            case CompileTimeHashString(SpiShaderGsMeshletExpAllocMetadataKey::MaxExpPrims):
                 PAL_ASSERT(pMetadata->hasEntry.maxExpPrims == 0);
                 result = pReader->UnpackNext(&pMetadata->maxExpPrims);
                 pMetadata->hasEntry.maxExpPrims = (result == Result::Success);;
@@ -2816,7 +2816,7 @@ inline Result DeserializeVgtGsInstanceCntMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtGsInstanceCntMetadataKey::Enable):
+            case CompileTimeHashString(VgtGsInstanceCntMetadataKey::Enable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.enable == 0);
                 bool value = false;
@@ -2831,13 +2831,13 @@ inline Result DeserializeVgtGsInstanceCntMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtGsInstanceCntMetadataKey::Count):
+            case CompileTimeHashString(VgtGsInstanceCntMetadataKey::Count):
                 PAL_ASSERT(pMetadata->hasEntry.count == 0);
                 result = pReader->UnpackNext(&pMetadata->count);
                 pMetadata->hasEntry.count = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsInstanceCntMetadataKey::EnMaxVertOutPerGsInstance):
+            case CompileTimeHashString(VgtGsInstanceCntMetadataKey::EnMaxVertOutPerGsInstance):
             {
                 PAL_ASSERT(pMetadata->hasEntry.enMaxVertOutPerGsInstance == 0);
                 bool value = false;
@@ -2878,31 +2878,31 @@ inline Result DeserializeVgtGsOutPrimTypeMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtGsOutPrimTypeMetadataKey::OutprimType):
+            case CompileTimeHashString(VgtGsOutPrimTypeMetadataKey::OutprimType):
                 PAL_ASSERT(pMetadata->hasEntry.outprimType == 0);
                 result = DeserializeEnum(pReader, &pMetadata->outprimType);
                 pMetadata->hasEntry.outprimType = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsOutPrimTypeMetadataKey::OutprimType_1):
+            case CompileTimeHashString(VgtGsOutPrimTypeMetadataKey::OutprimType_1):
                 PAL_ASSERT(pMetadata->hasEntry.outprimType_1 == 0);
                 result = DeserializeEnum(pReader, &pMetadata->outprimType_1);
                 pMetadata->hasEntry.outprimType_1 = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsOutPrimTypeMetadataKey::OutprimType_2):
+            case CompileTimeHashString(VgtGsOutPrimTypeMetadataKey::OutprimType_2):
                 PAL_ASSERT(pMetadata->hasEntry.outprimType_2 == 0);
                 result = DeserializeEnum(pReader, &pMetadata->outprimType_2);
                 pMetadata->hasEntry.outprimType_2 = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsOutPrimTypeMetadataKey::OutprimType_3):
+            case CompileTimeHashString(VgtGsOutPrimTypeMetadataKey::OutprimType_3):
                 PAL_ASSERT(pMetadata->hasEntry.outprimType_3 == 0);
                 result = DeserializeEnum(pReader, &pMetadata->outprimType_3);
                 pMetadata->hasEntry.outprimType_3 = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsOutPrimTypeMetadataKey::UniqueTypePerStream):
+            case CompileTimeHashString(VgtGsOutPrimTypeMetadataKey::UniqueTypePerStream):
             {
                 PAL_ASSERT(pMetadata->hasEntry.uniqueTypePerStream == 0);
                 bool value = false;
@@ -2943,13 +2943,13 @@ inline Result DeserializeGeNggSubgrpCntlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(GeNggSubgrpCntlMetadataKey::PrimAmpFactor):
+            case CompileTimeHashString(GeNggSubgrpCntlMetadataKey::PrimAmpFactor):
                 PAL_ASSERT(pMetadata->hasEntry.primAmpFactor == 0);
                 result = pReader->UnpackNext(&pMetadata->primAmpFactor);
                 pMetadata->hasEntry.primAmpFactor = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GeNggSubgrpCntlMetadataKey::ThreadsPerSubgroup):
+            case CompileTimeHashString(GeNggSubgrpCntlMetadataKey::ThreadsPerSubgroup):
                 PAL_ASSERT(pMetadata->hasEntry.threadsPerSubgroup == 0);
                 result = pReader->UnpackNext(&pMetadata->threadsPerSubgroup);
                 pMetadata->hasEntry.threadsPerSubgroup = (result == Result::Success);;
@@ -2981,19 +2981,19 @@ inline Result DeserializeVgtGsOnchipCntlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtGsOnchipCntlMetadataKey::EsVertsPerSubgroup):
+            case CompileTimeHashString(VgtGsOnchipCntlMetadataKey::EsVertsPerSubgroup):
                 PAL_ASSERT(pMetadata->hasEntry.esVertsPerSubgroup == 0);
                 result = pReader->UnpackNext(&pMetadata->esVertsPerSubgroup);
                 pMetadata->hasEntry.esVertsPerSubgroup = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsOnchipCntlMetadataKey::GsPrimsPerSubgroup):
+            case CompileTimeHashString(VgtGsOnchipCntlMetadataKey::GsPrimsPerSubgroup):
                 PAL_ASSERT(pMetadata->hasEntry.gsPrimsPerSubgroup == 0);
                 result = pReader->UnpackNext(&pMetadata->gsPrimsPerSubgroup);
                 pMetadata->hasEntry.gsPrimsPerSubgroup = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtGsOnchipCntlMetadataKey::GsInstPrimsPerSubgrp):
+            case CompileTimeHashString(VgtGsOnchipCntlMetadataKey::GsInstPrimsPerSubgrp):
                 PAL_ASSERT(pMetadata->hasEntry.gsInstPrimsPerSubgrp == 0);
                 result = pReader->UnpackNext(&pMetadata->gsInstPrimsPerSubgrp);
                 pMetadata->hasEntry.gsInstPrimsPerSubgrp = (result == Result::Success);;
@@ -3025,7 +3025,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_0):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::ClipDistEna_0):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDistEna_0 == 0);
                 bool value = false;
@@ -3040,7 +3040,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_1):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::ClipDistEna_1):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDistEna_1 == 0);
                 bool value = false;
@@ -3055,7 +3055,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_2):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::ClipDistEna_2):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDistEna_2 == 0);
                 bool value = false;
@@ -3070,7 +3070,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_3):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::ClipDistEna_3):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDistEna_3 == 0);
                 bool value = false;
@@ -3085,7 +3085,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_4):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::ClipDistEna_4):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDistEna_4 == 0);
                 bool value = false;
@@ -3100,7 +3100,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_5):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::ClipDistEna_5):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDistEna_5 == 0);
                 bool value = false;
@@ -3115,7 +3115,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_6):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::ClipDistEna_6):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDistEna_6 == 0);
                 bool value = false;
@@ -3130,7 +3130,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_7):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::ClipDistEna_7):
             {
                 PAL_ASSERT(pMetadata->hasEntry.clipDistEna_7 == 0);
                 bool value = false;
@@ -3145,7 +3145,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::CullDistEna_0):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::CullDistEna_0):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cullDistEna_0 == 0);
                 bool value = false;
@@ -3160,7 +3160,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::CullDistEna_1):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::CullDistEna_1):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cullDistEna_1 == 0);
                 bool value = false;
@@ -3175,7 +3175,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::CullDistEna_2):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::CullDistEna_2):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cullDistEna_2 == 0);
                 bool value = false;
@@ -3190,7 +3190,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::CullDistEna_3):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::CullDistEna_3):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cullDistEna_3 == 0);
                 bool value = false;
@@ -3205,7 +3205,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::CullDistEna_4):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::CullDistEna_4):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cullDistEna_4 == 0);
                 bool value = false;
@@ -3220,7 +3220,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::CullDistEna_5):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::CullDistEna_5):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cullDistEna_5 == 0);
                 bool value = false;
@@ -3235,7 +3235,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::CullDistEna_6):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::CullDistEna_6):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cullDistEna_6 == 0);
                 bool value = false;
@@ -3250,7 +3250,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::CullDistEna_7):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::CullDistEna_7):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cullDistEna_7 == 0);
                 bool value = false;
@@ -3265,7 +3265,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxPointSize):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxPointSize):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxPointSize == 0);
                 bool value = false;
@@ -3280,7 +3280,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxEdgeFlag):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxEdgeFlag):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxEdgeFlag == 0);
                 bool value = false;
@@ -3295,7 +3295,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxRenderTargetIndx):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxRenderTargetIndx):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxRenderTargetIndx == 0);
                 bool value = false;
@@ -3310,7 +3310,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxViewportIndx):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxViewportIndx):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxViewportIndx == 0);
                 bool value = false;
@@ -3325,7 +3325,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxKillFlag):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxKillFlag):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxKillFlag == 0);
                 bool value = false;
@@ -3340,7 +3340,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::VsOutMiscVecEna):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::VsOutMiscVecEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsOutMiscVecEna == 0);
                 bool value = false;
@@ -3355,7 +3355,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::VsOutCcDist0VecEna):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::VsOutCcDist0VecEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsOutCcDist0VecEna == 0);
                 bool value = false;
@@ -3370,7 +3370,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::VsOutCcDist1VecEna):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::VsOutCcDist1VecEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsOutCcDist1VecEna == 0);
                 bool value = false;
@@ -3385,7 +3385,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::VsOutMiscSideBusEna):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::VsOutMiscSideBusEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsOutMiscSideBusEna == 0);
                 bool value = false;
@@ -3400,7 +3400,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxLineWidth):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxLineWidth):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxLineWidth == 0);
                 bool value = false;
@@ -3415,7 +3415,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxVrsRate):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxVrsRate):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxVrsRate == 0);
                 bool value = false;
@@ -3430,7 +3430,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::BypassVtxRateCombiner):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::BypassVtxRateCombiner):
             {
                 PAL_ASSERT(pMetadata->hasEntry.bypassVtxRateCombiner == 0);
                 bool value = false;
@@ -3445,7 +3445,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::BypassPrimRateCombiner):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::BypassPrimRateCombiner):
             {
                 PAL_ASSERT(pMetadata->hasEntry.bypassPrimRateCombiner == 0);
                 bool value = false;
@@ -3460,7 +3460,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxGsCutFlag):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxGsCutFlag):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxGsCutFlag == 0);
                 bool value = false;
@@ -3475,7 +3475,7 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxFsrSelect):
+            case CompileTimeHashString(PaClVsOutCntlMetadataKey::UseVtxFsrSelect):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxFsrSelect == 0);
                 bool value = false;
@@ -3516,7 +3516,7 @@ inline Result DeserializeSpiVsOutConfigMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiVsOutConfigMetadataKey::NoPcExport):
+            case CompileTimeHashString(SpiVsOutConfigMetadataKey::NoPcExport):
             {
                 PAL_ASSERT(pMetadata->hasEntry.noPcExport == 0);
                 bool value = false;
@@ -3531,13 +3531,13 @@ inline Result DeserializeSpiVsOutConfigMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiVsOutConfigMetadataKey::VsExportCount):
+            case CompileTimeHashString(SpiVsOutConfigMetadataKey::VsExportCount):
                 PAL_ASSERT(pMetadata->hasEntry.vsExportCount == 0);
                 result = pReader->UnpackNext(&pMetadata->vsExportCount);
                 pMetadata->hasEntry.vsExportCount = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiVsOutConfigMetadataKey::PrimExportCount):
+            case CompileTimeHashString(SpiVsOutConfigMetadataKey::PrimExportCount):
                 PAL_ASSERT(pMetadata->hasEntry.primExportCount == 0);
                 result = pReader->UnpackNext(&pMetadata->primExportCount);
                 pMetadata->hasEntry.primExportCount = (result == Result::Success);;
@@ -3569,7 +3569,7 @@ inline Result DeserializeVgtStrmoutConfigMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtStrmoutConfigMetadataKey::Streamout_0En):
+            case CompileTimeHashString(VgtStrmoutConfigMetadataKey::Streamout_0En):
             {
                 PAL_ASSERT(pMetadata->hasEntry.streamout_0En == 0);
                 bool value = false;
@@ -3584,7 +3584,7 @@ inline Result DeserializeVgtStrmoutConfigMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtStrmoutConfigMetadataKey::Streamout_1En):
+            case CompileTimeHashString(VgtStrmoutConfigMetadataKey::Streamout_1En):
             {
                 PAL_ASSERT(pMetadata->hasEntry.streamout_1En == 0);
                 bool value = false;
@@ -3599,7 +3599,7 @@ inline Result DeserializeVgtStrmoutConfigMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtStrmoutConfigMetadataKey::Streamout_2En):
+            case CompileTimeHashString(VgtStrmoutConfigMetadataKey::Streamout_2En):
             {
                 PAL_ASSERT(pMetadata->hasEntry.streamout_2En == 0);
                 bool value = false;
@@ -3614,7 +3614,7 @@ inline Result DeserializeVgtStrmoutConfigMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtStrmoutConfigMetadataKey::Streamout_3En):
+            case CompileTimeHashString(VgtStrmoutConfigMetadataKey::Streamout_3En):
             {
                 PAL_ASSERT(pMetadata->hasEntry.streamout_3En == 0);
                 bool value = false;
@@ -3629,13 +3629,13 @@ inline Result DeserializeVgtStrmoutConfigMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtStrmoutConfigMetadataKey::RastStream):
+            case CompileTimeHashString(VgtStrmoutConfigMetadataKey::RastStream):
                 PAL_ASSERT(pMetadata->hasEntry.rastStream == 0);
                 result = pReader->UnpackNext(&pMetadata->rastStream);
                 pMetadata->hasEntry.rastStream = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtStrmoutConfigMetadataKey::PrimsNeededCntEn):
+            case CompileTimeHashString(VgtStrmoutConfigMetadataKey::PrimsNeededCntEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.primsNeededCntEn == 0);
                 bool value = false;
@@ -3650,13 +3650,13 @@ inline Result DeserializeVgtStrmoutConfigMetadata(
                 break;
             }
 
-            case HashLiteralString(VgtStrmoutConfigMetadataKey::RastStreamMask):
+            case CompileTimeHashString(VgtStrmoutConfigMetadataKey::RastStreamMask):
                 PAL_ASSERT(pMetadata->hasEntry.rastStreamMask == 0);
                 result = pReader->UnpackNext(&pMetadata->rastStreamMask);
                 pMetadata->hasEntry.rastStreamMask = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtStrmoutConfigMetadataKey::UseRastStreamMask):
+            case CompileTimeHashString(VgtStrmoutConfigMetadataKey::UseRastStreamMask):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useRastStreamMask == 0);
                 bool value = false;
@@ -3697,25 +3697,25 @@ inline Result DeserializeVgtStrmoutBufferConfigMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(VgtStrmoutBufferConfigMetadataKey::Stream_0BufferEn):
+            case CompileTimeHashString(VgtStrmoutBufferConfigMetadataKey::Stream_0BufferEn):
                 PAL_ASSERT(pMetadata->hasEntry.stream_0BufferEn == 0);
                 result = pReader->UnpackNext(&pMetadata->stream_0BufferEn);
                 pMetadata->hasEntry.stream_0BufferEn = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtStrmoutBufferConfigMetadataKey::Stream_1BufferEn):
+            case CompileTimeHashString(VgtStrmoutBufferConfigMetadataKey::Stream_1BufferEn):
                 PAL_ASSERT(pMetadata->hasEntry.stream_1BufferEn == 0);
                 result = pReader->UnpackNext(&pMetadata->stream_1BufferEn);
                 pMetadata->hasEntry.stream_1BufferEn = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtStrmoutBufferConfigMetadataKey::Stream_2BufferEn):
+            case CompileTimeHashString(VgtStrmoutBufferConfigMetadataKey::Stream_2BufferEn):
                 PAL_ASSERT(pMetadata->hasEntry.stream_2BufferEn == 0);
                 result = pReader->UnpackNext(&pMetadata->stream_2BufferEn);
                 pMetadata->hasEntry.stream_2BufferEn = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(VgtStrmoutBufferConfigMetadataKey::Stream_3BufferEn):
+            case CompileTimeHashString(VgtStrmoutBufferConfigMetadataKey::Stream_3BufferEn):
                 PAL_ASSERT(pMetadata->hasEntry.stream_3BufferEn == 0);
                 result = pReader->UnpackNext(&pMetadata->stream_3BufferEn);
                 pMetadata->hasEntry.stream_3BufferEn = (result == Result::Success);;
@@ -3747,49 +3747,49 @@ inline Result DeserializeCbShaderMaskMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(CbShaderMaskMetadataKey::Output0Enable):
+            case CompileTimeHashString(CbShaderMaskMetadataKey::Output0Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output0Enable == 0);
                 result = pReader->UnpackNext(&pMetadata->output0Enable);
                 pMetadata->hasEntry.output0Enable = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(CbShaderMaskMetadataKey::Output1Enable):
+            case CompileTimeHashString(CbShaderMaskMetadataKey::Output1Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output1Enable == 0);
                 result = pReader->UnpackNext(&pMetadata->output1Enable);
                 pMetadata->hasEntry.output1Enable = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(CbShaderMaskMetadataKey::Output2Enable):
+            case CompileTimeHashString(CbShaderMaskMetadataKey::Output2Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output2Enable == 0);
                 result = pReader->UnpackNext(&pMetadata->output2Enable);
                 pMetadata->hasEntry.output2Enable = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(CbShaderMaskMetadataKey::Output3Enable):
+            case CompileTimeHashString(CbShaderMaskMetadataKey::Output3Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output3Enable == 0);
                 result = pReader->UnpackNext(&pMetadata->output3Enable);
                 pMetadata->hasEntry.output3Enable = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(CbShaderMaskMetadataKey::Output4Enable):
+            case CompileTimeHashString(CbShaderMaskMetadataKey::Output4Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output4Enable == 0);
                 result = pReader->UnpackNext(&pMetadata->output4Enable);
                 pMetadata->hasEntry.output4Enable = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(CbShaderMaskMetadataKey::Output5Enable):
+            case CompileTimeHashString(CbShaderMaskMetadataKey::Output5Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output5Enable == 0);
                 result = pReader->UnpackNext(&pMetadata->output5Enable);
                 pMetadata->hasEntry.output5Enable = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(CbShaderMaskMetadataKey::Output6Enable):
+            case CompileTimeHashString(CbShaderMaskMetadataKey::Output6Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output6Enable == 0);
                 result = pReader->UnpackNext(&pMetadata->output6Enable);
                 pMetadata->hasEntry.output6Enable = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(CbShaderMaskMetadataKey::Output7Enable):
+            case CompileTimeHashString(CbShaderMaskMetadataKey::Output7Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output7Enable == 0);
                 result = pReader->UnpackNext(&pMetadata->output7Enable);
                 pMetadata->hasEntry.output7Enable = (result == Result::Success);;
@@ -3821,7 +3821,7 @@ inline Result DeserializeDbShaderControlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(DbShaderControlMetadataKey::ZExportEnable):
+            case CompileTimeHashString(DbShaderControlMetadataKey::ZExportEnable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.zExportEnable == 0);
                 bool value = false;
@@ -3836,7 +3836,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::StencilTestValExportEnable):
+            case CompileTimeHashString(DbShaderControlMetadataKey::StencilTestValExportEnable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.stencilTestValExportEnable == 0);
                 bool value = false;
@@ -3851,7 +3851,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::StencilOpValExportEnable):
+            case CompileTimeHashString(DbShaderControlMetadataKey::StencilOpValExportEnable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.stencilOpValExportEnable == 0);
                 bool value = false;
@@ -3866,13 +3866,13 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::ZOrder):
+            case CompileTimeHashString(DbShaderControlMetadataKey::ZOrder):
                 PAL_ASSERT(pMetadata->hasEntry.zOrder == 0);
                 result = pReader->UnpackNext(&pMetadata->zOrder);
                 pMetadata->hasEntry.zOrder = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(DbShaderControlMetadataKey::KillEnable):
+            case CompileTimeHashString(DbShaderControlMetadataKey::KillEnable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.killEnable == 0);
                 bool value = false;
@@ -3887,7 +3887,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::CoverageToMaskEn):
+            case CompileTimeHashString(DbShaderControlMetadataKey::CoverageToMaskEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.coverageToMaskEn == 0);
                 bool value = false;
@@ -3902,7 +3902,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::MaskExportEnable):
+            case CompileTimeHashString(DbShaderControlMetadataKey::MaskExportEnable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.maskExportEnable == 0);
                 bool value = false;
@@ -3917,7 +3917,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::ExecOnHierFail):
+            case CompileTimeHashString(DbShaderControlMetadataKey::ExecOnHierFail):
             {
                 PAL_ASSERT(pMetadata->hasEntry.execOnHierFail == 0);
                 bool value = false;
@@ -3932,7 +3932,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::ExecOnNoop):
+            case CompileTimeHashString(DbShaderControlMetadataKey::ExecOnNoop):
             {
                 PAL_ASSERT(pMetadata->hasEntry.execOnNoop == 0);
                 bool value = false;
@@ -3947,7 +3947,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::AlphaToMaskDisable):
+            case CompileTimeHashString(DbShaderControlMetadataKey::AlphaToMaskDisable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.alphaToMaskDisable == 0);
                 bool value = false;
@@ -3962,7 +3962,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::DepthBeforeShader):
+            case CompileTimeHashString(DbShaderControlMetadataKey::DepthBeforeShader):
             {
                 PAL_ASSERT(pMetadata->hasEntry.depthBeforeShader == 0);
                 bool value = false;
@@ -3977,13 +3977,13 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::ConservativeZExport):
+            case CompileTimeHashString(DbShaderControlMetadataKey::ConservativeZExport):
                 PAL_ASSERT(pMetadata->hasEntry.conservativeZExport == 0);
                 result = pReader->UnpackNext(&pMetadata->conservativeZExport);
                 pMetadata->hasEntry.conservativeZExport = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(DbShaderControlMetadataKey::PrimitiveOrderedPixelShader):
+            case CompileTimeHashString(DbShaderControlMetadataKey::PrimitiveOrderedPixelShader):
             {
                 PAL_ASSERT(pMetadata->hasEntry.primitiveOrderedPixelShader == 0);
                 bool value = false;
@@ -3998,7 +3998,7 @@ inline Result DeserializeDbShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(DbShaderControlMetadataKey::PreShaderDepthCoverageEnable):
+            case CompileTimeHashString(DbShaderControlMetadataKey::PreShaderDepthCoverageEnable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.preShaderDepthCoverageEnable == 0);
                 bool value = false;
@@ -4039,13 +4039,13 @@ inline Result DeserializeSpiPsInControlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiPsInControlMetadataKey::NumInterps):
+            case CompileTimeHashString(SpiPsInControlMetadataKey::NumInterps):
                 PAL_ASSERT(pMetadata->hasEntry.numInterps == 0);
                 result = pReader->UnpackNext(&pMetadata->numInterps);
                 pMetadata->hasEntry.numInterps = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiPsInControlMetadataKey::ParamGen):
+            case CompileTimeHashString(SpiPsInControlMetadataKey::ParamGen):
             {
                 PAL_ASSERT(pMetadata->hasEntry.paramGen == 0);
                 bool value = false;
@@ -4060,7 +4060,7 @@ inline Result DeserializeSpiPsInControlMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInControlMetadataKey::OffchipParamEn):
+            case CompileTimeHashString(SpiPsInControlMetadataKey::OffchipParamEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.offchipParamEn == 0);
                 bool value = false;
@@ -4075,7 +4075,7 @@ inline Result DeserializeSpiPsInControlMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInControlMetadataKey::LatePcDealloc):
+            case CompileTimeHashString(SpiPsInControlMetadataKey::LatePcDealloc):
             {
                 PAL_ASSERT(pMetadata->hasEntry.latePcDealloc == 0);
                 bool value = false;
@@ -4090,13 +4090,13 @@ inline Result DeserializeSpiPsInControlMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInControlMetadataKey::NumPrimInterp):
+            case CompileTimeHashString(SpiPsInControlMetadataKey::NumPrimInterp):
                 PAL_ASSERT(pMetadata->hasEntry.numPrimInterp == 0);
                 result = pReader->UnpackNext(&pMetadata->numPrimInterp);
                 pMetadata->hasEntry.numPrimInterp = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiPsInControlMetadataKey::BcOptimizeDisable):
+            case CompileTimeHashString(SpiPsInControlMetadataKey::BcOptimizeDisable):
             {
                 PAL_ASSERT(pMetadata->hasEntry.bcOptimizeDisable == 0);
                 bool value = false;
@@ -4137,7 +4137,7 @@ inline Result DeserializePaScShaderControlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(PaScShaderControlMetadataKey::LoadCollisionWaveid):
+            case CompileTimeHashString(PaScShaderControlMetadataKey::LoadCollisionWaveid):
             {
                 PAL_ASSERT(pMetadata->hasEntry.loadCollisionWaveid == 0);
                 bool value = false;
@@ -4152,7 +4152,7 @@ inline Result DeserializePaScShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaScShaderControlMetadataKey::LoadIntrawaveCollision):
+            case CompileTimeHashString(PaScShaderControlMetadataKey::LoadIntrawaveCollision):
             {
                 PAL_ASSERT(pMetadata->hasEntry.loadIntrawaveCollision == 0);
                 bool value = false;
@@ -4167,7 +4167,7 @@ inline Result DeserializePaScShaderControlMetadata(
                 break;
             }
 
-            case HashLiteralString(PaScShaderControlMetadataKey::WaveBreakRegionSize):
+            case CompileTimeHashString(PaScShaderControlMetadataKey::WaveBreakRegionSize):
                 PAL_ASSERT(pMetadata->hasEntry.waveBreakRegionSize == 0);
                 result = pReader->UnpackNext(&pMetadata->waveBreakRegionSize);
                 pMetadata->hasEntry.waveBreakRegionSize = (result == Result::Success);;
@@ -4199,13 +4199,13 @@ inline Result DeserializeSpiBarycCntlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiBarycCntlMetadataKey::PosFloatLocation):
+            case CompileTimeHashString(SpiBarycCntlMetadataKey::PosFloatLocation):
                 PAL_ASSERT(pMetadata->hasEntry.posFloatLocation == 0);
                 result = pReader->UnpackNext(&pMetadata->posFloatLocation);
                 pMetadata->hasEntry.posFloatLocation = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiBarycCntlMetadataKey::FrontFaceAllBits):
+            case CompileTimeHashString(SpiBarycCntlMetadataKey::FrontFaceAllBits):
             {
                 PAL_ASSERT(pMetadata->hasEntry.frontFaceAllBits == 0);
                 bool value = false;
@@ -4246,7 +4246,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PerspSampleEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PerspSampleEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.perspSampleEna == 0);
                 bool value = false;
@@ -4261,7 +4261,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PerspCenterEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PerspCenterEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.perspCenterEna == 0);
                 bool value = false;
@@ -4276,7 +4276,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PerspCentroidEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PerspCentroidEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.perspCentroidEna == 0);
                 bool value = false;
@@ -4291,7 +4291,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PerspPullModelEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PerspPullModelEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.perspPullModelEna == 0);
                 bool value = false;
@@ -4306,7 +4306,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::LinearSampleEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::LinearSampleEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.linearSampleEna == 0);
                 bool value = false;
@@ -4321,7 +4321,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::LinearCenterEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::LinearCenterEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.linearCenterEna == 0);
                 bool value = false;
@@ -4336,7 +4336,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::LinearCentroidEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::LinearCentroidEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.linearCentroidEna == 0);
                 bool value = false;
@@ -4351,7 +4351,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::LineStippleTexEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::LineStippleTexEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.lineStippleTexEna == 0);
                 bool value = false;
@@ -4366,7 +4366,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PosXFloatEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PosXFloatEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posXFloatEna == 0);
                 bool value = false;
@@ -4381,7 +4381,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PosYFloatEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PosYFloatEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posYFloatEna == 0);
                 bool value = false;
@@ -4396,7 +4396,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PosZFloatEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PosZFloatEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posZFloatEna == 0);
                 bool value = false;
@@ -4411,7 +4411,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PosWFloatEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PosWFloatEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posWFloatEna == 0);
                 bool value = false;
@@ -4426,7 +4426,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::FrontFaceEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::FrontFaceEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.frontFaceEna == 0);
                 bool value = false;
@@ -4441,7 +4441,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::AncillaryEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::AncillaryEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.ancillaryEna == 0);
                 bool value = false;
@@ -4456,7 +4456,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::SampleCoverageEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::SampleCoverageEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.sampleCoverageEna == 0);
                 bool value = false;
@@ -4471,7 +4471,7 @@ inline Result DeserializeSpiPsInputEnaMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputEnaMetadataKey::PosFixedPtEna):
+            case CompileTimeHashString(SpiPsInputEnaMetadataKey::PosFixedPtEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posFixedPtEna == 0);
                 bool value = false;
@@ -4512,7 +4512,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PerspSampleEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PerspSampleEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.perspSampleEna == 0);
                 bool value = false;
@@ -4527,7 +4527,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PerspCenterEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PerspCenterEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.perspCenterEna == 0);
                 bool value = false;
@@ -4542,7 +4542,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PerspCentroidEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PerspCentroidEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.perspCentroidEna == 0);
                 bool value = false;
@@ -4557,7 +4557,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PerspPullModelEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PerspPullModelEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.perspPullModelEna == 0);
                 bool value = false;
@@ -4572,7 +4572,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::LinearSampleEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::LinearSampleEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.linearSampleEna == 0);
                 bool value = false;
@@ -4587,7 +4587,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::LinearCenterEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::LinearCenterEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.linearCenterEna == 0);
                 bool value = false;
@@ -4602,7 +4602,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::LinearCentroidEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::LinearCentroidEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.linearCentroidEna == 0);
                 bool value = false;
@@ -4617,7 +4617,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::LineStippleTexEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::LineStippleTexEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.lineStippleTexEna == 0);
                 bool value = false;
@@ -4632,7 +4632,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PosXFloatEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PosXFloatEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posXFloatEna == 0);
                 bool value = false;
@@ -4647,7 +4647,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PosYFloatEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PosYFloatEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posYFloatEna == 0);
                 bool value = false;
@@ -4662,7 +4662,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PosZFloatEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PosZFloatEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posZFloatEna == 0);
                 bool value = false;
@@ -4677,7 +4677,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PosWFloatEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PosWFloatEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posWFloatEna == 0);
                 bool value = false;
@@ -4692,7 +4692,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::FrontFaceEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::FrontFaceEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.frontFaceEna == 0);
                 bool value = false;
@@ -4707,7 +4707,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::AncillaryEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::AncillaryEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.ancillaryEna == 0);
                 bool value = false;
@@ -4722,7 +4722,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::SampleCoverageEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::SampleCoverageEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.sampleCoverageEna == 0);
                 bool value = false;
@@ -4737,7 +4737,7 @@ inline Result DeserializeSpiPsInputAddrMetadata(
                 break;
             }
 
-            case HashLiteralString(SpiPsInputAddrMetadataKey::PosFixedPtEna):
+            case CompileTimeHashString(SpiPsInputAddrMetadataKey::PosFixedPtEna):
             {
                 PAL_ASSERT(pMetadata->hasEntry.posFixedPtEna == 0);
                 bool value = false;
@@ -4778,49 +4778,49 @@ inline Result DeserializeSpiShaderColFormatMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiShaderColFormatMetadataKey::Col_0ExportFormat):
+            case CompileTimeHashString(SpiShaderColFormatMetadataKey::Col_0ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_0ExportFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->col_0ExportFormat);
                 pMetadata->hasEntry.col_0ExportFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderColFormatMetadataKey::Col_1ExportFormat):
+            case CompileTimeHashString(SpiShaderColFormatMetadataKey::Col_1ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_1ExportFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->col_1ExportFormat);
                 pMetadata->hasEntry.col_1ExportFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderColFormatMetadataKey::Col_2ExportFormat):
+            case CompileTimeHashString(SpiShaderColFormatMetadataKey::Col_2ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_2ExportFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->col_2ExportFormat);
                 pMetadata->hasEntry.col_2ExportFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderColFormatMetadataKey::Col_3ExportFormat):
+            case CompileTimeHashString(SpiShaderColFormatMetadataKey::Col_3ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_3ExportFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->col_3ExportFormat);
                 pMetadata->hasEntry.col_3ExportFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderColFormatMetadataKey::Col_4ExportFormat):
+            case CompileTimeHashString(SpiShaderColFormatMetadataKey::Col_4ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_4ExportFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->col_4ExportFormat);
                 pMetadata->hasEntry.col_4ExportFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderColFormatMetadataKey::Col_5ExportFormat):
+            case CompileTimeHashString(SpiShaderColFormatMetadataKey::Col_5ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_5ExportFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->col_5ExportFormat);
                 pMetadata->hasEntry.col_5ExportFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderColFormatMetadataKey::Col_6ExportFormat):
+            case CompileTimeHashString(SpiShaderColFormatMetadataKey::Col_6ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_6ExportFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->col_6ExportFormat);
                 pMetadata->hasEntry.col_6ExportFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderColFormatMetadataKey::Col_7ExportFormat):
+            case CompileTimeHashString(SpiShaderColFormatMetadataKey::Col_7ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_7ExportFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->col_7ExportFormat);
                 pMetadata->hasEntry.col_7ExportFormat = (result == Result::Success);;
@@ -4853,13 +4853,13 @@ inline Result DeserializeSpiShaderGsMeshletCtrlMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(SpiShaderGsMeshletCtrlMetadataKey::InterleaveBitsX):
+            case CompileTimeHashString(SpiShaderGsMeshletCtrlMetadataKey::InterleaveBitsX):
                 PAL_ASSERT(pMetadata->hasEntry.interleaveBitsX == 0);
                 result = pReader->UnpackNext(&pMetadata->interleaveBitsX);
                 pMetadata->hasEntry.interleaveBitsX = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(SpiShaderGsMeshletCtrlMetadataKey::InterleaveBitsY):
+            case CompileTimeHashString(SpiShaderGsMeshletCtrlMetadataKey::InterleaveBitsY):
                 PAL_ASSERT(pMetadata->hasEntry.interleaveBitsY == 0);
                 result = pReader->UnpackNext(&pMetadata->interleaveBitsY);
                 pMetadata->hasEntry.interleaveBitsY = (result == Result::Success);;
@@ -4892,19 +4892,19 @@ inline Result DeserializeGraphicsRegisterMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(GraphicsRegisterMetadataKey::NggCullingDataReg):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::NggCullingDataReg):
                 PAL_ASSERT(pMetadata->hasEntry.nggCullingDataReg == 0);
                 result = pReader->UnpackNext(&pMetadata->nggCullingDataReg);
                 pMetadata->hasEntry.nggCullingDataReg = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::LsVgprCompCnt):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::LsVgprCompCnt):
                 PAL_ASSERT(pMetadata->hasEntry.lsVgprCompCnt == 0);
                 result = pReader->UnpackNext(&pMetadata->lsVgprCompCnt);
                 pMetadata->hasEntry.lsVgprCompCnt = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::HsTgSizeEn):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::HsTgSizeEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.hsTgSizeEn == 0);
                 bool value = false;
@@ -4919,25 +4919,25 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::EsVgprCompCnt):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::EsVgprCompCnt):
                 PAL_ASSERT(pMetadata->hasEntry.esVgprCompCnt == 0);
                 result = pReader->UnpackNext(&pMetadata->esVgprCompCnt);
                 pMetadata->hasEntry.esVgprCompCnt = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::GsVgprCompCnt):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::GsVgprCompCnt):
                 PAL_ASSERT(pMetadata->hasEntry.gsVgprCompCnt == 0);
                 result = pReader->UnpackNext(&pMetadata->gsVgprCompCnt);
                 pMetadata->hasEntry.gsVgprCompCnt = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VsVgprCompCnt):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VsVgprCompCnt):
                 PAL_ASSERT(pMetadata->hasEntry.vsVgprCompCnt == 0);
                 result = pReader->UnpackNext(&pMetadata->vsVgprCompCnt);
                 pMetadata->hasEntry.vsVgprCompCnt = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VsSoBase0En):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VsSoBase0En):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsSoBase0En == 0);
                 bool value = false;
@@ -4952,7 +4952,7 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VsSoBase1En):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VsSoBase1En):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsSoBase1En == 0);
                 bool value = false;
@@ -4967,7 +4967,7 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VsSoBase2En):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VsSoBase2En):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsSoBase2En == 0);
                 bool value = false;
@@ -4982,7 +4982,7 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VsSoBase3En):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VsSoBase3En):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsSoBase3En == 0);
                 bool value = false;
@@ -4997,7 +4997,7 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VsStreamoutEn):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VsStreamoutEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsStreamoutEn == 0);
                 bool value = false;
@@ -5012,7 +5012,7 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VsPcBaseEn):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VsPcBaseEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vsPcBaseEn == 0);
                 bool value = false;
@@ -5027,7 +5027,7 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PsLoadProvokingVtx):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PsLoadProvokingVtx):
             {
                 PAL_ASSERT(pMetadata->hasEntry.psLoadProvokingVtx == 0);
                 bool value = false;
@@ -5042,7 +5042,7 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PsWaveCntEn):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PsWaveCntEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.psWaveCntEn == 0);
                 bool value = false;
@@ -5057,34 +5057,34 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PsExtraLdsSize):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PsExtraLdsSize):
                 PAL_ASSERT(pMetadata->hasEntry.psExtraLdsSize == 0);
                 result = pReader->UnpackNext(&pMetadata->psExtraLdsSize);
                 pMetadata->hasEntry.psExtraLdsSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PaClClipCntl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PaClClipCntl):
                 pReader->Next();
                 result = DeserializePaClClipCntlMetadata(
                         pReader, &pMetadata->paClClipCntl);
                     pMetadata->hasEntry.paClClipCntl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PaClVteCntl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PaClVteCntl):
                 pReader->Next();
                 result = DeserializePaClVteCntlMetadata(
                         pReader, &pMetadata->paClVteCntl);
                     pMetadata->hasEntry.paClVteCntl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PaSuVtxCntl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PaSuVtxCntl):
                 pReader->Next();
                 result = DeserializePaSuVtxCntlMetadata(
                         pReader, &pMetadata->paSuVtxCntl);
                     pMetadata->hasEntry.paSuVtxCntl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PsIterSample):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PsIterSample):
             {
                 PAL_ASSERT(pMetadata->hasEntry.psIterSample == 0);
                 bool value = false;
@@ -5099,14 +5099,14 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtShaderStagesEn):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtShaderStagesEn):
                 pReader->Next();
                 result = DeserializeVgtShaderStagesEnMetadata(
                         pReader, &pMetadata->vgtShaderStagesEn);
                     pMetadata->hasEntry.vgtShaderStagesEn = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtReuseOff):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtReuseOff):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vgtReuseOff == 0);
                 bool value = false;
@@ -5121,75 +5121,75 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsMode):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsMode):
                 pReader->Next();
                 result = DeserializeVgtGsModeMetadata(
                         pReader, &pMetadata->vgtGsMode);
                     pMetadata->hasEntry.vgtGsMode = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtTfParam):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtTfParam):
                 pReader->Next();
                 result = DeserializeVgtTfParamMetadata(
                         pReader, &pMetadata->vgtTfParam);
                     pMetadata->hasEntry.vgtTfParam = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtLsHsConfig):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtLsHsConfig):
                 pReader->Next();
                 result = DeserializeVgtLsHsConfigMetadata(
                         pReader, &pMetadata->vgtLsHsConfig);
                     pMetadata->hasEntry.vgtLsHsConfig = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::IaMultiVgtParam):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::IaMultiVgtParam):
                 pReader->Next();
                 result = DeserializeIaMultiVgtParamMetadata(
                         pReader, &pMetadata->iaMultiVgtParam);
                     pMetadata->hasEntry.iaMultiVgtParam = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiInterpControl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiInterpControl):
                 pReader->Next();
                 result = DeserializeSpiInterpControlMetadata(
                         pReader, &pMetadata->spiInterpControl);
                     pMetadata->hasEntry.spiInterpControl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputCntl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiPsInputCntl):
                 pReader->Next();
                 result = DeserializeSpiPsInputCntlMetadata(
                         pReader, &pMetadata->spiPsInputCntl[0]);
                     pMetadata->hasEntry.spiPsInputCntl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtHosMinTessLevel):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtHosMinTessLevel):
                 PAL_ASSERT(pMetadata->hasEntry.vgtHosMinTessLevel == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtHosMinTessLevel);
                 pMetadata->hasEntry.vgtHosMinTessLevel = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtHosMaxTessLevel):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtHosMaxTessLevel):
                 PAL_ASSERT(pMetadata->hasEntry.vgtHosMaxTessLevel == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtHosMaxTessLevel);
                 pMetadata->hasEntry.vgtHosMaxTessLevel = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletDim):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletDim):
                 pReader->Next();
                 result = DeserializeSpiShaderGsMeshletDimMetadata(
                         pReader, &pMetadata->spiShaderGsMeshletDim);
                     pMetadata->hasEntry.spiShaderGsMeshletDim = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletExpAlloc):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletExpAlloc):
                 pReader->Next();
                 result = DeserializeSpiShaderGsMeshletExpAllocMetadata(
                         pReader, &pMetadata->spiShaderGsMeshletExpAlloc);
                     pMetadata->hasEntry.spiShaderGsMeshletExpAlloc = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::MeshLinearDispatchFromTask):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::MeshLinearDispatchFromTask):
             {
                 PAL_ASSERT(pMetadata->hasEntry.meshLinearDispatchFromTask == 0);
                 bool value = false;
@@ -5204,26 +5204,26 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsMaxVertOut):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsMaxVertOut):
                 PAL_ASSERT(pMetadata->hasEntry.vgtGsMaxVertOut == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtGsMaxVertOut);
                 pMetadata->hasEntry.vgtGsMaxVertOut = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsInstanceCnt):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsInstanceCnt):
                 pReader->Next();
                 result = DeserializeVgtGsInstanceCntMetadata(
                         pReader, &pMetadata->vgtGsInstanceCnt);
                     pMetadata->hasEntry.vgtGsInstanceCnt = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtEsgsRingItemsize):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtEsgsRingItemsize):
                 PAL_ASSERT(pMetadata->hasEntry.vgtEsgsRingItemsize == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtEsgsRingItemsize);
                 pMetadata->hasEntry.vgtEsgsRingItemsize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtDrawPrimPayloadEn):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtDrawPrimPayloadEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vgtDrawPrimPayloadEn == 0);
                 bool value = false;
@@ -5238,96 +5238,96 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsOutPrimType):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsOutPrimType):
                 pReader->Next();
                 result = DeserializeVgtGsOutPrimTypeMetadata(
                         pReader, &pMetadata->vgtGsOutPrimType);
                     pMetadata->hasEntry.vgtGsOutPrimType = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsVertItemsize):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsVertItemsize):
                 PAL_ASSERT(pMetadata->hasEntry.vgtGsVertItemsize == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtGsVertItemsize);
                 pMetadata->hasEntry.vgtGsVertItemsize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsvsRingOffset):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsvsRingOffset):
                 PAL_ASSERT(pMetadata->hasEntry.vgtGsvsRingOffset == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtGsvsRingOffset);
                 pMetadata->hasEntry.vgtGsvsRingOffset = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsvsRingItemsize):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsvsRingItemsize):
                 PAL_ASSERT(pMetadata->hasEntry.vgtGsvsRingItemsize == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtGsvsRingItemsize);
                 pMetadata->hasEntry.vgtGsvsRingItemsize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtEsPerGs):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtEsPerGs):
                 PAL_ASSERT(pMetadata->hasEntry.vgtEsPerGs == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtEsPerGs);
                 pMetadata->hasEntry.vgtEsPerGs = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsPerEs):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsPerEs):
                 PAL_ASSERT(pMetadata->hasEntry.vgtGsPerEs == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtGsPerEs);
                 pMetadata->hasEntry.vgtGsPerEs = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsPerVs):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsPerVs):
                 PAL_ASSERT(pMetadata->hasEntry.vgtGsPerVs == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtGsPerVs);
                 pMetadata->hasEntry.vgtGsPerVs = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::MaxVertsPerSubgroup):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::MaxVertsPerSubgroup):
                 PAL_ASSERT(pMetadata->hasEntry.maxVertsPerSubgroup == 0);
                 result = pReader->UnpackNext(&pMetadata->maxVertsPerSubgroup);
                 pMetadata->hasEntry.maxVertsPerSubgroup = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderIdxFormat):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiShaderIdxFormat):
                 PAL_ASSERT(pMetadata->hasEntry.spiShaderIdxFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->spiShaderIdxFormat);
                 pMetadata->hasEntry.spiShaderIdxFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::GeNggSubgrpCntl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::GeNggSubgrpCntl):
                 pReader->Next();
                 result = DeserializeGeNggSubgrpCntlMetadata(
                         pReader, &pMetadata->geNggSubgrpCntl);
                     pMetadata->hasEntry.geNggSubgrpCntl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsOnchipCntl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtGsOnchipCntl):
                 pReader->Next();
                 result = DeserializeVgtGsOnchipCntlMetadata(
                         pReader, &pMetadata->vgtGsOnchipCntl);
                     pMetadata->hasEntry.vgtGsOnchipCntl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PaClVsOutCntl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PaClVsOutCntl):
                 pReader->Next();
                 result = DeserializePaClVsOutCntlMetadata(
                         pReader, &pMetadata->paClVsOutCntl);
                     pMetadata->hasEntry.paClVsOutCntl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderPosFormat):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiShaderPosFormat):
                 PAL_ASSERT(pMetadata->hasEntry.spiShaderPosFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->spiShaderPosFormat);
                 pMetadata->hasEntry.spiShaderPosFormat = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiVsOutConfig):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiVsOutConfig):
                 pReader->Next();
                 result = DeserializeSpiVsOutConfigMetadata(
                         pReader, &pMetadata->spiVsOutConfig);
                     pMetadata->hasEntry.spiVsOutConfig = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtPrimitiveIdEn):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtPrimitiveIdEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.vgtPrimitiveIdEn == 0);
                 bool value = false;
@@ -5342,7 +5342,7 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::NggDisableProvokReuse):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::NggDisableProvokReuse):
             {
                 PAL_ASSERT(pMetadata->hasEntry.nggDisableProvokReuse == 0);
                 bool value = false;
@@ -5357,90 +5357,90 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtStrmoutConfig):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtStrmoutConfig):
                 pReader->Next();
                 result = DeserializeVgtStrmoutConfigMetadata(
                         pReader, &pMetadata->vgtStrmoutConfig);
                     pMetadata->hasEntry.vgtStrmoutConfig = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::VgtStrmoutBufferConfig):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::VgtStrmoutBufferConfig):
                 pReader->Next();
                 result = DeserializeVgtStrmoutBufferConfigMetadata(
                         pReader, &pMetadata->vgtStrmoutBufferConfig);
                     pMetadata->hasEntry.vgtStrmoutBufferConfig = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::CbShaderMask):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::CbShaderMask):
                 pReader->Next();
                 result = DeserializeCbShaderMaskMetadata(
                         pReader, &pMetadata->cbShaderMask);
                     pMetadata->hasEntry.cbShaderMask = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::DbShaderControl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::DbShaderControl):
                 pReader->Next();
                 result = DeserializeDbShaderControlMetadata(
                         pReader, &pMetadata->dbShaderControl);
                     pMetadata->hasEntry.dbShaderControl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInControl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiPsInControl):
                 pReader->Next();
                 result = DeserializeSpiPsInControlMetadata(
                         pReader, &pMetadata->spiPsInControl);
                     pMetadata->hasEntry.spiPsInControl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::AaCoverageToShaderSelect):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::AaCoverageToShaderSelect):
                 PAL_ASSERT(pMetadata->hasEntry.aaCoverageToShaderSelect == 0);
                 result = DeserializeEnum(pReader, &pMetadata->aaCoverageToShaderSelect);
                 pMetadata->hasEntry.aaCoverageToShaderSelect = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::PaScShaderControl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::PaScShaderControl):
                 pReader->Next();
                 result = DeserializePaScShaderControlMetadata(
                         pReader, &pMetadata->paScShaderControl);
                     pMetadata->hasEntry.paScShaderControl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiBarycCntl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiBarycCntl):
                 pReader->Next();
                 result = DeserializeSpiBarycCntlMetadata(
                         pReader, &pMetadata->spiBarycCntl);
                     pMetadata->hasEntry.spiBarycCntl = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputEna):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiPsInputEna):
                 pReader->Next();
                 result = DeserializeSpiPsInputEnaMetadata(
                         pReader, &pMetadata->spiPsInputEna);
                     pMetadata->hasEntry.spiPsInputEna = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputAddr):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiPsInputAddr):
                 pReader->Next();
                 result = DeserializeSpiPsInputAddrMetadata(
                         pReader, &pMetadata->spiPsInputAddr);
                     pMetadata->hasEntry.spiPsInputAddr = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderColFormat):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiShaderColFormat):
                 pReader->Next();
                 result = DeserializeSpiShaderColFormatMetadata(
                         pReader, &pMetadata->spiShaderColFormat);
                     pMetadata->hasEntry.spiShaderColFormat = (result == Result::Success);
                 break;
 
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderZFormat):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiShaderZFormat):
                 PAL_ASSERT(pMetadata->hasEntry.spiShaderZFormat == 0);
                 result = pReader->UnpackNext(&pMetadata->spiShaderZFormat);
                 pMetadata->hasEntry.spiShaderZFormat = (result == Result::Success);;
                 break;
 
 #if PAL_BUILD_GFX12
-            case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletCtrl):
+            case CompileTimeHashString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletCtrl):
                 pReader->Next();
                 result = DeserializeSpiShaderGsMeshletCtrlMetadata(
                         pReader, &pMetadata->spiShaderGsMeshletCtrl);
@@ -5475,7 +5475,7 @@ inline Result DeserializeComputeRegisterMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(ComputeRegisterMetadataKey::TgidXEn):
+            case CompileTimeHashString(ComputeRegisterMetadataKey::TgidXEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.tgidXEn == 0);
                 bool value = false;
@@ -5490,7 +5490,7 @@ inline Result DeserializeComputeRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(ComputeRegisterMetadataKey::TgidYEn):
+            case CompileTimeHashString(ComputeRegisterMetadataKey::TgidYEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.tgidYEn == 0);
                 bool value = false;
@@ -5505,7 +5505,7 @@ inline Result DeserializeComputeRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(ComputeRegisterMetadataKey::TgidZEn):
+            case CompileTimeHashString(ComputeRegisterMetadataKey::TgidZEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.tgidZEn == 0);
                 bool value = false;
@@ -5520,7 +5520,7 @@ inline Result DeserializeComputeRegisterMetadata(
                 break;
             }
 
-            case HashLiteralString(ComputeRegisterMetadataKey::TgSizeEn):
+            case CompileTimeHashString(ComputeRegisterMetadataKey::TgSizeEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.tgSizeEn == 0);
                 bool value = false;
@@ -5536,7 +5536,7 @@ inline Result DeserializeComputeRegisterMetadata(
             }
 
 #if PAL_BUILD_GFX12
-            case HashLiteralString(ComputeRegisterMetadataKey::DynamicVgprEn):
+            case CompileTimeHashString(ComputeRegisterMetadataKey::DynamicVgprEn):
             {
                 PAL_ASSERT(pMetadata->hasEntry.dynamicVgprEn == 0);
                 bool value = false;
@@ -5554,7 +5554,7 @@ inline Result DeserializeComputeRegisterMetadata(
 #endif
 
 #if PAL_BUILD_GFX12
-            case HashLiteralString(ComputeRegisterMetadataKey::XInterleave):
+            case CompileTimeHashString(ComputeRegisterMetadataKey::XInterleave):
                 PAL_ASSERT(pMetadata->hasEntry.xInterleave == 0);
                 result = pReader->UnpackNext(&pMetadata->xInterleave);
                 pMetadata->hasEntry.xInterleave = (result == Result::Success);;
@@ -5563,7 +5563,7 @@ inline Result DeserializeComputeRegisterMetadata(
 #endif
 
 #if PAL_BUILD_GFX12
-            case HashLiteralString(ComputeRegisterMetadataKey::YInterleave):
+            case CompileTimeHashString(ComputeRegisterMetadataKey::YInterleave):
                 PAL_ASSERT(pMetadata->hasEntry.yInterleave == 0);
                 result = pReader->UnpackNext(&pMetadata->yInterleave);
                 pMetadata->hasEntry.yInterleave = (result == Result::Success);;
@@ -5571,7 +5571,7 @@ inline Result DeserializeComputeRegisterMetadata(
 
 #endif
 
-            case HashLiteralString(ComputeRegisterMetadataKey::TidigCompCnt):
+            case CompileTimeHashString(ComputeRegisterMetadataKey::TidigCompCnt):
                 PAL_ASSERT(pMetadata->hasEntry.tidigCompCnt == 0);
                 result = pReader->UnpackNext(&pMetadata->tidigCompCnt);
                 pMetadata->hasEntry.tidigCompCnt = (result == Result::Success);;
@@ -5609,77 +5609,77 @@ inline Result DeserializePipelineMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(PipelineMetadataKey::Name):
+            case CompileTimeHashString(PipelineMetadataKey::Name):
                 PAL_ASSERT(pMetadata->hasEntry.name == 0);
                 result = pReader->UnpackNext(&pMetadata->name);
                 pMetadata->hasEntry.name = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::Type):
+            case CompileTimeHashString(PipelineMetadataKey::Type):
                 PAL_ASSERT(pMetadata->hasEntry.type == 0);
                 result = DeserializeEnum(pReader, &pMetadata->type);
                 pMetadata->hasEntry.type = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::InternalPipelineHash):
+            case CompileTimeHashString(PipelineMetadataKey::InternalPipelineHash):
                 PAL_ASSERT(pMetadata->hasEntry.internalPipelineHash == 0);
                 result = pReader->UnpackNext(&pMetadata->internalPipelineHash);
                 pMetadata->hasEntry.internalPipelineHash = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::ResourceHash):
+            case CompileTimeHashString(PipelineMetadataKey::ResourceHash):
                 PAL_ASSERT(pMetadata->hasEntry.resourceHash == 0);
                 result = pReader->UnpackNext(&pMetadata->resourceHash);
                 pMetadata->hasEntry.resourceHash = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::UnifiedRgsNameHash):
+            case CompileTimeHashString(PipelineMetadataKey::UnifiedRgsNameHash):
                 PAL_ASSERT(pMetadata->hasEntry.unifiedRgsNameHash == 0);
                 result = pReader->UnpackNext(&pMetadata->unifiedRgsNameHash);
                 pMetadata->hasEntry.unifiedRgsNameHash = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::Shaders):
+            case CompileTimeHashString(PipelineMetadataKey::Shaders):
                 pReader->Next();
                 result = DeserializeShaderMetadata(
                         pReader, &pMetadata->shader);
                     pMetadata->hasEntry.shader = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::HardwareStages):
+            case CompileTimeHashString(PipelineMetadataKey::HardwareStages):
                 pReader->Next();
                 result = DeserializeHardwareStageMetadata(
                         pReader, &pMetadata->hardwareStage);
                     pMetadata->hasEntry.hardwareStage = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::ShaderFunctions):
+            case CompileTimeHashString(PipelineMetadataKey::ShaderFunctions):
                 PAL_ASSERT(pMetadata->hasEntry.shaderFunctions == 0);
                 pMetadata->shaderFunctions = pReader->Tell();
                 pMetadata->hasEntry.shaderFunctions = (result == Result::Success);;
                 result = pReader->Skip(1);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::Registers):
+            case CompileTimeHashString(PipelineMetadataKey::Registers):
                 PAL_ASSERT(pMetadata->hasEntry.registers == 0);
                 pMetadata->registers = pReader->Tell();
                 pMetadata->hasEntry.registers = (result == Result::Success);;
                 result = pReader->Skip(1);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::UserDataLimit):
+            case CompileTimeHashString(PipelineMetadataKey::UserDataLimit):
                 PAL_ASSERT(pMetadata->hasEntry.userDataLimit == 0);
                 result = pReader->UnpackNext(&pMetadata->userDataLimit);
                 pMetadata->hasEntry.userDataLimit = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::SpillThreshold):
+            case CompileTimeHashString(PipelineMetadataKey::SpillThreshold):
                 PAL_ASSERT(pMetadata->hasEntry.spillThreshold == 0);
                 result = pReader->UnpackNext(&pMetadata->spillThreshold);
                 pMetadata->hasEntry.spillThreshold = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::UsesViewportArrayIndex):
+            case CompileTimeHashString(PipelineMetadataKey::UsesViewportArrayIndex):
             {
                 PAL_ASSERT(pMetadata->hasEntry.usesViewportArrayIndex == 0);
                 bool value = false;
@@ -5694,51 +5694,51 @@ inline Result DeserializePipelineMetadata(
                 break;
             }
 
-            case HashLiteralString(PipelineMetadataKey::EsGsLdsSize):
+            case CompileTimeHashString(PipelineMetadataKey::EsGsLdsSize):
                 PAL_ASSERT(pMetadata->hasEntry.esGsLdsSize == 0);
                 result = pReader->UnpackNext(&pMetadata->esGsLdsSize);
                 pMetadata->hasEntry.esGsLdsSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::NggSubgroupSize):
+            case CompileTimeHashString(PipelineMetadataKey::NggSubgroupSize):
                 PAL_ASSERT(pMetadata->hasEntry.nggSubgroupSize == 0);
                 result = pReader->UnpackNext(&pMetadata->nggSubgroupSize);
                 pMetadata->hasEntry.nggSubgroupSize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::NumInterpolants):
+            case CompileTimeHashString(PipelineMetadataKey::NumInterpolants):
                 PAL_ASSERT(pMetadata->hasEntry.numInterpolants == 0);
                 result = pReader->UnpackNext(&pMetadata->numInterpolants);
                 pMetadata->hasEntry.numInterpolants = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::MeshScratchMemorySize):
+            case CompileTimeHashString(PipelineMetadataKey::MeshScratchMemorySize):
                 PAL_ASSERT(pMetadata->hasEntry.meshScratchMemorySize == 0);
                 result = pReader->UnpackNext(&pMetadata->meshScratchMemorySize);
                 pMetadata->hasEntry.meshScratchMemorySize = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::PsInputSemantic):
+            case CompileTimeHashString(PipelineMetadataKey::PsInputSemantic):
                 pReader->Next();
                 result = DeserializePsInputSemanticMetadata(
                         pReader, &pMetadata->psInputSemantic[0]);
                     pMetadata->hasEntry.psInputSemantic = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::PrerasterOutputSemantic):
+            case CompileTimeHashString(PipelineMetadataKey::PrerasterOutputSemantic):
                 pReader->Next();
                 result = DeserializePrerasterOutputSemanticMetadata(
                         pReader, &pMetadata->prerasterOutputSemantic[0]);
                     pMetadata->hasEntry.prerasterOutputSemantic = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::Api):
+            case CompileTimeHashString(PipelineMetadataKey::Api):
                 PAL_ASSERT(pMetadata->hasEntry.api == 0);
                 result = pReader->UnpackNext(&pMetadata->api);
                 pMetadata->hasEntry.api = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::ApiCreateInfo):
+            case CompileTimeHashString(PipelineMetadataKey::ApiCreateInfo):
                 PAL_ASSERT(pMetadata->hasEntry.apiCreateInfo == 0);
                 result = pReader->Next();
 
@@ -5750,7 +5750,7 @@ inline Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.apiCreateInfo = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::GsOutputsLines):
+            case CompileTimeHashString(PipelineMetadataKey::GsOutputsLines):
             {
                 PAL_ASSERT(pMetadata->hasEntry.gsOutputsLines == 0);
                 bool value = false;
@@ -5765,7 +5765,7 @@ inline Result DeserializePipelineMetadata(
                 break;
             }
 
-            case HashLiteralString(PipelineMetadataKey::PsDummyExport):
+            case CompileTimeHashString(PipelineMetadataKey::PsDummyExport):
             {
                 PAL_ASSERT(pMetadata->hasEntry.psDummyExport == 0);
                 bool value = false;
@@ -5780,7 +5780,7 @@ inline Result DeserializePipelineMetadata(
                 break;
             }
 
-            case HashLiteralString(PipelineMetadataKey::PsSampleMask):
+            case CompileTimeHashString(PipelineMetadataKey::PsSampleMask):
             {
                 PAL_ASSERT(pMetadata->hasEntry.psSampleMask == 0);
                 bool value = false;
@@ -5795,7 +5795,7 @@ inline Result DeserializePipelineMetadata(
                 break;
             }
 
-            case HashLiteralString(PipelineMetadataKey::UsesCps):
+            case CompileTimeHashString(PipelineMetadataKey::UsesCps):
             {
                 PAL_ASSERT(pMetadata->hasEntry.usesCps == 0);
                 bool value = false;
@@ -5810,7 +5810,7 @@ inline Result DeserializePipelineMetadata(
                 break;
             }
 
-            case HashLiteralString(PipelineMetadataKey::CpsGlobal):
+            case CompileTimeHashString(PipelineMetadataKey::CpsGlobal):
             {
                 PAL_ASSERT(pMetadata->hasEntry.cpsGlobal == 0);
                 bool value = false;
@@ -5825,20 +5825,20 @@ inline Result DeserializePipelineMetadata(
                 break;
             }
 
-            case HashLiteralString(PipelineMetadataKey::StreamoutVertexStrides):
+            case CompileTimeHashString(PipelineMetadataKey::StreamoutVertexStrides):
                 PAL_ASSERT(pMetadata->hasEntry.streamoutVertexStrides == 0);
                 result = pReader->UnpackNext(&pMetadata->streamoutVertexStrides);
                 pMetadata->hasEntry.streamoutVertexStrides = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::GraphicsRegisters):
+            case CompileTimeHashString(PipelineMetadataKey::GraphicsRegisters):
                 pReader->Next();
                 result = DeserializeGraphicsRegisterMetadata(
                         pReader, &pMetadata->graphicsRegister);
                     pMetadata->hasEntry.graphicsRegister = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::ComputeRegisters):
+            case CompileTimeHashString(PipelineMetadataKey::ComputeRegisters):
                 pReader->Next();
                 result = DeserializeComputeRegisterMetadata(
                         pReader, &pMetadata->computeRegister);
@@ -5871,13 +5871,13 @@ inline Result DeserializeCodeObjectMetadata(
         {
             switch (HashString(key))
             {
-            case HashLiteralString(CodeObjectMetadataKey::Version):
+            case CompileTimeHashString(CodeObjectMetadataKey::Version):
                 PAL_ASSERT(pMetadata->hasEntry.version == 0);
                 result = pReader->UnpackNext(&pMetadata->version);
                 pMetadata->hasEntry.version = (result == Result::Success);;
                 break;
 
-            case HashLiteralString(CodeObjectMetadataKey::Pipelines):
+            case CompileTimeHashString(CodeObjectMetadataKey::Pipelines):
                 pReader->Next();
                 result = DeserializePipelineMetadata(
                         pReader, &pMetadata->pipeline);

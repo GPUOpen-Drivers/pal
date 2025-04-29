@@ -151,6 +151,8 @@ public:
 
     virtual ExplicitSyncData* GetExplicitSyncData() { return nullptr; }
 
+    virtual bool IsIdle() { return false; }
+
 protected:
     PresentFence() { }
     virtual ~PresentFence() { }
@@ -249,6 +251,9 @@ public:
         uint32         imagePresentFenceCount,
         bool           doWait,
         uint32*        pFirstSignaledIndex) const;
+
+    virtual bool   SupportWaitingOnCompletion() const { return false; }
+    virtual void   WaitOnCompletion() { return; }
 
 protected:
     WindowSystem(

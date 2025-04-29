@@ -71,6 +71,7 @@ class      IPipeline;
 class      IQueryPool;
 class      IShader;
 class      MsaaState;
+class      Pipeline;
 class      Platform;
 class      Queue;
 class      QueueContext;
@@ -124,7 +125,8 @@ struct ColorTargetViewInternalCreateInfo
             uint32 fmaskDecompress          : 1;  // Indicates this color target view is for a fmask decompress
             uint32 depthStencilCopy         : 1;  // Indicates this color target view is for a depth/stencil copy
             uint32 disableClientCompression : 1;  // True to disable client compression
-            uint32 reserved                 : 27; // Reserved for future use
+            uint32 reserved1                : 1;
+            uint32 reserved                 : 26; // Reserved for future use
         };
         uint32 u32All;
     } flags;
@@ -505,10 +507,25 @@ public:
         bool                            isInternal,
         IShaderLibrary**                ppPipeline) = 0;
 
+    size_t GetMaybeArchiveLibrarySize(
+        const ShaderLibraryCreateInfo&  createInfo,
+        Result*                         pResult) const;
+    Result CreateMaybeArchiveLibrary(
+        const ShaderLibraryCreateInfo&  createInfo,
+        void*                           pPlacementAddr,
+        bool                            isInternal,
+        IShaderLibrary**                ppShaderLib);
+
     virtual size_t GetGraphicsPipelineSize(
         const GraphicsPipelineCreateInfo& createInfo,
         bool                              isInternal,
         Result*                           pResult) const = 0;
+    Result CreateGraphicsPipelineUnpackArchiveLibs(
+        const GraphicsPipelineCreateInfo&         createInfo,
+        const GraphicsPipelineInternalCreateInfo& internalInfo,
+        void*                                     pPlacementAddr,
+        bool                                      isInternal,
+        IPipeline**                               ppPipeline);
     virtual Result CreateGraphicsPipeline(
         const GraphicsPipelineCreateInfo&         createInfo,
         const GraphicsPipelineInternalCreateInfo& internalInfo,
@@ -682,7 +699,7 @@ public:
 
     void DescribeBindPipeline(
         GfxCmdBuffer*     pCmdBuf,
-        const IPipeline*  pPipeline,
+        const Pipeline*   pPipeline,
         uint64            apiPsoHash,
         PipelineBindPoint bindPoint) const;
 

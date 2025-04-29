@@ -109,6 +109,8 @@ def retrieve_hfmt_data(files: List[Tuple[str, str]], ifmts: Dict[str, structs.IF
         buffer_enums = {}
         texture_enums = {}
         for name, hfmt in hwl[ip]['hwFormats'].items():
+            ifmt = ifmts[name]
+
             buffer_enum       = hfmt.buffer['enum']
             if buffer_enum not in enumVals:
                 raise Exception(f"Buffer enum '{buffer_enum}' for '{name}' in '{ip}' not found in enum header.")
@@ -117,7 +119,7 @@ def retrieve_hfmt_data(files: List[Tuple[str, str]], ifmts: Dict[str, structs.IF
             buffer_enum_value = enumVals[buffer_enum]
 
             if "INVALID" not in buffer_enum and buffer_enum_value not in buffer_enums:
-                buffer_enums[buffer_enum_value] = (buffer_enum, name, ifmts[name].ifdef_str)
+                buffer_enums[buffer_enum_value] = (buffer_enum, ifmt.real_format_name, ifmt.ifdef_str)
 
             texture_enum       = hfmt.texture['enum']
             if texture_enum not in enumVals:
@@ -127,7 +129,7 @@ def retrieve_hfmt_data(files: List[Tuple[str, str]], ifmts: Dict[str, structs.IF
             texture_enum_value = enumVals[texture_enum]
 
             if "INVALID" not in texture_enum and texture_enum_value not in texture_enums:
-                texture_enums[texture_enum_value] = (texture_enum, name, ifmts[name].ifdef_str)
+                texture_enums[texture_enum_value] = (texture_enum, ifmt.real_format_name, ifmt.ifdef_str)
 
         hwl[ip]['buffer_enums'] = buffer_enums
         hwl[ip]['texture_enums'] = texture_enums

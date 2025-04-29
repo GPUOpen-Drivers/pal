@@ -32,14 +32,6 @@
 namespace DriverUtilsService
 {
 
-enum class OverlayDisplayMode : Pal::uint32
-{
-    Default = 0, // Overlay visibility corresponds to trace state
-    AlwaysOn,    // Overlay is always on
-    AlwaysOff,   // Overlay is always off
-    Count
-};
-
 // =====================================================================================================================
 // DriverUtilsService based off of DevDriver's DriverUtil protocol.
 // This service provides a simple interface for modifying the driver with a lightweight tool.
@@ -58,7 +50,6 @@ public:
     virtual DD_RESULT SetDbgLogSeverityLevel(const void* pParamBuffer, size_t paramBufferSize) override;
     virtual DD_RESULT SetDbgLogOriginationMask(const void* pParamBuffer, size_t paramBufferSize) override;
     virtual DD_RESULT ModifyDbgLogOriginationMask(const void* pParamBuffer, size_t paramBufferSize) override;
-    virtual DD_RESULT SetOverlayDisplayMode(const void* pParamBuffer, size_t paramBufferSize) override;
 
     bool IsTracingEnabled() const { return m_isTracingEnabled; }
     bool IsCrashAnalysisModeEnabled() const { return m_crashAnalysisModeEnabled; }
@@ -68,17 +59,15 @@ public:
     void LockOverlayBuffer() { m_overlayMutex.Lock(); }
     void UnlockOverlayBuffer() { m_overlayMutex.Unlock(); }
     bool UseOverlayBuffer() const { return m_useOverlayBuffer; }
-    OverlayDisplayMode GetOverlayDisplayMode() const { return m_overlayDisplayMode; }
 
 private:
-    bool               m_isTracingEnabled;
-    bool               m_crashAnalysisModeEnabled;
-    bool               m_raytracingShaderTokenEnabled;
-    bool               m_staticVmid;
-    bool               m_useOverlayBuffer;
-    Pal::Platform*     m_pPlatform;
-    char               m_overlayBuffer[kNumOverlayStrings][kMaxOverlayStringLength];
-    DevDriver::Mutex   m_overlayMutex;
-    OverlayDisplayMode m_overlayDisplayMode;
+    bool             m_isTracingEnabled;
+    bool             m_crashAnalysisModeEnabled;
+    bool             m_raytracingShaderTokenEnabled;
+    bool             m_staticVmid;
+    bool             m_useOverlayBuffer;
+    Pal::Platform*   m_pPlatform;
+    char             m_overlayBuffer[kNumOverlayStrings][kMaxOverlayStringLength];
+    DevDriver::Mutex m_overlayMutex;
 };
 }

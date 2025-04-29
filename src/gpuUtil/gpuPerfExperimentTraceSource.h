@@ -69,7 +69,11 @@ struct SpmCounterDataHeader
 };
 
 constexpr char        SqttDataTextId[TextIdentifierSize] = "SqttData";
+#if (PAL_BUILD_BRANCH >= 2520)
+constexpr Pal::uint32 SqttDataChunkVersion               = 5;
+#else
 constexpr Pal::uint32 SqttDataChunkVersion               = 4;
+#endif
 
 /// SQTT Data RDF chunk
 struct SqttDataHeader
@@ -82,13 +86,14 @@ struct SqttDataHeader
     Pal::uint32 wgpIndex;
     Pal::uint64 traceBufferSize;
     Pal::uint32 instructionTimingEnabled : 1;
-    Pal::uint32 reserved                 : 31;
+    Pal::uint32 execPopTokensEnabled     : 1;
+    Pal::uint32 reserved                 : 30;
 };
 
 } // namespace TraceChunk
 
 constexpr char        GpuPerfExpTraceSourceName[]  = "gpuperfexp";
-constexpr Pal::uint32 GpuPerfExpTraceSourceVersion = 1;
+constexpr Pal::uint32 GpuPerfExpTraceSourceVersion = 2;
 
 // =====================================================================================================================
 // This trace source manages an SQTT & SPM trace through GPA Session and produces SQTT & SPM Data RDF chunks
@@ -153,9 +158,10 @@ private:
 
     struct SqttDataTraceConfig
     {
-        bool enabled;
+        bool        enabled;
         Pal::uint64 memoryLimitInMb;
         bool        enableInstructionTokens;
+        bool        enableExecPopTokens;
         Pal::uint32 seMask;
     };
 

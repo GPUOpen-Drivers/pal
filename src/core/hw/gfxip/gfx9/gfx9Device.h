@@ -169,48 +169,6 @@ static void SetSeqContextRegValPair(
 }
 
 // =====================================================================================================================
-// Sets the offset and value of a user data entry in a packed register pair.
-static void SetOneUserDataEntryPairPackedValue(
-    const uint32         regAddr,
-    const uint16         baseUserDataReg,
-    const uint32         value,
-    PackedRegisterPair*  pValidRegPairs,
-    UserDataEntryLookup* pRegLookup,
-    uint32               minLookupValue,
-    uint32*              pNumValidRegs)
-{
-    SetOnePackedRegPairLookup<PERSISTENT_SPACE_START>(regAddr,
-                                                      baseUserDataReg,
-                                                      value,
-                                                      pValidRegPairs,
-                                                      pRegLookup,
-                                                      minLookupValue,
-                                                      pNumValidRegs);
-}
-
-// =====================================================================================================================
-// Sets offsets and values of a sequence of consecutive user data entries in packed register pairs.
-static void SetSeqUserDataEntryPairPackedValues(
-    const uint32         startAddr,
-    const uint32         endAddr,
-    const uint16         baseUserDataReg,
-    const void*          pValues,
-    PackedRegisterPair*  pValidRegPairs,
-    UserDataEntryLookup* pRegLookup,
-    uint32               minLookupValue,
-    uint32*              pNumValidRegs)
-{
-    SetSeqPackedRegPairLookup<PERSISTENT_SPACE_START>(startAddr,
-                                                      endAddr,
-                                                      baseUserDataReg,
-                                                      pValues,
-                                                      pValidRegPairs,
-                                                      pRegLookup,
-                                                      minLookupValue,
-                                                      pNumValidRegs);
-}
-
-// =====================================================================================================================
 // GFX9 hardware layer implementation of GfxDevice. Responsible for creating HW-specific objects such as Queue contexts
 // and owning child objects such as the SC manager.
 class Device final : public GfxDevice
@@ -575,8 +533,6 @@ public:
 
     uint32 GetShaderPrefetchSize(gpusize shaderSizeBytes) const;
 
-    uint32 BufferSrdResourceLevel() const;
-
     Result AllocateVertexAttributesMem(bool isTmz);
 
     virtual ClearMethod GetDefaultSlowClearMethod(
@@ -599,6 +555,24 @@ public:
 
     bool IsGfx11F32() const
         { return IsGfx11(m_gfxIpLevel) && (Parent()->ChipProperties().pfpUcodeVersion < Gfx11Rs64MinPfpUcodeVersion); }
+
+    bool IsGfx11Rs64() const
+        { return IsGfx11(m_gfxIpLevel) && (Parent()->ChipProperties().pfpUcodeVersion >= Gfx11Rs64MinPfpUcodeVersion); }
+
+    bool IsGfx11F32UnpackedRegPairsSupported() const;
+
+    bool IsGfx11PackedRegPairsSupported() const
+    {
+        const uint32 pfpUcodeVersion = Parent()->ChipProperties().pfpUcodeVersion;
+        const uint32 mecUcodeVersion = Parent()->ChipProperties().mecUcodeVersion;
+
+        return // Is GFX11 RS64?
+               IsGfx11Rs64() &&
+               // Are PFP pkts supported?
+               (pfpUcodeVersion >= Gfx11MinPfpVersionPackedRegPairsPacket) &&
+               // Are MEC pkts supported?
+               (mecUcodeVersion >= Gfx11MinMecVersionPackedRegPairsPacket);
+    }
 
 private:
     void SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;

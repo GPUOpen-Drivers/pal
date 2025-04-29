@@ -66,11 +66,12 @@ Result PipelineLoader::Init()
 }
 
 // =====================================================================================================================
-// Find an already-loaded ELF, or load it
+// Find an already-loaded ELF, or load it: compute pipeline/library edition.
+// At the point of calling this, we do not know whether it will be a compute pipeline or a compute library.
 Result PipelineLoader::GetElf(
     uint64                           origHash,    // Hash of ELF contents, from archive member name
     const ComputePipelineCreateInfo& createInfo,  // (in) Create info, including ELF contents
-    Span<LoadedElf* const>           otherElfs,   // (in) Other ELFs for resolving external symbols in
+    Span<LoadedElf* const>           otherElfs,   // (in) Other ELFs for resolving external symbols in (can be sparse)
     LoadedElf**                      ppLoadedElf) // (out) Found or created LoadedElf, with ref count incremented
 {
     // Include the parts of createInfo other than the ELF pointer and size in the hash. This is necessary if
@@ -88,6 +89,88 @@ Result PipelineLoader::GetElf(
     uint64 hash = 0;
     hasher.Finalize(reinterpret_cast<uint8*>(&hash));
 
+    // Function to create the pipeline or library, and initialize the just-created LoadedElf object.
+    auto CreatePipelineLibraryFunc = [&createInfo, otherElfs](LoadedElf* pLoadedElf)
+    {
+        return pLoadedElf->Init(createInfo, otherElfs);
+    };
+
+    // Find already-loaded ELF, or load it using the func above.
+    return FindOrLoadElf(hash, origHash, CreatePipelineLibraryFunc, ppLoadedElf);
+}
+
+// =====================================================================================================================
+// Find an already-loaded ELF, or load it: graphics pipeline edition.
+Result PipelineLoader::GetElf(
+    uint64                            origHash,    // Hash of ELF contents, from archive member name
+    const GraphicsPipelineCreateInfo& createInfo,  // (in) Create info, including ELF contents
+    LoadedElf**                       ppLoadedElf) // (out) Found or created LoadedElf, with ref count incremented
+{
+    // Include the parts of createInfo other than the ELF pointer and size in the hash. This is necessary
+    // as the same ELF could be used with different other args in different pipelines.
+    MetroHash64 hasher;
+    hasher.Update(origHash);
+    hasher.Update(createInfo.flags);
+    PAL_ASSERT(createInfo.numShaderLibraries == 0);
+    hasher.Update(createInfo.useLateAllocVsLimit);
+    hasher.Update(createInfo.lateAllocVsLimit);
+    hasher.Update(createInfo.useLateAllocGsLimit);
+    hasher.Update(createInfo.lateAllocGsLimit);
+    hasher.Update(createInfo.iaState);
+    hasher.Update(createInfo.rsState);
+    hasher.Update(createInfo.rsState);
+    hasher.Update(createInfo.cbState);
+    hasher.Update(createInfo.viewInstancingDesc);
+    hasher.Update(createInfo.coverageOutDesc);
+    hasher.Update(createInfo.viewportInfo);
+    hasher.Update(createInfo.taskInterleaveSize);
+    hasher.Update(createInfo.ldsPsGroupSizeOverride);
+#if PAL_BUILD_GFX12
+    hasher.Update(createInfo.groupLaunchGuarantee);
+    hasher.Update(createInfo.noForceReZ);
+#endif
+
+    uint64 hash = 0;
+    hasher.Finalize(reinterpret_cast<uint8*>(&hash));
+
+    // Function to create the pipeline, and initialize the just-created LoadedElf object.
+    auto CreatePipelineFunc = [&createInfo](LoadedElf* pLoadedElf)
+    {
+        return pLoadedElf->Init(createInfo);
+    };
+
+    // Find already-loaded ELF, or load it using the func above.
+    return FindOrLoadElf(hash, origHash, CreatePipelineFunc, ppLoadedElf);
+}
+
+// =====================================================================================================================
+// Find an already-loaded ELF, or load it: compute/graphics library edition.
+// This would work for a compute library, but is only used for a Graphics Partial Pipeline graphics library.
+Result PipelineLoader::GetElf(
+    uint64                         origHash,    // Hash of ELF contents, from archive member name
+    const ShaderLibraryCreateInfo& createInfo,  // (in) Create info, including ELF contents
+    LoadedElf**                    ppLoadedElf) // (out) Found or created LoadedElf, with ref count incremented
+{
+    uint64 hash = origHash;
+
+    // Function to create the library, and initialize the just-created LoadedElf object.
+    auto CreateLibraryFunc = [&createInfo](LoadedElf* pLoadedElf)
+    {
+        return pLoadedElf->Init(createInfo);
+    };
+
+    // Find already-loaded ELF, or load it using the func above.
+    return FindOrLoadElf(hash, origHash, CreateLibraryFunc, ppLoadedElf);
+}
+
+// =====================================================================================================================
+// Find an already-loaded ELF, or load it using the supplied callback function.
+Result PipelineLoader::FindOrLoadElf(
+    uint64                          hash,         // Hash (from archive name, modified for other pipeline args)
+    uint64                          origHash,     // Original hash (from archive name) to attach
+    FunctionRef<Result(LoadedElf*)> LoadCallback, // Callback func for loading ELF
+    LoadedElf**                     ppLoadedElf)  // (out) Found or created LoadedElf, with ref count incremented
+{
     // Find already-loaded ELF.
     LoadedElf* pLoadedElf = nullptr;
     {
@@ -101,50 +184,43 @@ Result PipelineLoader::GetElf(
         }
     }
 
-    // If not found, load the ELF. (This should not happen if the member contents in the archive were empty.)
+    // If not found, create the LoadedElf object and load the ELF.
     Result result = Result::Success;
     if (pLoadedElf == nullptr)
     {
-        if (createInfo.pipelineBinarySize == 0)
+        result = Result::ErrorOutOfMemory;
+        pLoadedElf = PAL_NEW(LoadedElf, m_pDevice->GetPlatform(), AllocInternal)(m_pDevice, hash, origHash);
+        if (pLoadedElf != nullptr)
         {
-            PAL_ASSERT_ALWAYS();
-            result = Result::ErrorInvalidValue;
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
-            pLoadedElf = PAL_NEW(LoadedElf, m_pDevice->GetPlatform(), AllocInternal)(m_pDevice);
-            if (pLoadedElf != nullptr)
+            result = LoadCallback(pLoadedElf);
+            if (result != Result::Success)
             {
-                result = pLoadedElf->Init(hash, origHash, createInfo, otherElfs);
-                if (result != Result::Success)
-                {
-                    PAL_DELETE(pLoadedElf, m_pDevice->GetPlatform());
-                    pLoadedElf = nullptr;
-                }
+                PAL_DELETE(pLoadedElf, m_pDevice->GetPlatform());
+                pLoadedElf = nullptr;
             }
+        }
+
+        if (result == Result::Success)
+        {
+            // We have loaded the ELF. Find or create a map entry for it.
+            MutexAuto lock(&m_loadedElfsMutex);
+            bool existed = false;
+            LoadedElf** ppEntry = nullptr;
+            result = m_loadedElfs.FindAllocate(hash, &existed, &ppEntry);
             if (result == Result::Success)
             {
-                // We have loaded the ELF. Find or create a map entry for it.
-                MutexAuto lock(&m_loadedElfsMutex);
-                bool existed = false;
-                LoadedElf** ppEntry = nullptr;
-                result = m_loadedElfs.FindAllocate(hash, &existed, &ppEntry);
-                if (result == Result::Success)
+                if (existed)
                 {
-                    if (existed)
-                    {
-                        // Someone else loaded the same ELF in the meantime. Free our one and use the other
-                        // one, incrementing the reference count.
-                        PAL_DELETE(pLoadedElf, m_pDevice->GetPlatform());
-                        pLoadedElf = *ppEntry;
-                        pLoadedElf->Ref();
-                    }
-                    else
-                    {
-                        // Copy our loaded ELF into the map.
-                        *ppEntry = pLoadedElf;
-                    }
+                    // Someone else loaded the same ELF in the meantime. Free our one and use the other
+                    // one, incrementing the reference count.
+                    PAL_DELETE(pLoadedElf, m_pDevice->GetPlatform());
+                    pLoadedElf = *ppEntry;
+                    pLoadedElf->Ref();
+                }
+                else
+                {
+                    // Copy our loaded ELF into the map.
+                    *ppEntry = pLoadedElf;
                 }
             }
         }
@@ -169,9 +245,13 @@ void PipelineLoader::ReleaseLoadedElf(
 
 // =====================================================================================================================
 LoadedElf::LoadedElf(
-    Device* pDevice)
+    Device* pDevice,
+    uint64  hash,
+    uint64  origHash)
     :
     m_pDevice(pDevice),
+    m_origHash(origHash),
+    m_hash(hash),
     m_pPipeline(nullptr),
     m_pShaderLibrary(nullptr),
     m_pSymStr(nullptr),
@@ -197,26 +277,22 @@ LoadedElf::~LoadedElf()
 }
 
 // =====================================================================================================================
-// Initialize (load the ELF and set the ref count to 1).
+// Initialize (load the ELF and set the ref count to 1): compute pipeline or library edition.
+// This is the only edition that resolves cross-ELF relocs, as that is only needed for NPRT/NPWG compute libraries.
 // Passing other already-loaded ELFs like this for symbol resolution relies on the caller knowing the right order
 // to load ELFs, and there being no circular references.
 Result LoadedElf::Init(
-    uint64                           hash,       // Hash (from archive name, modified for other pipeline args)
-    uint64                           origHash,   // Original hash (from archive name) to attach
-    const ComputePipelineCreateInfo& createInfo, // (in) Struct containing pointer/size of ELF, and other info
-    Span<LoadedElf* const>           otherElfs)  // (in) Array of other ELFs for external symbol resolution
+    const ComputePipelineCreateInfo& createInfo, // (in) Create info, including ELF contents
+    Span<LoadedElf* const>           otherElfs)  // (in) Other ELFs for resolving external symbols in (can be sparse)
 {
-    m_hash     = hash;
-    m_origHash = origHash;
-
     //  Take a copy of the ELF in case we need to modify it, and start parsing it.
-    Span<char> elf(
-        static_cast<char*>(PAL_MALLOC(createInfo.pipelineBinarySize, m_pDevice->GetPlatform(), AllocInternal)),
-        createInfo.pipelineBinarySize);
+    Span<const char> origElf(static_cast<const char*>(createInfo.pPipelineBinary), createInfo.pipelineBinarySize);
+    Span<char> elf(static_cast<char*>(PAL_MALLOC(origElf.NumElements(), m_pDevice->GetPlatform(), AllocInternal)),
+                   origElf.NumElements());
     Result result = (elf.Data() == nullptr) ? Result::ErrorOutOfMemory : Result::Success;
     if (result == Result::Success)
     {
-        memcpy(elf.Data(), createInfo.pPipelineBinary, elf.NumElements());
+        memcpy(elf.Data(), origElf.Data(), elf.NumElements());
     }
 
     const Elf::FileHeader& fileHeader = *reinterpret_cast<const Elf::FileHeader*>(elf.Data());
@@ -284,7 +360,7 @@ Result LoadedElf::Init(
                 {
                     break;
                 }
-                // See if it is a pipeline. Currently, we only check if it's a compute shader.
+                // See if it is a compute pipeline.
                 if ((isPipeline == false) && (
                     strcmp(m_pSymStr + symbol.st_name,
                            Abi::PipelineAbiSymbolNameStrings[uint32(Abi::PipelineSymbolType::CsMainEntry)])
@@ -316,6 +392,10 @@ Result LoadedElf::Init(
                 }
                 for (const LoadedElf* pOtherElf : otherElfs)
                 {
+                    if (pOtherElf == nullptr)
+                    {
+                        continue;
+                    }
                     if (pOtherElf->FindSymbol(pName, &symbol.st_value) ||
                         ((otherHash == pOtherElf->OrigHash()) &&
                          pOtherElf->FindSymbol(pNameAfterPrefix, &symbol.st_value)))
@@ -334,6 +414,23 @@ Result LoadedElf::Init(
                     result = Result::ErrorBadShaderCode;
                     break;
                 }
+            }
+        }
+    }
+
+    // Figure out whether it is a compute pipeline that uses generic entry points or a compute library.
+    if (result == Result::Success)
+    {
+        PalAbi::CodeObjectMetadata metadata = {};
+        AbiReader abiReader(m_pDevice->GetPlatform(), elf);
+        result = abiReader.Init();
+        if (result == Result::Success)
+        {
+            MsgPackReader metadataReader;
+            result = abiReader.GetMetadata(&metadataReader, &metadata);
+            if ((result == Result::Success) && PipelineSupportsGenericEntryPoint(metadata))
+            {
+                isPipeline = (metadata.pipeline.hasEntry.shaderFunctions == 0);
             }
         }
     }
@@ -455,7 +552,7 @@ Result LoadedElf::Init(
             if (result == Result::Success)
             {
                 size_t numAllocs = 1;
-                result = m_pPipeline->QueryAllocationInfo(&size, &gpuMemAlloc);
+                result = m_pPipeline->QueryAllocationInfo(&numAllocs, &gpuMemAlloc);
             }
         }
         else
@@ -486,7 +583,7 @@ Result LoadedElf::Init(
             if (result == Result::Success)
             {
                 size_t numAllocs = 1;
-                result = m_pShaderLibrary->QueryAllocationInfo(&size, &gpuMemAlloc);
+                result = m_pShaderLibrary->QueryAllocationInfo(&numAllocs, &gpuMemAlloc);
             }
         }
     }
@@ -539,6 +636,59 @@ Result LoadedElf::Init(
 
     // Free our copy of the ELF.
     PAL_FREE(elf.Data(), m_pDevice->GetPlatform());
+
+    if (result == Result::Success)
+    {
+        m_refCount = 1;
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Initialize (load the ELF and set the ref count to 1): graphics pipeline edition.
+// No resolution of cross-ELF relocs is done here, as that is only needed for NPRT/NPWG compute libraries.
+Result LoadedElf::Init(
+    const GraphicsPipelineCreateInfo& createInfo) // (in) Create info, including ELF contents
+{
+    // Create the pipeline.
+    size_t size = m_pDevice->GetGraphicsPipelineSize(createInfo, nullptr);
+    void* pMem = PAL_MALLOC(size, m_pDevice->GetPlatform(), AllocInternal);
+    Result result = Result::ErrorOutOfMemory;
+    if (pMem != nullptr)
+    {
+        result = m_pDevice->CreateGraphicsPipeline(createInfo, pMem, &m_pPipeline);
+        if (result != Result::Success)
+        {
+            PAL_FREE(pMem, m_pDevice->GetPlatform());
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        m_refCount = 1;
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Initialize (load the ELF and set the ref count to 1): compute/graphics library edition.
+// This would work for a compute library, but is only used for a Graphics Partial Pipeline graphics library.
+// No resolution of cross-ELF relocs is done here, as that is only needed for NPRT/NPWG compute libraries.
+Result LoadedElf::Init(
+    const ShaderLibraryCreateInfo& createInfo) // (in) Create info, including ELF contents
+{
+    // Create the library.
+    size_t size = m_pDevice->GetShaderLibrarySize(createInfo, nullptr);
+    void* pMem = PAL_MALLOC(size, m_pDevice->GetPlatform(), AllocInternal);
+    Result result = Result::ErrorOutOfMemory;
+    if (pMem != nullptr)
+    {
+        result = m_pDevice->CreateShaderLibrary(createInfo, pMem, &m_pShaderLibrary);
+        if (result != Result::Success)
+        {
+            PAL_FREE(pMem, m_pDevice->GetPlatform());
+        }
+    }
 
     if (result == Result::Success)
     {

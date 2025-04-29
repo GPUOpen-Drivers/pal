@@ -52,7 +52,8 @@ DepthStencilView::DepthStencilView(
     m_uniqueId(uniqueId),
     m_baseArraySlice(createInfo.baseArraySlice),
     m_arraySize(createInfo.arraySize),
-    m_regs{}
+    m_regs{},
+    m_dbZInfo{}
 {
     PAL_ASSERT(createInfo.pImage != nullptr);
     const auto& imageInfo  = m_pImage->Parent()->GetImageCreateInfo();
@@ -139,7 +140,8 @@ void DepthStencilView::InitRegistersCommon(
     const DepthStencilViewCreateInfo&         createInfo,
     const DepthStencilViewInternalCreateInfo& internalInfo,
     const MergedFlatFmtInfo*                  pFmtInfo,
-    DepthStencilViewRegs*                     pRegs)
+    DepthStencilViewRegs*                     pRegs,
+    regDB_Z_INFO*                             pDbZInfo)
 {
     const SubResourceInfo*const pDepthSubResInfo     = m_pImage->Parent()->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo   = m_pImage->Parent()->SubresourceInfo(m_stencilSubresource);
@@ -157,11 +159,11 @@ void DepthStencilView::InitRegistersCommon(
         const Gfx9Htile*const pHtile = m_pImage->GetHtile();
 
         // Tell the HW that HTILE metadata is present.
-        pRegs->dbZInfo.bits.ZRANGE_PRECISION = pHtile->ZRangePrecision();
+        pDbZInfo->bits.ZRANGE_PRECISION = pHtile->ZRangePrecision();
 
         // Don't tie this to the hTileUsage.dsMetadata flag!  TILE_SURFACE_ENABLE needs to remain set
         // even for VRS-only hTile data as otherwise the HW won't try to actually read the hTile data.
-        pRegs->dbZInfo.bits.TILE_SURFACE_ENABLE        = 1;
+        pDbZInfo->bits.TILE_SURFACE_ENABLE             = 1;
         pRegs->dbStencilInfo.bits.TILE_STENCIL_DISABLE = pHtile->TileStencilDisabled();
 
         if (internalInfo.flags.isExpand | internalInfo.flags.isDepthCopy | internalInfo.flags.isStencilCopy)
@@ -177,7 +179,7 @@ void DepthStencilView::InitRegistersCommon(
             pRegs->dbRenderControl.bits.RESUMMARIZE_ENABLE = 1;
         }
 
-        pRegs->dbZInfo.bits.ALLOW_EXPCLEAR       =
+        pDbZInfo->bits.ALLOW_EXPCLEAR            =
                 (imageCreateInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
         pRegs->dbStencilInfo.bits.ALLOW_EXPCLEAR =
                 (imageCreateInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
@@ -187,13 +189,13 @@ void DepthStencilView::InitRegistersCommon(
         if (m_flags.depthMetadataTexFetch)
         {
             // This image might get texture-fetched, so setup any register info specific to texture fetches here.
-            pRegs->dbZInfo.bits.DECOMPRESS_ON_N_ZPLANES = CalcDecompressOnZPlanesValue(device, hwZFmt);
+            pDbZInfo->bits.DECOMPRESS_ON_N_ZPLANES = CalcDecompressOnZPlanesValue(device, hwZFmt);
         }
     }
     else
     {
         // Tell the HW that HTILE metadata is not present.
-        pRegs->dbZInfo.bits.TILE_SURFACE_ENABLE              = 0;
+        pDbZInfo->bits.TILE_SURFACE_ENABLE                   = 0;
         pRegs->dbStencilInfo.bits.TILE_STENCIL_DISABLE       = 1;
         pRegs->dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = 1;
         pRegs->dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = 1;
@@ -240,14 +242,14 @@ void DepthStencilView::InitRegistersCommon(
     m_extent.width  = pDepthSubResInfo->extentTexels.width;
     m_extent.height = pDepthSubResInfo->extentTexels.height;
 
-    pRegs->dbZInfo.bits.READ_SIZE          = settings.dbRequestSize;
-    pRegs->dbZInfo.bits.NUM_SAMPLES        = Log2(imageCreateInfo.samples);
-    pRegs->dbZInfo.bits.MAXMIP             = (imageCreateInfo.mipLevels - 1);
-    pRegs->dbZInfo.bits.PARTIALLY_RESIDENT = imageCreateInfo.flags.prt;
-    pRegs->dbZInfo.bits.FORMAT             = hwZFmt;
+    pDbZInfo->bits.READ_SIZE          = settings.dbRequestSize;
+    pDbZInfo->bits.NUM_SAMPLES        = Log2(imageCreateInfo.samples);
+    pDbZInfo->bits.MAXMIP             = (imageCreateInfo.mipLevels - 1);
+    pDbZInfo->bits.PARTIALLY_RESIDENT = imageCreateInfo.flags.prt;
+    pDbZInfo->bits.FORMAT             = hwZFmt;
 
     pRegs->dbStencilInfo.bits.FORMAT             = HwStencilFmt(pFmtInfo, sFmt);
-    pRegs->dbStencilInfo.bits.PARTIALLY_RESIDENT = pRegs->dbZInfo.bits.PARTIALLY_RESIDENT;
+    pRegs->dbStencilInfo.bits.PARTIALLY_RESIDENT = pDbZInfo->bits.PARTIALLY_RESIDENT;
 
     // For 4xAA and 8xAA need to decompress on flush for better performance
     pRegs->dbRenderOverride2.bits.DECOMPRESS_Z_ON_FLUSH       = (imageCreateInfo.samples > 2) ? 1 : 0;
@@ -286,7 +288,7 @@ void DepthStencilView::InitRegistersCommon(
         {
             pRegs->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_NEG_NUM_DB_BITS = uint8(reducePrecision ?  -22 : -24);
         }
-        else if (pRegs->dbZInfo.bits.FORMAT == Z_16)
+        else if (pDbZInfo->bits.FORMAT == Z_16)
         {
             pRegs->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_NEG_NUM_DB_BITS = uint8(reducePrecision ?  -15 : -16);
         }
@@ -296,7 +298,7 @@ void DepthStencilView::InitRegistersCommon(
         }
 
         pRegs->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_DB_IS_FLOAT_FMT =
-            ((pRegs->dbZInfo.bits.FORMAT == Z_32_FLOAT) && (depthAsZ24 == false)) ? 1 : 0;
+            ((pDbZInfo->bits.FORMAT == Z_32_FLOAT) && (depthAsZ24 == false)) ? 1 : 0;
     }
     else
     {
@@ -317,9 +319,8 @@ void DepthStencilView::UpdateImageVa(
         // Setup bits indicating the page size.
         const bool isBigPage = IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageDepthStencil);
 
-        auto*const pGfx10 = reinterpret_cast<DepthStencilViewRegs*>(pRegs);
-        pGfx10->dbRmiL2CacheControl.bits.Z_BIG_PAGE = isBigPage;
-        pGfx10->dbRmiL2CacheControl.bits.S_BIG_PAGE = isBigPage;
+        pRegs->dbRmiL2CacheControl.bits.Z_BIG_PAGE = isBigPage;
+        pRegs->dbRmiL2CacheControl.bits.S_BIG_PAGE = isBigPage;
 
         gpusize zReadBase        = m_pImage->GetSubresourceAddr(m_depthSubresource);
         gpusize zWriteBase       = zReadBase;
@@ -402,12 +403,6 @@ uint32* DepthStencilView::WriteCommandsCommon(
         ((depthLayout.usages & LayoutDepthStencilTarget) != 0))
     {
         pRegs->dbStencilInfo.bits.FORMAT = 0;
-    }
-
-    if ((depthLayout.usages == 0) &&
-        ((stencilLayout.usages & LayoutDepthStencilTarget) != 0))
-    {
-        pRegs->dbZInfo.bits.FORMAT = 0;
     }
 
     if ((depthState != DepthStencilCompressed) || (stencilState != DepthStencilCompressed))
@@ -665,7 +660,7 @@ void DepthStencilView::InitRegisters(
     const SubresId              baseDepthSubResId    = { m_depthSubresource.plane, 0 , 0 };
     const SubResourceInfo*const pBaseDepthSubResInfo = pParentImg->SubresourceInfo(baseDepthSubResId);
 
-    InitRegistersCommon(device, createInfo, internalInfo, pFmtInfo, &m_regs);
+    InitRegistersCommon(device, createInfo, internalInfo, pFmtInfo, &m_regs, &m_dbZInfo);
 
     // GFX10 adds extra bits to the slice selection...  the "hi" bits are in different fields from the "low" bits.
     // The "low" bits were set in "InitCommonImageView", take care of the new high bits here.
@@ -677,7 +672,7 @@ void DepthStencilView::InitRegisters(
 
     // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
     //                     order to be readable by TC
-    m_regs.dbZInfo.bits.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
+    m_dbZInfo.bits.ITERATE_FLUSH            = m_flags.depthMetadataTexFetch;
     m_regs.dbStencilInfo.bits.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
 
     const auto& depthAddrSettings   = m_pImage->GetAddrSettings(pDepthSubResInfo);
@@ -693,14 +688,14 @@ void DepthStencilView::InitRegisters(
         PAL_ASSERT(IsGfx103Plus(palDevice) && (stencilAddrSettings.swizzleMode == ADDR_SW_VAR_Z_X));
     }
 
-    m_regs.dbZInfo.bits.SW_MODE       = m_pImage->GetHwSwizzleMode(pDepthSubResInfo);
+    m_dbZInfo.bits.SW_MODE            = m_pImage->GetHwSwizzleMode(pDepthSubResInfo);
     m_regs.dbStencilInfo.bits.SW_MODE = m_pImage->GetHwSwizzleMode(pStencilSubResInfo);
 
-    m_regs.dbZInfo.bits.FAULT_BEHAVIOR       = FAULT_ZERO;
+    m_dbZInfo.bits.FAULT_BEHAVIOR            = FAULT_ZERO;
     m_regs.dbStencilInfo.bits.FAULT_BEHAVIOR = FAULT_ZERO;
 
-    m_regs.dbZInfo.bits.ITERATE_256          = m_pImage->GetIterate256(pDepthSubResInfo);
-    m_regs.dbStencilInfo.bits.ITERATE_256    = m_pImage->GetIterate256(pStencilSubResInfo);
+    m_dbZInfo.bits.ITERATE_256            = m_pImage->GetIterate256(pDepthSubResInfo);
+    m_regs.dbStencilInfo.bits.ITERATE_256 = m_pImage->GetIterate256(pStencilSubResInfo);
 
     PAL_ASSERT(CountSetBits(DB_DEPTH_VIEW__SLICE_START_MASK) == DbDepthViewSliceStartMaskNumBits);
     PAL_ASSERT(CountSetBits(DB_DEPTH_VIEW__SLICE_MAX_MASK)   == DbDepthViewSliceMaxMaskNumBits);
@@ -778,6 +773,19 @@ uint32* DepthStencilView::WriteCommands(
     uint32*                pCmdSpace
     ) const
 {
+    static_assert(Util::CheckSequential({ mmDB_RENDER_OVERRIDE2, mmDB_HTILE_DATA_BASE, }) &&
+                  Util::CheckSequential({ mmDB_STENCIL_INFO, mmDB_Z_READ_BASE, mmDB_STENCIL_READ_BASE,
+                                          mmDB_Z_WRITE_BASE, mmDB_STENCIL_WRITE_BASE, }),
+                  "DepthStencilViewRegs register offsets are not sequential!");
+    static_assert(Util::CheckSequential({ offsetof(DepthStencilViewRegs, dbRenderOverride2),
+                                          offsetof(DepthStencilViewRegs, dbHtileDataBase), }, sizeof(uint32)) &&
+                  Util::CheckSequential({ offsetof(DepthStencilViewRegs, dbStencilInfo),
+                                          offsetof(DepthStencilViewRegs, dbZReadBase),
+                                          offsetof(DepthStencilViewRegs, dbStencilReadBase),
+                                          offsetof(DepthStencilViewRegs, dbZWriteBase),
+                                          offsetof(DepthStencilViewRegs, dbStencilWriteBase), }, sizeof(uint32)),
+                  "Storage order of DepthStencilViewRegs is important!");
+
     DepthStencilViewRegs regs = m_regs;
     pCmdSpace = WriteCommandsCommon(depthLayout, stencilLayout, pCmdStream, pCmdSpace, &regs);
 

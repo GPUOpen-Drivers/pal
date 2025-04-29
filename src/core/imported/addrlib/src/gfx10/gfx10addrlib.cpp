@@ -2332,7 +2332,6 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeNonBlockCompressedView(
 
             if (inTail)
             {
-                // For mipmap level that is in mip tail block, hack a lot of things...
                 // Basically all mipmap levels in tail block will be viewed as a small mipmap chain that all levels
                 // are fit in tail block:
 
@@ -4071,7 +4070,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlCopyMemToSurface(
     // optimized for a particular micro-swizzle mode if available.
     ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
     ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
-    ADDR2_MIP_INFO                    mipInfo[MaxMipLevels] = {0};
+    ADDR2_MIP_INFO                    mipInfo[MaxMipLevels] = {{0}};
     ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
@@ -4190,7 +4189,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlCopySurfaceToMem(
     // optimized for a particular micro-swizzle mode if available.
     ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
     ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
-    ADDR2_MIP_INFO                    mipInfo[MaxMipLevels] = {0};
+    ADDR2_MIP_INFO                    mipInfo[MaxMipLevels] = {{0}};
     ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 

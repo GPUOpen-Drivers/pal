@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,11 @@ add_subdirectory(ddRpc)
 
 ### ddEvent ###########################################################################################################
 add_subdirectory(ddEvent)
+
+### Rgd Mgr API #######################################################################################################
+if (DD_BP_ENABLE_RGD_MGR)
+    add_subdirectory(rgdMgr)
+endif()
 
 add_subdirectory(common)
 add_subdirectory(events)

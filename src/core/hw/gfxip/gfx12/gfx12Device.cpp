@@ -85,7 +85,6 @@ IpTriple DetermineIpLevel(
 {
     IpTriple level = {};
 
-#if PAL_BUILD_NAVI4X
     switch (familyId)
     {
     case FAMILY_NV4:
@@ -95,7 +94,6 @@ IpTriple DetermineIpLevel(
         PAL_ASSERT_ALWAYS();
         break;
     }
-#endif
 
     return level;
 }
@@ -402,6 +400,11 @@ void InitializeGpuChipProperties(
     }
 
     pInfo->gfx9.numActiveShaderEngines = pInfo->gfx9.numShaderEngines;
+
+    pInfo->gfxip.wgs.supported                = true;
+    pInfo->gfxip.wgs.metadataAddrAlignment    = sizeof(uint64);
+    pInfo->gfxip.wgs.instrCacheAddrAlignment  = 4_KiB;
+    pInfo->gfxip.wgs.dataCacheAddrAlignment   = 64_KiB;
 
     // Nothing else should be set after this point.
 }
@@ -2619,6 +2622,8 @@ uint32 Device::GetShaderPrefetchSize(
                                       Gfx12::SPI_SHADER_PGM_RSRC4_GS__INST_PREF_SIZE__SHIFT));
     static_assert(MaxPrefetchSize == (Gfx12::SPI_SHADER_PGM_RSRC4_HS__INST_PREF_SIZE_MASK >>
                                       Gfx12::SPI_SHADER_PGM_RSRC4_HS__INST_PREF_SIZE__SHIFT));
+    static_assert(MaxPrefetchSize == (Gfx12::WGS_COMPUTE_PGM_RSRC3__INST_PREF_SIZE_MASK >>
+                                      Gfx12::WGS_COMPUTE_PGM_RSRC3__INST_PREF_SIZE__SHIFT));
 
     constexpr gpusize CachelineSizeBytes = 128;
 

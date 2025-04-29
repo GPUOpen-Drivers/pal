@@ -177,7 +177,7 @@ private:
     virtual ADDR_E_RETURNCODE HwlComputeStereoInfo(
         const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn,
         UINT_32*                                pAlignY,
-        UINT_32*                                pRightXor) const;
+        UINT_32*                                pRightXor) const override;
 
     void SanityCheckSurfSize(
         const ADDR3_COMPUTE_SURFACE_INFO_PARAMS_INPUT*   pIn,

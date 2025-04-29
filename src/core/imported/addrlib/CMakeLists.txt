@@ -129,6 +129,16 @@ if(ADDR_GFX11_BUILD)
             target_compile_definitions(addrlib PRIVATE ADDR_PHOENIX2_BUILD)
         endif()
         #endif
+        #if ADDR_HAWK_POINT1_BUILD
+        if(ADDR_HAWK_POINT1_BUILD)
+            target_compile_definitions(addrlib PRIVATE ADDR_HAWK_POINT1_BUILD)
+        endif()
+        #endif
+        #if ADDR_HAWK_POINT2_BUILD
+        if(ADDR_HAWK_POINT2_BUILD)
+            target_compile_definitions(addrlib PRIVATE ADDR_HAWK_POINT2_BUILD)
+        endif()
+        #endif
     endif()
     #endif
 endif()

@@ -45,7 +45,7 @@ constexpr MergedFormatPropertiesTable {{ name }}MergedFormatPropertiesTable =
 {%- if ifmt.ifdef_str %}
 #if {{ ifmt.ifdef_str -}}
 {% endif -%}{#- Newline #}
-    // {{ fmt_name }}
+    // {{ ifmt.real_format_name }}
     {
         {%- set linear_flags = fmt_data.format_feature_flags(ifmt, True) -%}
         {% if linear_flags|length == 0 %}
@@ -78,6 +78,14 @@ constexpr MergedFormatPropertiesTable {{ name }}MergedFormatPropertiesTable =
         ),
         {%- endif %}
     },{%- if ifmt.ifdef_str %}
+{% if ifmt.generate_reserved -%}
+#else
+    // {{ fmt_name }}
+    {
+        FormatFeatureFlags(0),
+        FormatFeatureFlags(0),
+    },
+{% endif -%}
 #endif //{{ ifmt.ifdef_str -}}
 {% endif -%}{#- Newline #}{% endfor %}
 {{ '}}' }};
@@ -89,6 +97,19 @@ constexpr MergedFlatFmtInfo {{ name }}MergedChannelFmtInfoTbl[] =
 {%- for fmt_name, fmt_data in hwl_data['hwFormats'].items() %}
 {%- set ifmt = IFmts[fmt_name] %}{%- if ifmt.ifdef_str %}
 #if {{ ifmt.ifdef_str }}{%- endif %}
+    // ChNumFormat::{{ ifmt.real_format_name }}
+    {
+        ChNumFormat::{{ ifmt.real_format_name }},
+        Chip::{{ fmt_data.cb['enum'] }},
+        Chip::{{ fmt_data.cb['num_fmt_enum'] }},
+        Chip::{{ fmt_data.texture['enum'] }},
+        Chip::{{ fmt_data.buffer['enum'] }},
+        Chip::{{ fmt_data.db['z_enum'] }},
+        Chip::{{ fmt_data.db['s_enum'] }},
+    },{%- if ifmt.ifdef_str %}
+{% if ifmt.generate_reserved -%}
+#else
+    {% set fmt_data = hwl_data['hwFormats']['Undefined'] -%}
     // ChNumFormat::{{ fmt_name }}
     {
         ChNumFormat::{{ fmt_name }},
@@ -98,7 +119,8 @@ constexpr MergedFlatFmtInfo {{ name }}MergedChannelFmtInfoTbl[] =
         Chip::{{ fmt_data.buffer['enum'] }},
         Chip::{{ fmt_data.db['z_enum'] }},
         Chip::{{ fmt_data.db['s_enum'] }},
-    },{%- if ifmt.ifdef_str %}
+    },
+{% endif -%}
 #endif // {{ ifmt.ifdef_str }}{%- endif %}
 {%- endfor %}
 };

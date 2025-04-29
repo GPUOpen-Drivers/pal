@@ -58,6 +58,9 @@ constexpr uint32 EiV2OffsetModeVertexBindingFixPfpVersion = 2720;
 // PFP version after which HS HW stage register support can be enabled.
 constexpr uint32 EiV2HsHwRegFixPfpVersion = 2740;
 
+// PFP version after which WorkGroup register supoort can be enabled.
+constexpr uint32 EiV2WorkGroupRegFixPfpVersion = 2810;
+
 // As the EI V2 PM4 is defined on both PFP/ME and MEC this enum is for indicating the engine.
 enum EiEngine : uint8
 {
@@ -98,6 +101,7 @@ struct EiUserDataRegs
     uint8  drawIndexReg;        // GS or HS HW stage (To do item)
     uint8  meshDispatchDimsReg; // GS HW stage only
     uint8  meshRingIndexReg;    // GS HW stage only
+    uint16 numWorkGroupReg;     // CS HW stage only
     // These mark reg offsets for the ACE EI V2 PM4
     // Translation to COMPUTE_USER_DATA_0-based offset is required before filling into EiDispatchTaskMesh
     uint16 aceMeshTaskRingIndexReg;
@@ -143,8 +147,10 @@ struct EiDispatch
     uint32 dataOffset;
     struct
     {
-        uint32 reserved     : 16;
-        uint32 commandIndex : 16;
+        uint32 numWorkGroup       : 10;
+        uint32 numWorkGroupEnable : 1;
+        uint32 reserved           : 5;
+        uint32 commandIndex       : 16;
     } locData;
     COMPUTE_DISPATCH_INITIATOR dispatchInitiator;
 };

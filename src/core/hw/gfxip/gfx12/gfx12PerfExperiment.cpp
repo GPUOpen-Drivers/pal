@@ -1896,10 +1896,11 @@ void PerfExperiment::IssueBegin(
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
-
         // WaitIdle ensures the work before Begin is not profiled in this experiment
         pCmdSpace = WriteWaitIdle(m_flushCache, pCmdBuffer, pCmdStream, pCmdSpace);
+
+        // PerfCounterWindow needs to not be active during VGT Event usage
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
 
         regCP_PERFMON_CNTL cpPerfmonCntl = {};
         // Disable and reset all types of perf counters. We will enable the counters when everything is ready.
@@ -1999,10 +2000,11 @@ void PerfExperiment::IssueEnd(
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
-
         // This will WaitIdle, transition the counter state to "stop", and take end samples if enabled
         pCmdSpace = WriteStopAndSample(m_perfExperimentFlags.perfCtrsEnabled, false, pCmdBuffer, pCmdStream, pCmdSpace);
+
+        // Likely redundant, but filtered in CmdStream if so
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
 
         if (m_perfExperimentFlags.sqtTraceEnabled)
         {
@@ -2012,10 +2014,12 @@ void PerfExperiment::IssueEnd(
 
         if (m_perfExperimentFlags.spmTraceEnabled)
         {
+            pCmdSpace = pCmdStream->WritePerfCounterWindow(false, pCmdSpace);
             // The old perf experiment code did a wait-idle between stopping SPM and resetting things. It said that
             // the RLC can page fault on its remaining writes if we reset things too early. This requirement isn't
             // captured in any HW programming docs but it does seem like a reasonable concern.
             pCmdSpace = WriteWaitIdle(false, pCmdBuffer, pCmdStream, pCmdSpace);
+            pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
         }
 
         // Start disabling and resetting state that we need to clean up. Note that things like the select registers
@@ -2635,7 +2639,10 @@ uint32* PerfExperiment::WriteStartThreadTraces(
 
     if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
     {
+        // The performance counter window needs to be disabled during event signaling
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(false, pCmdSpace);
         pCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_START, pCmdStream->GetEngineType(), pCmdSpace);
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
     }
     else
     {
@@ -2660,6 +2667,9 @@ uint32* PerfExperiment::WriteStopThreadTraces(
 {
     const EngineType engineType = pCmdStream->GetEngineType();
 
+    // Must disable perfcounter window around events
+    pCmdSpace = pCmdStream->WritePerfCounterWindow(false, pCmdSpace);
+
     // Stop the thread traces. The spec says it's best to use an event on graphics but we should write the
     // THREAD_TRACE_ENABLE register on compute.
     if (m_pDevice->EngineSupportsGraphics(engineType))
@@ -2678,6 +2688,8 @@ uint32* PerfExperiment::WriteStopThreadTraces(
 
     // Send a TRACE_FINISH event (even on compute).
     pCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_FINISH, engineType, pCmdSpace);
+
+    pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
 
     for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
     {
@@ -3146,10 +3158,16 @@ uint32* PerfExperiment::WriteStopAndSample(
         cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
     }
 
+    // Disable the window for VGT Event Usage
+    pCmdSpace = pCmdStream->WritePerfCounterWindow(false, pCmdSpace);
+
     // Flush and wait to ensure all prior work has completed operation before disabling counters
     pCmdSpace = WriteWaitIdle(cacheFlush, pCmdBuffer, pCmdStream, pCmdSpace);
     // Stop windowed counters after the sample has completed through the pipeline
     pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
+
+    // Re-enable before changing GRBM_GFX_INDEX
+    pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
     // Send global stop signals
     pCmdSpace = WriteCpPerfmonCtrl(cpPerfmonCntl, pCmdStream, pCmdSpace);
     // Sq for GFX12 has a GRBM fifo that needs extra synchronization to ensure the sample has completed
@@ -3360,6 +3378,7 @@ uint32* PerfExperiment::WriteUpdateWindowedCounters(
     // As with thread traces, we must use an event on universal queues but set a register on compute queues.
     if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
     {
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(false, pCmdSpace);
         if (enable)
         {
             pCmdSpace += CmdUtil::BuildNonSampleEventWrite(PERFCOUNTER_START,
@@ -3372,6 +3391,7 @@ uint32* PerfExperiment::WriteUpdateWindowedCounters(
                                                            pCmdStream->GetEngineType(),
                                                            pCmdSpace);
         }
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
     }
 
     regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};

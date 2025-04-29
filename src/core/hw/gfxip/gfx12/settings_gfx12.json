@@ -1913,6 +1913,19 @@
       "Scope": "PrivatePalGfx12Key",
       "Type": "enum",
       "Name": "DistributedCompressionMask"
+    },
+    {
+      "Description": "Enable use of PERF_COUNTER_WINDOW PM4 Packet",
+      "Tags": [
+        "General",
+        "Gfx12"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx12Key",
+      "Type": "bool",
+      "Name": "Gfx12EnablePerfCounterWindow"
     }
   ]
 }

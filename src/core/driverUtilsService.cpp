@@ -58,8 +58,7 @@ DriverUtilsService::DriverUtilsService(
     m_raytracingShaderTokenEnabled(false),
     m_staticVmid(false),
     m_useOverlayBuffer(false),
-    m_pPlatform(pPlatform),
-    m_overlayDisplayMode(OverlayDisplayMode::Default)
+    m_pPlatform(pPlatform)
 {
     memset(m_overlayBuffer, 0, kNumOverlayStrings * kMaxOverlayStringLength);
 }
@@ -294,28 +293,6 @@ DD_RESULT DriverUtilsService::ModifyDbgLogOriginationMask(
 #endif
     {
         result = DD_RESULT_COMMON_INVALID_PARAMETER;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-DD_RESULT DriverUtilsService::SetOverlayDisplayMode(
-    const void* pParamBuffer,
-    size_t      paramBufferSize)
-{
-    DD_RESULT result = DD_RESULT_COMMON_INVALID_PARAMETER;
-
-    if ((paramBufferSize == sizeof(OverlayDisplayMode)) && (pParamBuffer != nullptr))
-    {
-        OverlayDisplayMode mode = *static_cast<const OverlayDisplayMode*>(pParamBuffer);
-
-        // Validate the new mode
-        if (mode < OverlayDisplayMode::Count)
-        {
-            m_overlayDisplayMode = mode;
-            result               = DD_RESULT_SUCCESS;
-        }
     }
 
     return result;

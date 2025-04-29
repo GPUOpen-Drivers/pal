@@ -238,6 +238,16 @@ public:
         Util::StringView<char> name, GpuSymbol* pSymbol) const
             { return GetAbsoluteSymbolAddress(m_abiReader.FindSymbol(name), pSymbol); }
 
+    // Get the address of a HW stage entry point on the GPU.
+    Result GetEntryPointGpuSymbol(
+        Util::Abi::HardwareStage                stage,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        GpuSymbol*                              pSymbol) const;
+
+    Result GetAbsoluteSymbolAddress(
+        const Util::Abi::SymbolEntry* pElfSymbol,
+        GpuSymbol*                    pSymbol) const;
+
 protected:
     Result ApplyRelocationSection(uint32 elfIndex, const Util::ElfReader::Relocations& relocations);
 
@@ -248,10 +258,6 @@ private:
         SectionInfo* pChunks);
 
     void PatchPipelineInternalSrdTable(uint32 elfIndex, Util::ElfReader::SectionId dataSectionId);
-
-    Result GetAbsoluteSymbolAddress(
-        const Util::Abi::SymbolEntry* pElfSymbol,
-        GpuSymbol*                    pSymbol) const;
 
     GpuHeap SelectUploadHeap(GpuHeap heap);
 

@@ -72,6 +72,22 @@ def ConvertToHashComment(copyright):
     outstr += "#" * 120 + "/\n"
     return outstr
 
+# Wrap a copyright in a single or multipline comment block (rst)
+def ConvertToDotDotComment(copyright):
+    lines = copyright.strip().split("\n")
+    if len(lines) == 1:
+        return f".. {lines[0]}\n"
+
+    outstr = ".." * 119 + "\n"
+    for line in lines:
+        if line:
+            outstr += f".. {line}\n"
+        else:
+            outstr += "..\n"
+    outstr += ".." * 119 + "/\n"
+    return outstr
+
 # Simple default copyright strings
 Copyright = GenCopyrightForYear()
 CppCopyright = ConvertToCppComment(Copyright)
+RstCopyright = ConvertToDotDotComment(Copyright)

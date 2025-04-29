@@ -213,6 +213,8 @@ typedef enum SqttGfxIpLevel
     SQTT_GFXIP_LEVEL_GFXIP_10_3 = 0x9,
     SQTT_GFXIP_LEVEL_GFXIP_11_0 = 0xC,
     SQTT_GFXIP_LEVEL_GFXIP_11_5 = 0xD,
+    // Reserved                   0xE
+    // Reserved                   0xF
 #if PAL_BUILD_GFX12
     SQTT_GFXIP_LEVEL_GFXIP_12   = 0x10,
 #endif

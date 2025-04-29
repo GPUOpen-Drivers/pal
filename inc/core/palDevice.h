@@ -407,6 +407,7 @@ enum InternalSettingScope : uint32
     PrivatePalGfx12Key = 0x7,
 #endif
 #endif
+    PublicPalFile      = 0x9,
 };
 
 /// Enum defining override states for feature settings.
@@ -882,6 +883,7 @@ enum class SettingScope
 {
     Driver,   ///< For settings specific to a UMD
     Global,   ///< For global settings controlled by CCC
+    File,     ///< For settings that are only read from a file
 };
 
 /// Big Software (BigSW) Release information structure
@@ -1261,8 +1263,12 @@ struct DeviceProperties
 #else
                 uint32 reserved13 : 1;
 #endif
+                /// All GPU memory allocations in all heaps are always initialized to zero on creation.
+                /// The @ref initializeToZero flag is not needed when this is true.
+                uint32 alwaysInitializedToZero : 1;
+
                 /// Reserved for future use.
-                uint32 reserved : 18;
+                uint32 reserved : 17;
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< GPU memory property flags.
@@ -1513,8 +1519,8 @@ struct DeviceProperties
 #else
                 uint64 placeholder13                      :  1;
 #endif
-                uint64 placeholder14                      :  1;
-                uint64 reserved                           :  60; ///< Reserved for future use.
+                uint64 placeholder14                      :  2;
+                uint64 reserved                           :  59; ///< Reserved for future use.
             };
             uint64 u64All[2];           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1692,6 +1698,10 @@ struct DeviceProperties
         bool   supportQueuePriority;        ///< Support create queue with priority
         bool   supportDynamicQueuePriority; ///< Support set the queue priority through IQueue::SetExecutionPriority
 
+#if ( PAL_AMDGPU_BUILD)
+        bool   supportMemoryBudgetQuery;    ///< Support memory budget query through IDevice::QueryGpuMemoryBudgetInfo
+#endif
+
         uint32                     umdFpsCapFrameRate;   ///< The frame rate of the UMD FPS CAP
         VirtualDisplayCapabilities virtualDisplayCaps;   ///< Capabilities of virtual display, it's provided by KMD
 
@@ -1719,11 +1729,12 @@ struct DeviceProperties
         {
             struct
             {
-                uint32 supportPostflip  : 1;  ///< KMD support DirectCapture post-flip access
-                uint32 supportPreflip   : 1;  ///< KMD support DirectCapture pre-flip access
-                uint32 supportRSync     : 1;  ///< KMD support RSync
-                uint32 maxFrameGenRatio : 4;  ///< Maximum frame generation ratio or zero if not supported
-                uint32 reserved         : 25; ///< Reserved for future use.
+                uint32 supportPostflip   : 1;  ///< KMD support DirectCapture post-flip access
+                uint32 supportPreflip    : 1;  ///< KMD support DirectCapture pre-flip access
+                uint32 supportRSync      : 1;  ///< KMD support RSync
+                uint32 maxFrameGenRatio  : 4;  ///< Maximum frame generation ratio or zero if not supported
+                uint32 supportNonPrimary : 1;  ///< KMD support non-primary DirectCapture auxiliary data
+                uint32 reserved          : 24; ///< Reserved for future use.
             };
             uint32 u32All;
         } directCapture;
@@ -1803,7 +1814,10 @@ union FullScreenFrameMetadataControlFlags
                                                ///  interval override from UMD.
         uint32 disableFreeMux            :  1; ///< KMD notifies UMD to disable FreeMux.
         uint32 maxFrameLatency           :  2; ///< KMD can notify UMD to override the frame latency of an app.
-        uint32 reserved                  : 15; ///< Reserved for future use.
+        uint32 sendMotionVectors         :  1; ///< Send the motion vector in CmdBufInfo once per frame
+        uint32 sendDepth                 :  1; ///< Send the depth buffer in CmdBufInfo once per frame
+        uint32 sendCameraMatrix          :  1; ///< Send the camera matrix in CmdBufInfo once per frame
+        uint32 reserved                  : 12; ///< Reserved for future use.
 
     };
     uint32 u32All;    ///< Flags packed as 32-bit uint.
@@ -3032,6 +3046,35 @@ struct GlSyncConfig
     uint8  scanRateCoeff;       ///< Scan Rate Multiplier applied to original sync signal. GlSyncScanRateCoeff*
     uint32 sigGenFrequency;     ///< Frequency in mHz of internal signal generator
 };
+
+#if ( PAL_AMDGPU_BUILD)
+/// Gpu heap group enumeration. One heap group contains several pal GpuHeap.
+enum GpuHeapGroup : uint32
+{
+    GpuHeapGroupLocal     = 0x0,    /// Local heap group includes GpuHeapLocal and GpuHeapInvisible on Windows.
+                                    /// But GpuHeapInvisible is not included on Linux.
+    GpuHeapGroupNonLocal  = 0x1,    /// NonLocal heap group includes GpuHeapGartUswc and GpuHeapGartCacheable.
+#if PAL_AMDGPU_BUILD
+    GpuHeapGroupInvisible = 0x2,    /// This is used on Linux as GpuHeapLocal and GpuHeapInvisible are not combined.
+#endif
+    GpuHeapGroupCount,
+};
+
+/// Struct for querying current gpu memory usage info and budget info.
+struct GpuMemoryBudgetInfo
+{
+#if PAL_AMDGPU_BUILD
+    gpusize systemUsage[GpuHeapGroupCount];    /// Current total memory usage of specified heap group of whole system.
+#else
+    gpusize usage[GpuHeapGroupCount];          /// Current total memory usage of specified heap group of current process.
+    gpusize budget[GpuHeapGroupCount];         /// Current total memory budget of specified heap group of the device which
+                                               /// implies how much memory the device can allocate from that heap group
+                                               /// before allocations may fail or cause performance degradation, including
+                                               /// all allocated memory. Budget might be affected by OS status and other
+                                               /// processes.
+#endif
+};
+#endif
 
 /// Reclaim allocation result enumeration.
 enum class ReclaimResult : uint8
@@ -4905,6 +4948,14 @@ public:
         const ExternalQueueSemaphoreOpenInfo& openInfo,
         void*                                 pPlacementAddr,
         IQueueSemaphore**                     ppQueueSemaphore) = 0;
+
+#if ( PAL_AMDGPU_BUILD)
+    /// Query current gpu memory usage info and budget info of specified heap group of the device.
+    ///
+    /// @param [out]  pInfo                  Heap usage and budget info reported from Os.
+    virtual Result QueryGpuMemoryBudgetInfo(
+        GpuMemoryBudgetInfo* pInfo) = 0;
+#endif
 
     /// Determines the amount of system memory required for an IFence object.  An allocation of this amount of memory
     /// must be provided in the pPlacementAddr parameter of CreateFence().

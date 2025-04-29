@@ -216,6 +216,12 @@ private:
         DispatchDims launchSize,
         DispatchDims logicalSize);
 
+    virtual size_t BuildWriteToZero(
+        gpusize       dstAddr,
+        uint32        numDwords,
+        const uint32* pZeros,
+        uint32*       pCmdSpace) const override;
+
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
 
@@ -229,17 +235,6 @@ private:
         const DispatchDims& logicalSize,
         uint32*             pCmdSpace);
 
-    uint32* SetUserSgprReg(
-        uint16  regAddr,
-        uint32  regValue,
-        uint32* pCmdSpace);
-
-    uint32* SetSeqUserSgprRegs(
-        uint16      startAddr,
-        uint16      endAddr,
-        const void* pValues,
-        uint32*     pCmdSpace);
-
     template <bool HasPipelineChanged>
     uint32* ValidateUserData(
         const ComputePipelineSignature* pPrevSignature,
@@ -251,10 +246,6 @@ private:
         const UserDataEntries&          userData,
         const ComputePipelineSignature* pPrevSignature,
         uint32**                        ppCmdSpace);
-
-    template <bool Pm4OptImmediate>
-    uint32* WritePackedUserDataEntriesToSgprs(uint32* pCmdSpace);
-    uint32* WritePackedUserDataEntriesToSgprs(uint32* pCmdSpace);
 
     void LeakNestedCmdBufferState(
         const ComputeCmdBuffer& cmdBuffer);
@@ -272,20 +263,6 @@ private:
 
     // Tracks the user-data signature of the currently active compute pipeline.
     const ComputePipelineSignature*  m_pSignatureCs;
-
-    const uint16 m_baseUserDataRegCs;
-    const bool   m_supportsShPairsPacketCs;
-
-    // Array of valid packed register pairs holding user entries to be written into SGPRs.
-    PackedRegisterPair m_validUserEntryRegPairsCs[Gfx11MaxPackedUserEntryCountCs];
-    // A lookup of registers written into m_validUserEntryRegPairsCs where each index in the lookup maps to each compute
-    // user SGPR. The value at each index divided by 2 serves as an index into m_validUserEntryRegPairsCs.
-    UserDataEntryLookup m_validUserEntryRegPairsLookupCs[Gfx11MaxUserDataIndexCountCs];
-    uint32              m_minValidUserEntryLookupValueCs;
-
-    // Total number of valid packed register pair entries mapped in m_validUserEntryRegPairsCs. This also functions as
-    // the index to the valid packed register pair lookup.
-    uint32             m_numValidUserEntriesCs;
 
     size_t  m_ringSizeComputeScratch;
 

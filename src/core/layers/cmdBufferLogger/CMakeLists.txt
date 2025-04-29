@@ -33,4 +33,6 @@ target_sources(pal PRIVATE
     cmdBufferLoggerImage.h
     cmdBufferLoggerPlatform.cpp
     cmdBufferLoggerPlatform.h
+    cmdBufferLoggerQueryPool.cpp
+    cmdBufferLoggerQueryPool.h
 )

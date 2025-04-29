@@ -48,15 +48,29 @@ struct QueueSemaphoreCreateInfo
     {
         struct
         {
-            uint32 shareable            :  1;  ///< This queue semaphore may be opened for use by a different device.
-            uint32 sharedViaNtHandle    :  1;  ///< This queue semaphore can only be shared through Nt handle.
+            /// This queue semaphore may be opened for use by a different device.
+            /// For DX12 native fence, the flag needs to be consistent with D3DDDI_SYNCHRONIZATIONOBJECT_FLAGS.Shared
+            /// given by DX runtime.
+            uint32 shareable            :  1;
+            /// This queue semaphore can only be shared through Nt handle.
+            /// For DX12 native fence, the flag needs to be consistent with
+            /// D3DDDI_SYNCHRONIZATIONOBJECT_FLAGS.NtSecuritySharing given by DX runtime.
+            uint32 sharedViaNtHandle    :  1;
             uint32 externalOpened       :  1;  ///< Semaphore was created by other APIs
             /// This queue semaphore is a timeline semaphore. Timeline semaphores have a 64-bit unsigned integer payload
             /// which gets monotonically increased with each Signal operation. A wait on a timeline semaphore blocks the
             /// waiter until the specified payload value has been signaled.
+            /// For DX12 native fence, runtime determines initialCount. Therefore, timeline flag has to be set.
             uint32 timeline             :  1;
-            uint32 noSignalOnDeviceLost :  1;  ///< Do not signal the queue semaphore to max if the device is lost.
-            uint32 reserved             : 27;  ///< Reserved for future use.
+            /// Do not signal the queue semaphore to max if the device is lost.
+            /// For DX12 native fence, the flag needs to be consistent with
+            /// D3DDDI_SYNCHRONIZATIONOBJECT_FLAGS.NoSignalMaxValueOnTdr given by DX runtime.
+            uint32 noSignalOnDeviceLost :  1;
+            /// For native fence only. If it's 0x0, the native fence type is D3DDDI_NATIVEFENCE_TYPE_DEFAULT.
+            /// If it's 0x1, native fence type is D3DDDI_NATIVEFENCE_TYPE_INTRA_GPU.
+            /// For DX12, the value is determined by runtime. DXCP needs to set it by reading D3DDDI_NATIVEFENCEINFO.
+            uint32 gpuOnly              :  1;
+            uint32 reserved             : 26;  ///< Reserved for future use.
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< Queue semaphore creation flags.
@@ -69,6 +83,9 @@ struct QueueSemaphoreCreateInfo
     uint64 initialCount;            ///< Initial value for timeline semaphores. (or)
                                     ///  Initial count value for counting semaphores.
                                     ///  Must not be larger than maxCount for counting semaphores.
+                                    ///  For DX12 native fence, DXCP needs to pass InitialFenceValue from
+                                    ///  D3DDDI_NATIVEFENCEINFO.
+
 };
 
 /// Specifies parameters for opening a queue semaphore for use on another device.  Input structure to

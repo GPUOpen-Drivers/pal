@@ -238,11 +238,9 @@ bool Device::DetermineGpuIpLevels(
         break;
 
 #if PAL_BUILD_GFX12
-#if PAL_BUILD_NAVI4X
     case FAMILY_NV4:
         pIpLevels->gfx = Gfx12::DetermineIpLevel(familyId, eRevId);
         break;
-#endif
 #endif
 
     default:
@@ -3852,8 +3850,8 @@ Result Device::CreateGraphicsPipeline(
     constexpr GraphicsPipelineInternalCreateInfo NullInternalInfo = {};
 
     return (m_pGfxDevice != nullptr) ?
-            m_pGfxDevice->CreateGraphicsPipeline(createInfo, NullInternalInfo, pPlacementAddr,
-                                                 createInfo.flags.clientInternal, ppPipeline) :
+            m_pGfxDevice->CreateGraphicsPipelineUnpackArchiveLibs(createInfo, NullInternalInfo, pPlacementAddr,
+                                                                  createInfo.flags.clientInternal, ppPipeline) :
             Result::ErrorUnavailable;
 }
 
@@ -4229,8 +4227,21 @@ bool Device::ReadSetting(
     size_t          bufferSz
     ) const
 {
-    const InternalSettingScope internalScope =
-        (settingScope == SettingScope::Driver) ? PrivateDriverKey : PublicCatalystKey;
+    InternalSettingScope internalScope = PrivateDriverKey;
+
+    switch (settingScope)
+    {
+        case SettingScope::Global:
+            internalScope = PublicCatalystKey;
+            break;
+        case SettingScope::File:
+            internalScope = PublicPalFile;
+            break;
+        case SettingScope::Driver:
+        default:
+            internalScope = PrivateDriverKey;
+            break;
+    }
 
     return ReadSetting(pSettingName, valueType, pValue, internalScope, bufferSz);
 }
@@ -5039,7 +5050,8 @@ bool Device::EnablePerfCountersInPreamble() const
             enable = true;
             break;
         case StartingPerfcounterStateAuto:
-            enable = (platformSettings.gpuProfilerMode > GpuProfilerDisabled) ||
+            enable = ((platformSettings.gpuProfilerMode > GpuProfilerDisabled) &&
+                      (platformSettings.gpuProfilerConfig.granularity == GpuProfilerGranularityFrame)) ||
                      m_pPlatform->IsDevDriverProfilingEnabled() ||
                      GetPublicSettings()->enableSqttMarkerEvent; // we assume if client wants SQTT they want counters too
             break;

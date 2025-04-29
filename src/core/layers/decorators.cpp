@@ -74,6 +74,34 @@ CmdBufferBuildInfo NextCmdBufferBuildInfo(
 }
 
 // =====================================================================================================================
+void NextCmdBufInfo(
+    const CmdBufInfo& origInfo,
+    CmdBufInfo*       pNextInfo)
+{
+    PAL_ASSERT(pNextInfo != nullptr);
+
+    pNextInfo->u32All = origInfo.u32All;
+
+    if (pNextInfo->isValid != 0)
+    {
+        // We can copy/unwrap this stuff without checking any flags because clients are required to
+        // default/zero-init all PAL interface structs.
+        pNextInfo->pPrimaryMemory      = NextGpuMemory(origInfo.pPrimaryMemory);
+        pNextInfo->pDirectCapMemory    = NextGpuMemory(origInfo.pDirectCapMemory);
+        pNextInfo->pPrivFlipMemory     = NextGpuMemory(origInfo.pPrivFlipMemory);
+        pNextInfo->pEarlyPresentEvent  = origInfo.pEarlyPresentEvent;
+        pNextInfo->frameIndex          = origInfo.frameIndex;
+        pNextInfo->vidPnSourceId       = origInfo.vidPnSourceId;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 865
+        pNextInfo->frameId             = origInfo.frameId;
+#endif
+        pNextInfo->pMotionVectorMemory = NextGpuMemory(origInfo.pMotionVectorMemory);
+        pNextInfo->pDepthMemory        = NextGpuMemory(origInfo.pDepthMemory);
+        pNextInfo->pCameraMemory       = NextGpuMemory(origInfo.pCameraMemory);
+    }
+}
+
+// =====================================================================================================================
 IColorBlendState* NextColorBlendState(
     const IColorBlendState* pColorBlendState)
 {
@@ -2180,7 +2208,7 @@ void CmdBufferFwdDecorator::CmdBindTargets(
 void CmdBufferFwdDecorator::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
-    PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
+    PlatformDecorator* const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<const IGpuEvent*,  16, PlatformDecorator> gpuEvents(barrierInfo.gpuEventWaitCount, pPlatform);
     AutoBuffer<const IImage*,     16, PlatformDecorator> targets(barrierInfo.rangeCheckedTargetWaitCount, pPlatform);
     AutoBuffer<BarrierTransition, 32, PlatformDecorator> transitions(barrierInfo.transitionCount, pPlatform);
@@ -2200,20 +2228,20 @@ void CmdBufferFwdDecorator::CmdBarrier(
         {
             gpuEvents[i] = NextGpuEvent(barrierInfo.ppGpuEvents[i]);
         }
-        nextBarrierInfo.ppGpuEvents = &gpuEvents[0];
+        nextBarrierInfo.ppGpuEvents = gpuEvents.Data();
 
         for (uint32 i = 0; i < barrierInfo.rangeCheckedTargetWaitCount; i++)
         {
             targets[i] = NextImage(barrierInfo.ppTargets[i]);
         }
-        nextBarrierInfo.ppTargets = &targets[0];
+        nextBarrierInfo.ppTargets = targets.Data();
 
         for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
         {
             transitions[i]                  = barrierInfo.pTransitions[i];
             transitions[i].imageInfo.pImage = NextImage(barrierInfo.pTransitions[i].imageInfo.pImage);
         }
-        nextBarrierInfo.pTransitions = &transitions[0];
+        nextBarrierInfo.pTransitions = transitions.Data();
 
         m_pNextLayer->CmdBarrier(nextBarrierInfo);
     }
@@ -2227,7 +2255,7 @@ ReleaseToken CmdBufferFwdDecorator::CmdRelease(
 #endif
     const AcquireReleaseInfo& releaseInfo)
 {
-    PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
+    PlatformDecorator* const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(releaseInfo.imageBarrierCount, pPlatform);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
@@ -2268,7 +2296,7 @@ void CmdBufferFwdDecorator::CmdAcquire(
     const ReleaseToken*       pSyncTokens)
 #endif
 {
-    PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
+    PlatformDecorator* const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(acquireInfo.imageBarrierCount, pPlatform);
 
     if (imageBarriers.Capacity() < acquireInfo.imageBarrierCount)
@@ -2359,7 +2387,7 @@ void CmdBufferFwdDecorator::CmdAcquireEvent(
 void CmdBufferFwdDecorator::CmdReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo)
 {
-    PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
+    PlatformDecorator* const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(barrierInfo.imageBarrierCount, pPlatform);
 
     if (imageBarriers.Capacity() < barrierInfo.imageBarrierCount)
@@ -2767,33 +2795,8 @@ Result QueueDecorator::Submit(
 
                 for (uint32 cmdBufIdx = 0; cmdBufIdx < origSubQueueInfo.cmdBufferCount; cmdBufIdx++)
                 {
-                    CmdBufInfo* pNextCmdBufInfoList = &nextCmdBufInfoList[currCmdBufInfoIdx + cmdBufIdx];
-                    pNextCmdBufInfoList->u32All = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].u32All;
-
-                    if (pNextCmdBufInfoList->isValid)
-                    {
-                        pNextCmdBufInfoList->pPrimaryMemory =
-                            NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrimaryMemory);
-
-                        if ((pNextCmdBufInfoList->captureBegin) ||
-                            (pNextCmdBufInfoList->captureEnd))
-                        {
-                            pNextCmdBufInfoList->pDirectCapMemory =
-                                NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pDirectCapMemory);
-                        }
-
-                        if (pNextCmdBufInfoList->privateFlip)
-                        {
-                            pNextCmdBufInfoList->pPrivFlipMemory =
-                                NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrivFlipMemory);
-                            pNextCmdBufInfoList->vidPnSourceId =
-                                origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].vidPnSourceId;
-                        }
-
-                        pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].frameIndex;
-                        pNextCmdBufInfoList->pEarlyPresentEvent =
-                            origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pEarlyPresentEvent;
-                    }
+                    NextCmdBufInfo(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx],
+                                   &nextCmdBufInfoList[currCmdBufInfoIdx + cmdBufIdx]);
                 }
 
                 currCmdBufInfoIdx += origSubQueueInfo.cmdBufferCount;
@@ -2999,6 +3002,14 @@ PipelineDecorator::~PipelineDecorator()
         }
         PAL_FREE(m_pPipelineDecorators, m_pDevice->GetPlatform());
     }
+
+    // Clean up the Archive pipeline libraries. There is no need to handle each library and call the destructor as
+    // it currently does not do anything specific, and calling Destroy would delete the underlying library.
+    if (m_pLibraryDecorators)
+    {
+        PAL_FREE(m_pLibraryDecorators, m_pDevice->GetPlatform());
+    }
+
 }
 
 // =====================================================================================================================

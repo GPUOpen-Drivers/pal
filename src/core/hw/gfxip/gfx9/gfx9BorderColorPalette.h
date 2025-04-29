@@ -46,10 +46,12 @@ class BorderColorPalette final : public Pal::BorderColorPalette
 public:
     BorderColorPalette(const Device& device, const BorderColorPaletteCreateInfo& createInfo);
 
-    uint32* WriteCommands(PipelineBindPoint bindPoint,
-                          gpusize           timestampGpuAddr,
-                          CmdStream*        pCmdStream,
-                          uint32*           pCmdSpace) const;
+    uint32* WriteCommands(
+        PipelineBindPoint bindPoint,
+        gpusize           timestampGpuAddr,
+        uint32            timestampValue,
+        CmdStream*        pCmdStream,
+        uint32*           pCmdSpace) const;
 
 protected:
     virtual ~BorderColorPalette() {}

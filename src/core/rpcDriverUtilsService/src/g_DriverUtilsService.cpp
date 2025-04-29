@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -197,27 +197,6 @@ static DD_RESULT RegisterFunctions(
 
             // Execute the service implementation
             return pService->ModifyDbgLogOriginationMask(pCall->pParameterData, pCall->parameterDataSize);
-        };
-
-        result = ddRpcServerRegisterFunction(hServer, &info);
-    }
-
-    // Register "SetOverlayDisplayMode"
-    if (result == DD_RESULT_SUCCESS)
-    {
-        DDRpcServerRegisterFunctionInfo info = {};
-        info.serviceId                       = 0x24815012;
-        info.id                              = 0x9;
-        info.pName                           = "SetOverlayDisplayMode";
-        info.pDescription                    = "Force the overlay to be always on, always off or as default";
-        info.pFuncUserdata                   = pService;
-        info.pfnFuncCb                       = [](
-            const DDRpcServerCallInfo* pCall) -> DD_RESULT
-        {
-            auto* pService = reinterpret_cast<IDriverUtilsService*>(pCall->pUserdata);
-
-            // Execute the service implementation
-            return pService->SetOverlayDisplayMode(pCall->pParameterData, pCall->parameterDataSize);
         };
 
         result = ddRpcServerRegisterFunction(hServer, &info);

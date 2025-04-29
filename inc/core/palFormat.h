@@ -332,7 +332,8 @@ enum class ChNumFormat : Util::uint32
     P208                     = 0xB1,    ///< YUV 4:2:2 planar format, with 8 bits per luma and chroma sample. This is
                                         ///  similar to @ref ChNumFormat::NV12, except that the UV planes are sub-sampled
                                         ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
-                                        ///  ends up having the same number of lines as the Y plane.
+                                        ///  ends up having the same number of lines as the Y plane. This format is
+                                        ///  sometimes referred to as NV16.
     X16_MM12_Unorm           = 0xB2,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
                                         ///  surfaces (12-bit).
     X16_MM12_Uint            = 0xB3,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
@@ -347,7 +348,8 @@ enum class ChNumFormat : Util::uint32
     P212                     = 0xB7,    ///< YUV 4:2:2 planar format, with 12 bits per luma and chroma sample.  This is
                                         ///  identical to @ref ChNumFormat::P210, except that the lowest 4 bits of each
                                         ///  luma and chroma sample are ignored.
-    P412                     = 0xB8,    ///< YUV 4:4:4 planar format, with 12 bits per luma and chroma sample.
+    P412                     = 0xB8,    ///< YUV 4:4:4 planar format, with 12 bits per luma and chroma sample. It consists
+                                        ///  of a Y-plane followed by an interleaved UV plane.
     X10Y10Z10W2_Float        = 0xB9,    ///< RGBA format with three 10-bit floats (6e4) and a 2-bit unorm as alpha.
     Y216                     = 0xBA,    ///< YUV 4:2:2 packed, with 16 bits per luma or chroma sample. No alpha.
     Y210                     = 0xBB,    ///< YUV 4:2:2 packed, with 10 bits per luma or chroma sample. No alpha.
@@ -355,6 +357,36 @@ enum class ChNumFormat : Util::uint32
                                         ///  The lowest 6 bits of each sample are ignored.
     Y416                     = 0xBC,    ///< YUV 4:4:4 packed, with 16 bits per luma or chroma sample.
     Y410                     = 0xBD,    ///< YUV 4:4:4 packed, with 10 bits per luma or chroma sample and 2 bits for alpha.
+    _ReservedBE              = 0xBE,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+    P216                     = 0xBF,    ///< YUV 4:2:2 planar format, with 16 bits per luma and chroma sample. It consists
+                                        ///  of a Y-plane followed by interleaved UV plane.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+    YUV_420P10               = 0xC0,    ///< YUV 4:2:0 tri-planar format, with 10 bits per luma and chroma sample.
+    YUV_422P10               = 0xC1,    ///< YUV 4:2:2 tri-planar format, with 10 bits per luma and chroma sample.
+    YUV_444P10               = 0xC2,    ///< YUV 4:4:4 tri-planar format, with 10 bits per luma and chroma sample.
+    YUV_420P12               = 0xC3,    ///< YUV 4:2:0 tri-planar format, with 12 bits per luma and chroma sample.
+    YUV_422P12               = 0xC4,    ///< YUV 4:2:2 tri-planar format, with 12 bits per luma and chroma sample.
+    YUV_444P12               = 0xC5,    ///< YUV 4:4:4 tri-planar format, with 12 bits per luma and chroma sample.
+    YUV_420P16               = 0xC6,    ///< YUV 4:2:0 tri-planar format, with 16 bits per luma and chroma sample.
+    YUV_422P16               = 0xC7,    ///< YUV 4:2:2 tri-planar format, with 16 bits per luma and chroma sample.
+    YUV_444P16               = 0xC8,    ///< YUV 4:4:4 tri-planar format, with 16 bits per luma and chroma sample.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+    YV16                     = 0xC9,    ///< YVU 4:2:2 tri-planar format, with 8 bits per luma and chroma sample. This
+                                        ///  is similar to @ref ChNumFormat::YV12, except chroma is not subsampled in
+                                        ///  vertical direction.
+    YV24                     = 0xCA,    ///< YVU 4:4:4 tri-planar format, with 8 bits per luma and chroma sample. This
+                                        ///  is similar to @ref ChNumFormat::YV12, except chroma is not subsampled.
+    NV24                     = 0xCB,    ///< YUV 4:4:4 bi-planar format, with 8 bits per luma and chroma sample. This
+                                        ///  is similar to @ref ChNumFormat::NV12, except chroma is not subsampled.
+                                        ///  This format is sometimes referred to as P408.
+    P410                     = 0xCC,    ///< YUV 4:4:4 planar format, with 10 bits per luma and chroma sample. It consists
+                                        ///  of a Y-plane followed by interleaved UV plane.
+    P416                     = 0xCD,    ///< YUV 4:4:4 planar format, with 16 bits per luma and chroma sample. It consists
+                                        ///  of a Y-plane followed by interleaved UV plane.
+#endif
     Count,
 
 };

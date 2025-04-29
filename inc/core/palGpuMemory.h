@@ -197,7 +197,9 @@ union GpuMemoryCreateFlags
 #else
         uint64 placeholder2                 :  2;
 #endif
-        uint64 reserved                     : 29; ///< Reserved for future use.
+        uint64 directCaptureSource          :  1; ///< Memory will be mapped to DirectCapture resource's KMD-managed
+                                                  ///  private VA.
+        uint64 reserved                     : 28; ///< Reserved for future use.
     };
     uint64     u64All;                            ///< Flags packed as 64-bit uint.
 };

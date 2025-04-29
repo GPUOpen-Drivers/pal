@@ -133,13 +133,19 @@ Result File::GetStat(
     // The sizes can vary widely based on platform, library, and architecture.
     // We don't anticipate losing any data if the sizes are off.
 
-    pStatus->size   = static_cast<decltype(Stat::size)>(status.st_size);
-    pStatus->ctime  = static_cast<decltype(Stat::ctime)>(status.st_ctime);
-    pStatus->atime  = static_cast<decltype(Stat::atime)>(status.st_atime);
-    pStatus->mtime  = static_cast<decltype(Stat::mtime)>(status.st_mtime);
-    pStatus->mode   = static_cast<decltype(Stat::mode)>(status.st_mode);
-    pStatus->nlink  = static_cast<decltype(Stat::nlink)>(status.st_nlink);
-    pStatus->dev    = static_cast<decltype(Stat::dev)>(status.st_dev);
+    pStatus->size  = static_cast<decltype(Stat::size)>(status.st_size);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 922
+    pStatus->ctime = static_cast<decltype(Stat::ctime)>(status.st_ctime);
+    pStatus->atime = static_cast<decltype(Stat::atime)>(status.st_atime);
+    pStatus->mtime = static_cast<decltype(Stat::mtime)>(status.st_mtime);
+#else
+    pStatus->ctime = std::chrono::system_clock::from_time_t(status.st_ctime);
+    pStatus->atime = std::chrono::system_clock::from_time_t(status.st_atime);
+    pStatus->mtime = std::chrono::system_clock::from_time_t(status.st_mtime);
+#endif
+    pStatus->mode  = static_cast<decltype(Stat::mode)>(status.st_mode);
+    pStatus->nlink = static_cast<decltype(Stat::nlink)>(status.st_nlink);
+    pStatus->dev   = static_cast<decltype(Stat::dev)>(status.st_dev);
     pStatus->flags.isDir     =  isDir;
     pStatus->flags.isRegular =  isRegular;
 

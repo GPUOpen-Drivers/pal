@@ -989,6 +989,8 @@ public:
         uint32*     pModifierCount,
         uint64*     pModifiersList) const override;
 
+    virtual Result QueryGpuMemoryBudgetInfo(GpuMemoryBudgetInfo* pInfo) override;
+
 protected:
     virtual void FinalizeQueueProperties() override;
 
@@ -1184,7 +1186,8 @@ private:
             uint32 supportDiscardableBo                : 1;     // Support creating bo that can be discarded under memory
                                                                 // pressure without keeping the content.
             uint32 hardwareEmulationEnabled            : 1;     // Hardware emulation is enabled.
-            uint32 reserved                            : 22;
+            uint32 alwaysInitializedToZero             : 1;     // KMD Always clears new memory allocations.
+            uint32 reserved                            : 21;
         };
         uint32 flags;
     } m_featureState;

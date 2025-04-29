@@ -343,6 +343,7 @@ struct ComputePipelineCreateInfo
 #endif
     const char*         pKernelName; ///< When create pipeline with hsa ELF binary of multiple kernels, need to set one
                                      ///  kernel to create the pipeline. null means only one kernel in ELF binary.
+
 };
 
 /// Specifies information about the viewport behavior of an assembled graphics pipeline.  Part of the input

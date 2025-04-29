@@ -786,6 +786,17 @@ inline Extent3d Log2SubsamplingRatio(
         {
         // 4:4:4 formats have the same number of samples in every direction.
         case ChNumFormat::P412:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        case ChNumFormat::YUV_444P10:
+        case ChNumFormat::YUV_444P12:
+        case ChNumFormat::YUV_444P16:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        case ChNumFormat::YV24:
+        case ChNumFormat::NV24:
+        case ChNumFormat::P410:
+        case ChNumFormat::P416:
+#endif
             break;
         // 4:2:0 formats have 1/2 as many samples in both the horizontal and vertical directions.
         case ChNumFormat::YV12:
@@ -794,6 +805,11 @@ inline Extent3d Log2SubsamplingRatio(
         case ChNumFormat::P010:
         case ChNumFormat::P012:
         case ChNumFormat::P016:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        case ChNumFormat::YUV_420P10:
+        case ChNumFormat::YUV_420P12:
+        case ChNumFormat::YUV_420P16:
+#endif
             ratio.width  = 1;  // log2(1/2) = -1
             ratio.height = 1;
             break;
@@ -802,6 +818,17 @@ inline Extent3d Log2SubsamplingRatio(
         case ChNumFormat::P208:
         case ChNumFormat::P210:
         case ChNumFormat::P212:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        case ChNumFormat::P216:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        case ChNumFormat::YUV_422P10:
+        case ChNumFormat::YUV_422P12:
+        case ChNumFormat::YUV_422P16:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        case ChNumFormat::YV16:
+#endif
             ratio.width = 1;
             break;
         // 4:1:1 formats have 1/4 as many samples in the horizontal direction, and the same number of samples
@@ -843,6 +870,12 @@ extern bool IsMmFormat(ChNumFormat format);
 ///
 /// @returns bool is it an MM12 format
 extern bool IsMm12Format(ChNumFormat format);
+
+/// Checks to see if a given format is a MM10 format
+///
+///
+/// @returns bool is it an MM10 format
+extern bool IsMm10Format(ChNumFormat format);
 
 } // Formats
 } // Pal

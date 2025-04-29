@@ -535,15 +535,296 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16Y16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16Y16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,                // SMPTE 4:2:2 chroma subsampling location
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+    {}, // X10Y10Z10W2_Float
+    {}, // Y216 (4:2:2 packed, 16bit)
+    {}, // Y210 (4:2:2 packed, 10bit)
+    {}, // Y416 (4:4:4 packed, 16bit)
+    {}, // Y410 (4:4:4 packed, 10bit)
+    {}, // _ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+    // P216 (4:2:2 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16Y16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16Y16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,                // SMPTE 4:2:2 chroma subsampling location
+                { 2, 1, USHRT_MAX, },
+            },
+        },
+    },
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+    // YUV_420P10 (4:2:0 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // YUV_422P10 (4:2:2 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // YUV_444P10 (4:4:4 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // YUV_420P12 (4:2:0 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
             {   1,                          // Cb plane
                 { ChNumFormat::X16_MM12_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
-                }
+                },
             },
             {   2,                          // Cr plane
                 { ChNumFormat::X16_MM12_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
-                }
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // YUV_422P12 (4:2:2 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // YUV_444P12 (4:4:4 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
             },
         },
         RpmComputePipeline::RgbToYuvPlanar,
@@ -558,16 +839,322 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
                 { ChNumFormat::X16_MM12_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
-                { 0, USHRT_MAX, USHRT_MAX, },
+                { 1, USHRT_MAX, USHRT_MAX, },
             },
             {   2,                          // Cr plane
                 { ChNumFormat::X16_MM12_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
-                { 0, USHRT_MAX, USHRT_MAX, },
+                { 2, USHRT_MAX, USHRT_MAX, },
             },
         },
     },
+    // YUV_420P16 (4:2:0 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // YUV_422P16 (4:2:2 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // YUV_444P16 (4:4:4 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+    // YV16 (8-bit, 4:2:2 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cb plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cr plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cb plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cr plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // YV24 (8-bit, 4:4:4 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   2,                          // Cb plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cr plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cb plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cr plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // NV24 (8-bit, 4:4:4 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X8Y8_MM_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X8Y8_MM_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+    // P410 (12-bit 4:4:4 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16_MM10_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+    // P416 (16-bit 4:4:4 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+#endif
 };
 
 // =====================================================================================================================

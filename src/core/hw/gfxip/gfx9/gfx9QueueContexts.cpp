@@ -426,7 +426,7 @@ Result ComputeQueueContext::RebuildCommandStreams(
         pCmdSpace = m_ringSet.WriteCommands(&m_cmdStream, pCmdSpace);
 
         const gpusize waitTsGpuVa = (m_waitForIdleTs.IsBound() ? m_waitForIdleTs.GpuVirtAddr() : 0);
-        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, 0, false, pCmdSpace);
 
         pCmdSpace = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
 
@@ -1511,7 +1511,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
             pCmdSpace = m_ringSet.WriteComputeCommands(pAcePreambleCmdStream, pCmdSpace);
 
             const gpusize waitTsGpuVa = (m_waitForIdleTs.IsBound() ? m_waitForIdleTs.GpuVirtAddr() : 0);
-            pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, pCmdSpace);
+            pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, 0, false, pCmdSpace);
 
             pCmdSpace = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, pAcePreambleCmdStream, pCmdSpace);
 
@@ -1690,6 +1690,9 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPA_SC_LINE_STIPPLE_STATE,
                                                    paScLineStippleState.u32All,
                                                    pCmdSpace);
+
+    // This feature is not used.
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmGE_USER_VGPR_EN, 0, pCmdSpace);
 
     regPA_SU_SMALL_PRIM_FILTER_CNTL paSuSmallPrimFilterCntl = { };
 

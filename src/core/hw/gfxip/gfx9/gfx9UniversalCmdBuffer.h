@@ -57,6 +57,16 @@ class GraphicsPipeline;
 class UniversalCmdBuffer;
 class IndirectCmdGenerator;
 
+// Structure which tracks state while packed register pairs packets are being formed.
+struct PackedRegisterPairsMetaData
+{
+    uint16             firstAddedOffset;
+    uint32             firstAddedValue;
+    uint8              numPendingPackedPairsRegs;
+    uint8              numPackedPairsAdded;
+    PackedRegisterPair pendingPackedRegPair;
+};
+
 // Structure to track the state of internal command buffer operations.
 struct UniversalCmdBufferState
 {
@@ -64,9 +74,8 @@ struct UniversalCmdBufferState
     {
         struct
         {
-            uint32 containsDrawIndirect    :  1;
+            uint32 cbColorInfoDirtyRtv     :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
             uint32 optimizeLinearGfxCpy    :  1;
-            uint32 firstDrawExecuted       :  1;
             uint32 meshShaderEnabled       :  1;
             uint32 taskShaderEnabled       :  1;
             uint32 fastLaunchMode          :  2;
@@ -75,9 +84,7 @@ struct UniversalCmdBufferState
             uint32 occlusionQueriesActive  :  1; // Indicates if the current validated cmd buf state has occulsion
                                                  // queries enabled.
             uint32 drawTimeAlphaToCoverage :  1; // Tracks alphaToCoverageState to be updated per draw.
-            uint32 reserved0               :  2;
-            uint32 cbColorInfoDirtyRtv     :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
-            uint32 reserved1               : 12;
+            uint32 reserved                : 16;
         };
         uint32 u32All;
     } flags;
@@ -136,12 +143,12 @@ struct DrawTimeHwState
 // Enum describing command recording approach.
 enum CmdRecordingType
 {
-    // GFX10 must use traditional SET sequential packets - no support for any RegPairs.
-    Gfx10,
-    // GFX11 RS64 supports PACKED and UNPACKED RegPairs but PREFERS PACKED for best CP performance.
-    Gfx11Rs64,
-    // GFX11 F32 only supports UNPACKED RegPairs and does so efficiently.
-    Gfx11F32
+    // Legacy SET packets are supported everywhere. GFX10 must use this path.
+    LegacySet,
+    // Packed RegPairs are only supported on GFX11 RS64. This is generally the fastest path for RS64.
+    PackedRegPairs,
+    // Unpacked RegPairs are supported on GFX11 RS64 and F32.
+    UnpackedRegPairs
 };
 
 // Structure used to store values relating to viewport centering, specifically relevant values of an accumulated
@@ -216,9 +223,8 @@ struct NggState
 {
     struct
     {
-        uint8 hasPrimShaderWorkload : 1;
-        uint8 dirty                 : 1;
-        uint8 reserved              : 6;
+        uint8 dirty    : 1;
+        uint8 reserved : 7;
     } flags;
 
     uint32 numSamples;  // Number of active MSAA samples.
@@ -287,7 +293,7 @@ union CachedSettings
         uint64 waitAfterCbFlush                          :  1;
         uint64 waitAfterDbFlush                          :  1;
         uint64 rbHarvesting                              :  1;
-        uint64 isGfx11F32                                :  1;
+        uint64 useUnpackedRegPairs                       :  1;
         uint64 gfx11F32UseLegacySetPathForPipelineDirty  :  1;
         uint64 reserved                                  : 61;
     };
@@ -332,11 +338,9 @@ public:
         const PipelineBindParams& params) override;
 
     virtual void CmdBindIndexData(gpusize gpuAddr, uint32 indexCount, IndexType indexType) override;
-    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override = 0;
     virtual void CmdSaveGraphicsState() override;
     virtual void CmdRestoreGraphicsStateInternal(bool trackBltActiveFlags = true) override;
     virtual void CmdBindColorBlendState(const IColorBlendState* pColorBlendState) override;
-    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) = 0;
 
     virtual void CmdSetBlendConst(const BlendConstParams& params) override;
     virtual void CmdSetInputAssemblyState(const InputAssemblyStateParams& params) override;
@@ -588,15 +592,10 @@ public:
         SwizzledFormat format,
         uint32         targetIndex) override;
 
-    void SetPrimShaderWorkload() { m_nggState.flags.hasPrimShaderWorkload = 1; }
-    bool HasPrimShaderWorkload() const { return m_nggState.flags.hasPrimShaderWorkload; }
-
     uint32 BuildScissorRectImage(
         bool               multipleViewports,
         ScissorRectPm4Img* pScissorRectImg) const;
 
-    template <bool Pm4OptImmediate>
-    uint32* ValidateScissorRects(uint32* pDeCmdSpace);
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
 
     uint32* ValidatePaScAaConfig(uint32* pDeCmdSpace);
@@ -629,7 +628,7 @@ public:
     bool IssueSqttMarkerEvent() const { return m_cachedSettings.issueSqttMarkerEvent; }
 
 protected:
-    virtual ~UniversalCmdBuffer();
+    virtual ~UniversalCmdBuffer() override;
 
     virtual void AddPreamble() override;
     virtual void AddPostamble() override;
@@ -659,12 +658,6 @@ protected:
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    template <bool IsGfx11, bool Indirect, bool Pm4OptImmediate>
-    uint32* ValidateDrawTimeHwState(
-        regPA_SC_MODE_CNTL_1    paScModeCntl1,
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
-
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }
 
@@ -674,7 +667,7 @@ protected:
     // Gets draw index register address.
     uint16 GetDrawIndexRegAddr()  const { return m_drawIndexReg; }
 
-    void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
+    virtual void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false) override;
 
     template <typename DepthStencilStateType>
     void BindDepthStencilState(const IDepthStencilState* pDepthStencilState);
@@ -845,6 +838,12 @@ private:
     void EraseVrsCopiesFromRateImage(const Pal::Image* pRateImage);
     void EraseVrsCopiesToDepthImage(const Pal::Image* pDepthImage);
 
+    virtual size_t BuildWriteToZero(
+        gpusize       dstAddr,
+        uint32        numDwords,
+        const uint32* pZeros,
+        uint32*       pCmdSpace) const override;
+
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
 
@@ -906,7 +905,6 @@ private:
 
     template <bool HasPipelineChanged>
     uint32* ValidateComputeUserData(
-        ICmdBuffer*                     pCmdBuffer,
         UserDataTableState*             pSpillTable,
         UserDataEntries*                pUserData,
         CmdStream*                      pCmdStream,
@@ -916,22 +914,17 @@ private:
 
     template <bool Pm4OptEnabled, CmdRecordingType RecordType>
     uint32* WriteDirtyUserDataEntriesToSgprsGfx(
-        const UserDataEntries* pUserDataEntries,
-        uint8                  alreadyWrittenStageMask,
-        uint32*                pDeCmdSpace);
+        const UserDataEntries*       pUserDataEntries,
+        uint8                        alreadyWrittenStageMask,
+        PackedRegisterPairsMetaData* pPackedMetaData,
+        uint32*                      pDeCmdSpace);
 
     template <bool Pm4OptEnabled, CmdRecordingType RecordType>
     uint8 FixupUserSgprsOnPipelineSwitch(
         const UserDataEntries*           pUserDataEntries,
         const GraphicsPipelineSignature* pPrevSignature,
+        PackedRegisterPairsMetaData*     pPackedMetaData,
         uint32**                         ppDeCmdSpace);
-
-    bool FixupUserSgprsOnPipelineSwitchCs(
-        const UserDataEntries&          userData,
-        const ComputePipelineSignature* pCurrSignature,
-        const ComputePipelineSignature* pPrevSignature,
-        const bool                      onAce,
-        uint32**                        ppDeCmdSpace);
 
     void LeakNestedCmdBufferState(
         const UniversalCmdBuffer& cmdBuffer);
@@ -944,6 +937,7 @@ private:
     bool SetPaScBinnerCntl01(
                              const Extent2d* pBinSize);
 
+    template <bool Pm4OptEnabled>
     uint32* UpdateNggCullingDataBufferWithCpu(
         uint32* pDeCmdSpace);
 
@@ -1007,29 +1001,11 @@ private:
 
     void WritePerDrawVrsRate(const VrsRateParams&  rateParams);
 
-    template <Pm4ShaderType ShaderType, bool Pm4OptImmediate>
-    uint32* WritePackedUserDataEntriesToSgprs(uint32* pDeCmdSpace);
-
-    template <Pm4ShaderType ShaderType>
-    uint32* WritePackedUserDataEntriesToSgprs(uint32* pDeCmdSpace);
-
-    template <bool Pm4OptEnabled, CmdRecordingType RecordType>
-    uint32* ValidateGfxUserDataAddUserData(uint32 userDataAddr, uint32 userDataValue, uint32* pDeCmdSpace);
-
-    template <Pm4ShaderType ShaderType>
-    uint32* SetUserSgprReg(
-        uint16  regAddr,
-        uint32  regValue,
-        bool    onAce,
-        uint32* pDeCmdSpace);
-
-    template <Pm4ShaderType ShaderType>
-    uint32* SetSeqUserSgprRegs(
-        uint16      startAddr,
-        uint16      endAddr,
-        const void* pValues,
-        bool        onAce,
-        uint32*     pDeCmdSpace);
+    template <bool Pm4OptEnabled, CmdRecordingType RecordType, Pm4ShaderType ShaderType = ShaderGraphics>
+    uint32* ValidateUserDataAddUserData(uint16                       userDataAddr,
+                                        uint32                       userDataValue,
+                                        PackedRegisterPairsMetaData* pPackedMetaData,
+                                        uint32*                      pDeCmdSpace);
 
     bool UpdateNggPrimCb(
         const GraphicsPipeline*         pCurrentPipeline,
@@ -1066,10 +1042,12 @@ private:
     const GraphicsPipelineSignature*  m_pSignatureGfx;
 
     // Hash of current rb+ related registers(m_sxPsDownconvert, m_sxBlendOptEpsilon, m_sxBlendOptControl).
-    uint32      m_rbplusRegHash;        // Hash of current pipeline's rb+ registers.
-    uint32      m_pipelineCtxRegHash;   // Hash of current pipeline's context registers.
-    uint32      m_pipelineCfgRegHash;   // Hash of current pipeline's config registers.
-    ShaderHash  m_pipelinePsHash;       // Hash of current pipeline's pixel shader program.
+    uint32      m_rbplusRegHash;             // Hash of current pipeline's rb+ registers.
+    uint32      m_pipelineCtxRegHash;        // Hash of all current pipeline's context registers.
+    uint64      m_pipelineLowFreqCtxRegHash; // Hash of current pipeline's low freq context registers.
+    uint64      m_dynRegHash;                // Hash of current pipeline's dynamic SH registers.
+    uint32      m_pipelineCfgRegHash;        // Hash of current pipeline's config registers.
+    ShaderHash  m_pipelinePsHash;            // Hash of current pipeline's pixel shader program.
 
     struct
     {
@@ -1252,25 +1230,6 @@ private:
     gpusize m_swStreamoutDataAddr;
     uint16  m_baseUserDataReg[HwShaderStage::Last];
 
-    // Lookup tables for setting user data.  Entries have their lastSetVal field updated to
-    // m_minValidUserEntryLookupValue the first time data is written after being invalidated. Every time user data is
-    // invalidated, m_minValidUserEntryLookupValue is incremented. This makes any entry with
-    // lastSetVal < m_minValidUserEntryLookupValue be considered invalid.  When m_minValidUserEntryLookupValue wraps,
-    // the array needs to be zeroed.  m_minValidUserEntryLookupValue needs to be initialized to 1.
-    UserDataEntryLookup m_validUserEntryRegPairsLookup[Gfx11MaxUserDataIndexCountGfx];
-    UserDataEntryLookup m_validUserEntryRegPairsLookupCs[Gfx11MaxUserDataIndexCountCs];
-
-    uint32 m_minValidUserEntryLookupValue;
-    uint32 m_minValidUserEntryLookupValueCs;
-
-    // Array of valid packed register pairs holding user entries to be written into SGPRs.
-    PackedRegisterPair     m_validUserEntryRegPairs[Gfx11MaxPackedUserEntryCountGfx];
-    PackedRegisterPair     m_validUserEntryRegPairsCs[Gfx11MaxPackedUserEntryCountCs];
-
-    // Total number of registers packed into m_validUserEntryRegPairs.
-    uint32                 m_numValidUserEntries;
-    uint32                 m_numValidUserEntriesCs;
-
     // MS/TS pipeline stats query is emulated by shader. A 6-DWORD scratch memory chunk is needed to store for shader
     // to store the three counter values.
     gpusize m_meshPipeStatsGpuAddr;
@@ -1297,18 +1256,18 @@ public:
     {
     }
 
-    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState)
+    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) override
     {
         BindDepthStencilState<Gfx11DepthStencilStateRs64>(pDepthStencilState);
     }
 
-    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState)
+    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override
     {
         BindMsaaState<Gfx11MsaaStateRs64>(pMsaaState);
     }
 
 protected:
-    virtual ~Gfx11UniversalCmdBufferRs64() { }
+    virtual ~Gfx11UniversalCmdBufferRs64() override { }
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx11UniversalCmdBufferRs64);
@@ -1326,18 +1285,18 @@ public:
     {
     }
 
-    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState)
+    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) override
     {
         BindDepthStencilState<Gfx11DepthStencilStateF32>(pDepthStencilState);
     }
 
-    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState)
+    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override
     {
         BindMsaaState<Gfx11MsaaStateF32>(pMsaaState);
     }
 
 protected:
-    virtual ~Gfx11UniversalCmdBufferF32() { }
+    virtual ~Gfx11UniversalCmdBufferF32() override { }
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx11UniversalCmdBufferF32);
@@ -1355,18 +1314,18 @@ public:
     {
     }
 
-    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState)
+    virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) override
     {
         BindDepthStencilState<Gfx10DepthStencilState>(pDepthStencilState);
     }
 
-    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState)
+    virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override
     {
         BindMsaaState<Gfx10MsaaState>(pMsaaState);
     }
 
 protected:
-    virtual ~Gfx10UniversalCmdBuffer() { }
+    virtual ~Gfx10UniversalCmdBuffer() override { }
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10UniversalCmdBuffer);

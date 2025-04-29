@@ -541,9 +541,23 @@ inline Result GetPalMetadataVersion(
     return Abi::GetMetadataVersion(pReader,
                                    pDesc,
                                    descSize,
-                                   HashLiteralString(CodeObjectMetadataKey::Version),
+                                   CompileTimeHashString(CodeObjectMetadataKey::Version),
                                    pMetadataMajorVer,
                                    pMetadataMinorVer);
+}
+
+/// Helper function to check if PalMetadata version is >= the specified version.
+///
+/// @param [in] metadata          Deserialized metadata.
+/// @param [in] metadataMajorVer  Major version to check against.
+/// @param [in] metadataMinorVer  Minor version to check against.
+inline bool PalMetadataVersionAtLeast(
+    const CodeObjectMetadata& metadata,
+    uint32                    metadataMajorVer,
+    uint32                    metadataMinorVer)
+{
+    return (metadata.version[0] > metadataMajorVer) ||
+           ((metadata.version[0] == metadataMajorVer) && (metadata.version[1] >= metadataMinorVer));
 }
 
 /// Helper function to parse the PalMetadata section of a pipeline ELF.

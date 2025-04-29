@@ -29,6 +29,7 @@
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
+#include "core/layers/cmdBufferLogger/cmdBufferLoggerQueryPool.h"
 #include "palHsaAbiMetadata.h"
 #include "palStringUtil.h"
 #include "palLiterals.h"
@@ -385,6 +386,28 @@ static const char* FormatToString(
         "Y210",
         "Y416",
         "Y410",
+        "_ReservedBE",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        "P216",
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        "YUV_420P10",
+        "YUV_422P10",
+        "YUV_444P10",
+        "YUV_420P12",
+        "YUV_422P12",
+        "YUV_444P12",
+        "YUV_420P16",
+        "YUV_422P16",
+        "YUV_444P16",
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        "YV16",
+        "YV24",
+        "NV24",
+        "P410",
+        "P416",
+#endif
     };
 
     static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),
@@ -2650,16 +2673,18 @@ void CmdBuffer::DescribeBarrier(
         LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
         char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-        if (pData->hasTransition)
-        {
+        if ((pData->hasTransition) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
-            const ImageCreateInfo& imageInfo   = pData->transition.pImage->GetImageCreateInfo();
-            const SubresRange&     subresRange = pData->transition.subresRange;
+            (pData->transition.pImage != nullptr))
+        {
+            const ImageCreateInfo& imageInfo = pData->transition.pImage->GetImageCreateInfo();
+            const SubresRange& subresRange   = pData->transition.subresRange;
 #else
-            const ImageCreateInfo& imageInfo   = pData->transition.imageInfo.pImage->GetImageCreateInfo();
-            const SubresRange&     subresRange = pData->transition.imageInfo.subresRange;
+            (pData->transition.imageInfo.pImage != nullptr))
+        {
+            const ImageCreateInfo& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
+            const SubresRange& subresRange   = pData->transition.imageInfo.subresRange;
 #endif
-
             Snprintf(&pString[0], StringLength,
                      "ImageInfo: %ux%u %s - plane: 0x%x",
                      imageInfo.extent.width, imageInfo.extent.height,
@@ -4788,6 +4813,21 @@ static void DumpMemoryTiledImageCopyRegion(
 }
 
 // =====================================================================================================================
+static void DumpQueryPoolInfo(
+    CmdBuffer*        pCmdBuffer,
+    const IQueryPool& queryPool)
+{
+    char infoString[StringLength];
+    const QueryPool& loggerQueryPool = static_cast<const QueryPool&>(queryPool);
+    DumpGpuMemoryInfo(pCmdBuffer, loggerQueryPool.GetBoundMemObject(), "Bound GpuMemory", "");
+    Snprintf(infoString,
+             StringLength,
+             " Bound GpuMemory Offset  = 0x%016llX",
+             loggerQueryPool.GetBoundMemOffset());
+    pCmdBuffer->GetNextLayer()->CmdCommentString(infoString);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyMemoryToTiledImage(
     const IGpuMemory&                 srcGpuMemory,
     const IImage&                     dstImage,
@@ -5253,7 +5293,7 @@ void CmdBuffer::CmdResetQueryPool(
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdResetQueryPool));
 
-        // TODO: Add comment string.
+        DumpQueryPoolInfo(this, queryPool);
     }
 
     GetNextLayer()->CmdResetQueryPool(*NextQueryPool(&queryPool), startQuery, queryCount);
@@ -5270,7 +5310,7 @@ void CmdBuffer::CmdBeginQuery(
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBeginQuery));
 
-        // TODO: Add comment string.
+        DumpQueryPoolInfo(this, queryPool);
     }
 
     GetNextLayer()->CmdBeginQuery(*NextQueryPool(&queryPool), queryType, slot, flags);
@@ -5286,7 +5326,7 @@ void CmdBuffer::CmdEndQuery(
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdEndQuery));
 
-        // TODO: Add comment string.
+        DumpQueryPoolInfo(this, queryPool);
     }
 
     GetNextLayer()->CmdEndQuery(*NextQueryPool(&queryPool), queryType, slot);
@@ -5307,7 +5347,7 @@ void CmdBuffer::CmdResolveQuery(
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdResolveQuery));
 
-        // TODO: Add comment string.
+        DumpQueryPoolInfo(this, queryPool);
     }
 
     GetNextLayer()->CmdResolveQuery(*NextQueryPool(&queryPool),

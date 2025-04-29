@@ -635,6 +635,8 @@ Result GpuMemory::Init(
     m_flags.initializeToZero     = createInfo.flags.initializeToZero;
     m_flags.isDiscardable        = createInfo.flags.discardable;
 #endif
+    m_flags.directCaptureSource  = createInfo.flags.directCaptureSource;
+    m_flags.cpuInvisible         = createInfo.flags.cpuInvisible;
 
     if (IsClient() == false)
     {
@@ -1172,6 +1174,7 @@ Result GpuMemory::Init(
     m_flags.interprocess      = m_pOriginalMem->m_flags.interprocess;
     m_flags.globalGpuVa       = m_pOriginalMem->m_flags.globalGpuVa;
     m_flags.cpuVisible        = m_pOriginalMem->m_flags.cpuVisible;
+    m_flags.cpuInvisible      = m_pOriginalMem->m_flags.cpuInvisible;
 #if PAL_BUILD_GFX12
     m_flags.enableCompression = m_pOriginalMem->m_flags.enableCompression;
     m_desc.flags.isCompressed = m_flags.enableCompression;
@@ -1248,6 +1251,7 @@ Result GpuMemory::Init(
     m_flags.globalGpuVa       = m_pOriginalMem->m_flags.globalGpuVa;
     m_flags.useReservedGpuVa  = (m_vaPartition == VaPartition::Svm);
     m_flags.cpuVisible        = m_pOriginalMem->m_flags.cpuVisible;
+    m_flags.cpuInvisible      = m_pOriginalMem->m_flags.cpuInvisible;
     m_flags.peerWritable      = m_pOriginalMem->m_flags.peerWritable;
 #if PAL_BUILD_GFX12
     m_flags.enableCompression = m_pOriginalMem->m_flags.enableCompression;

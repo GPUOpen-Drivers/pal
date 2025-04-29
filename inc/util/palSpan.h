@@ -243,6 +243,9 @@ protected:
     template<typename R = T, bool Condition = true>
     using IfConst = std::enable_if_t<std::is_const_v<R> == Condition>;
 
+    template<typename R = T, bool Condition = true>
+    using IfPtr   = std::enable_if_t<std::is_pointer_v<R> == Condition>;
+
     T*               m_pData;                  // Pointer to the current data.
     size_t           m_numElements;            // Number of elements present.
 };
@@ -281,7 +284,7 @@ public:
     /// Constructor from any single element
     ///
     /// @param [in] src Single element
-    template<typename T>
+    template<typename T, typename Enabled = IfPtr<T, false>>
     Span(const T& src) : Span(&src, 1) {}
 
     /// Templated conversion of this typeless Span to a typed Subspan
@@ -376,7 +379,7 @@ public:
     /// Constructor from any single element
     ///
     /// @param [in] src Single element
-    template<typename T, typename Enabled = IfConst<T, false>>
+    template<typename T, typename Enabled = IfConst<T, false>, typename = IfPtr<T, false>>
     Span(T& src) : Span(&src, 1) {}
 
     /// Templated conversion of this typeless Span to a typed Subspan

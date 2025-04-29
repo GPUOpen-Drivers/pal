@@ -51,18 +51,18 @@ struct HsRegs
         regSPI_SHADER_PGM_CHKSUM_HS spiShaderPgmChksumHs;
         uint32                      userDataInternalTable;
     } sh;
-    struct Context
+    struct LowFreqContext
     {
         regVGT_HOS_MAX_TESS_LEVEL vgtHosMaxTessLevel;
         regVGT_HOS_MIN_TESS_LEVEL vgtHosMinTessLevel;
-    } context;
+    } lowFreqContext;
     struct Dynamic
     {
         regSPI_SHADER_PGM_RSRC3_HS spiShaderPgmRsrc3Hs;
         regSPI_SHADER_PGM_RSRC4_HS spiShaderPgmRsrc4Hs;
     } dynamic;
 
-    static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
+    static constexpr uint32 NumLowFreqContextReg = sizeof(LowFreqContext) / sizeof(uint32_t);
     static constexpr uint32 NumShReg      =
         (sizeof(Sh) / sizeof(uint32_t)) + 1; // + 1 for m_pHsPerfDataInfo->regOffset
 };
@@ -94,9 +94,9 @@ public:
 
     template <bool Pm4OptEnabled>
     uint32* WriteDynamicRegs(
-        CmdStream*              pCmdStream,
-        uint32*                 pCmdSpace,
-        const DynamicStageInfo& hsStageInfo) const;
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace,
+        uint8      wavesPerSeInUnitsOf16) const;
 
     template <bool Pm4OptEnabled>
     uint32* WriteContextCommands(
@@ -106,7 +106,7 @@ public:
     template <typename T>
     void AccumulateShRegs(T* pRegPairs, uint32* pNumRegs) const;
     template <typename T>
-    void AccumulateContextRegs(T* pRegPairs, uint32* pNumRegs) const;
+    void AccumulateLowFreqContextRegs(T* pRegPairs, uint32* pNumRegs) const;
 
     gpusize LsProgramGpuVa() const
     {
@@ -117,7 +117,9 @@ public:
 
     void Clone(const PipelineChunkHs& chunkHs);
 
-    void AccumulateRegistersHash(Util::MetroHash64& hasher)  const { hasher.Update(m_regs.context); }
+    void AccumulateRegistersHash(Util::MetroHash64* pHasher) const { pHasher->Update(m_regs.lowFreqContext); }
+    void AccumulateLowFreqRegistersHash(Util::MetroHash64* pHasher) const { pHasher->Update(m_regs.lowFreqContext); }
+    void AccumulateDynRegistersHash(Util::MetroHash64* pHasher) const { pHasher->Update(m_regs.dynamic); }
 private:
     struct
     {

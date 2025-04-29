@@ -28,9 +28,7 @@
 #include "palInlineFuncs.h"
 #include "lz4hc.h"
 
-#include "palListImpl.h"
 #include "palMutex.h"
-#include "palSysMemory.h"
 #include "palThread.h"
 
 namespace Util
@@ -44,9 +42,9 @@ thread_local Lz4Compressor::ThreadLocalData g_lz4CompressorThreadLocalData;
 // in order to pass HLK tests that detect memory leaks. We cannot wait
 // until the thread exits to free the local data, so we track it in
 // a list so it can be freed from another thread.
-RWLock                         g_lz4CompressorThreadLocalLock;
-List<void**, GenericAllocator> g_lz4CompressorThreadLocalList(&g_lz4CompressorGlobalAllocator);
-volatile uint32                g_lz4CompressorCount = 0;
+RWLock                     g_lz4CompressorThreadLocalLock;
+Lz4Compressor::PointerList g_lz4CompressorThreadLocalList(&g_lz4CompressorGlobalAllocator);
+volatile uint32            g_lz4CompressorCount = 0;
 
 // =====================================================================================================================
 Lz4Compressor::Lz4Compressor(
@@ -71,19 +69,7 @@ Lz4Compressor::~Lz4Compressor()
     // Beware the edge case where the count goes to 0 then immediately back up to 1 on a different thread.
     if(AtomicDecrement(&g_lz4CompressorCount) == 0)
     {
-        g_lz4CompressorThreadLocalLock.LockForWrite();
-
-        while (g_lz4CompressorThreadLocalList.NumElements() != 0)
-        {
-            auto it = g_lz4CompressorThreadLocalList.Begin();
-
-            void** ppState = *it.Get();
-            PAL_SAFE_FREE(*ppState, &g_lz4CompressorGlobalAllocator);
-
-            g_lz4CompressorThreadLocalList.Erase(&it);
-        }
-
-        g_lz4CompressorThreadLocalLock.UnlockForWrite();
+        g_lz4CompressorThreadLocalList.DeleteAll();
     }
 }
 
@@ -347,6 +333,24 @@ Lz4Compressor::ThreadLocalData::~ThreadLocalData()
         PAL_SAFE_FREE(m_pState, &g_lz4CompressorGlobalAllocator);
         PAL_SAFE_FREE(m_pStateHC, &g_lz4CompressorGlobalAllocator);
     }
+}
+
+// =====================================================================================================================
+void Lz4Compressor::PointerList::DeleteAll()
+{
+    g_lz4CompressorThreadLocalLock.LockForWrite();
+
+    while (m_List.NumElements() != 0)
+    {
+        auto it = m_List.Begin();
+
+        void** ppState = *it.Get();
+        PAL_SAFE_FREE(*ppState, &g_lz4CompressorGlobalAllocator);
+
+        m_List.Erase(&it);
+    }
+
+    g_lz4CompressorThreadLocalLock.UnlockForWrite();
 }
 
 } //namespace Util

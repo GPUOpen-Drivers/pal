@@ -49,16 +49,11 @@ namespace Gfx9
 
 // =====================================================================================================================
 WorkaroundState::WorkaroundState(
-    const Device*                  pDevice,
-    bool                           isNested,
-    const UniversalCmdBufferState& universalState,
-    const CachedSettings&          cachedSettings)
+    const Device*         pDevice,
+    const CachedSettings& cachedSettings)
     :
-    m_device(*pDevice),
     m_cmdUtil(pDevice->CmdUtil()),
-    m_cachedSettings(cachedSettings),
-    m_isNested(isNested),
-    m_universalState(universalState)
+    m_cachedSettings(cachedSettings)
 {
 }
 

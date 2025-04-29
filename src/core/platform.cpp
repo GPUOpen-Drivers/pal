@@ -1251,43 +1251,25 @@ bool Platform::ShowDevDriverOverlay() const
 {
     using namespace DriverUtilsService;
 
-    bool               showOverlay        = false;
-    OverlayDisplayMode overlayDisplayMode = OverlayDisplayMode::Default;
+    bool               showOverlay = false;
+    DevModeOverlayMode overlayMode = PlatformSettings().devModeOverlayMode;
 
-    // Check to see if a devdriver client has specified when to display the overlay.
-    // If not then continue to the default behavior which is to switch off the overlay
-    // while a trace is running.
-    if (m_pDriverUtilsService != nullptr)
+    switch (overlayMode)
     {
-        overlayDisplayMode = m_pDriverUtilsService->GetOverlayDisplayMode();
-    }
-
-    switch (overlayDisplayMode)
-    {
-        case OverlayDisplayMode::AlwaysOn:
-            showOverlay = true;
+        case DevModeOverlayModeOn:
+            if (m_pDevDriverServer != nullptr)
+            {
+                showOverlay = true;
+            }
             break;
-        case OverlayDisplayMode::AlwaysOff:
+        case DevModeOverlayModeOff:
             showOverlay = false;
             break;
+        case DevModeOverlayModeAuto:
         default:
             if (m_pDevDriverServer != nullptr)
             {
                 showOverlay = m_pDevDriverServer->ShouldShowOverlay();
-            }
-#if 0 // PAL_BUILD_RDF
-            if (m_pTraceSession != nullptr)
-            {
-                const GpuUtil::TraceSessionState sessionState = m_pTraceSession->GetTraceSessionState();
-                showOverlay &= ((sessionState != GpuUtil::TraceSessionState::Running) &&
-                                (sessionState != GpuUtil::TraceSessionState::Preparing));
-            }
-#endif
-            // Emulation usually needs to test the rendered final image. Overlay display would pollute the final image.
-            // So disable overlay when emulation is enabled, overriding showOverlay's previous value.
-            if (IsEmulationEnabled())
-            {
-                showOverlay = false;
             }
             break;
     }

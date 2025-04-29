@@ -489,6 +489,7 @@ void DmaCmdBuffer::CmdCopyMemory(
 {
     const GpuMemory& srcMemory = static_cast<const GpuMemory&>(srcGpuMemory);
     const GpuMemory& dstMemory = static_cast<const GpuMemory&>(dstGpuMemory);
+
     DmaCopyFlags flags = srcMemory.IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
 
 #if PAL_BUILD_GFX12
@@ -536,12 +537,15 @@ void DmaCmdBuffer::CmdCopyTypedBuffer(
     uint32                       regionCount,
     const TypedBufferCopyRegion* pRegions)
 {
+    const GpuMemory& srcMemory = static_cast<const GpuMemory&>(srcGpuMemory);
+    const GpuMemory& dstMemory = static_cast<const GpuMemory&>(dstGpuMemory);
+
     uint32* pCmdSpace = nullptr;
     uint32* pPredCmd = nullptr;
 
     for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
     {
-        const auto& region = pRegions[rgnIdx];
+        const TypedBufferCopyRegion& region = pRegions[rgnIdx];
         // Create a struct with info needed to write packet (cmd to be used is linear sub-window copy)
         DmaTypedBufferCopyInfo copyInfo = {};
         uint32 srcTexelScale = 1;
@@ -559,10 +563,21 @@ void DmaCmdBuffer::CmdCopyTypedBuffer(
         copyInfo.copyExtent.height  = region.extent.height;
         copyInfo.copyExtent.depth   = region.extent.depth;
 
-        if (static_cast<const GpuMemory&>(srcGpuMemory).IsTmzProtected())
+        if (srcMemory.IsTmzProtected())
         {
             copyInfo.flags = DmaCopyFlags::TmzCopy;
         }
+
+#if PAL_BUILD_GFX12
+        if (srcMemory.MaybeCompressed())
+        {
+            copyInfo.flags |= DmaCopyFlags::CompressedCopySrc;
+        }
+        if (dstMemory.MaybeCompressed())
+        {
+            copyInfo.flags |= DmaCopyFlags::CompressedCopyDst;
+        }
+#endif
 
         // Write packet
         pCmdSpace = m_cmdStream.ReserveCommands();

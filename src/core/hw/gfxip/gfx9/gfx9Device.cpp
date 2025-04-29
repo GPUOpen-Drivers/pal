@@ -290,6 +290,8 @@ void Device::SetupWorkarounds()
 // Performs any late-stage initialization that can only be done after settings have been committed.
 Result Device::LateInit()
 {
+    m_cmdUtil.LateInit(*this);
+
     const MutexAuto lock(&m_queueContextUpdateLock);
 
     // If this device has been used before it will need this state zeroed.
@@ -2634,16 +2636,13 @@ size_t Device::GetDepthStencilStateSize(
 {
     size_t size = 0;
 
-    if (IsGfx11(m_gfxIpLevel))
+    if (IsGfx11F32UnpackedRegPairsSupported())
     {
-        if (IsGfx11F32())
-        {
-            size = sizeof(Gfx11DepthStencilStateF32);
-        }
-        else
-        {
-            size = sizeof(Gfx11DepthStencilStateRs64);
-        }
+        size = sizeof(Gfx11DepthStencilStateF32);
+    }
+    else if (IsGfx11Rs64())
+    {
+        size = sizeof(Gfx11DepthStencilStateRs64);
     }
     else
     {
@@ -2660,16 +2659,13 @@ Result Device::CreateDepthStencilState(
     IDepthStencilState**               ppDepthStencilState
     ) const
 {
-    if (IsGfx11(m_gfxIpLevel))
+    if (IsGfx11F32UnpackedRegPairsSupported())
     {
-        if (IsGfx11F32())
-        {
-            *ppDepthStencilState = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11DepthStencilStateF32(createInfo);
-        }
-        else
-        {
-            *ppDepthStencilState = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11DepthStencilStateRs64(createInfo);
-        }
+        *ppDepthStencilState = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11DepthStencilStateF32(createInfo);
+    }
+    else if (IsGfx11Rs64())
+    {
+        *ppDepthStencilState = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11DepthStencilStateRs64(createInfo);
     }
     else
     {
@@ -2687,16 +2683,13 @@ size_t Device::GetMsaaStateSize(
 {
     size_t size = 0;
 
-    if (IsGfx11(m_gfxIpLevel))
+    if (IsGfx11F32UnpackedRegPairsSupported())
     {
-        if (IsGfx11F32())
-        {
-            size = sizeof(Gfx11MsaaStateF32);
-        }
-        else
-        {
-            size = sizeof(Gfx11MsaaStateRs64);
-        }
+        size = sizeof(Gfx11MsaaStateF32);
+    }
+    else if (IsGfx11Rs64())
+    {
+        size = sizeof(Gfx11MsaaStateRs64);
     }
     else
     {
@@ -2713,16 +2706,13 @@ Result Device::CreateMsaaState(
     IMsaaState**               ppMsaaState
     ) const
 {
-    if (IsGfx11(m_gfxIpLevel))
+    if (IsGfx11F32UnpackedRegPairsSupported())
     {
-        if (IsGfx11F32())
-        {
-            *ppMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11MsaaStateF32(*this, createInfo);
-        }
-        else
-        {
-            *ppMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11MsaaStateRs64(*this, createInfo);
-        }
+        *ppMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11MsaaStateF32(*this, createInfo);
+    }
+    else if (IsGfx11Rs64())
+    {
+        *ppMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11MsaaStateRs64(*this, createInfo);
     }
     else
     {
@@ -2771,7 +2761,7 @@ bool Device::ImagePrefersCloneCopy(
 
             // Note that for (planeCount == 2) case, non-clone copy is slightly better than clone copy in some modes
             // (resolution/fragments), always use clone copy for simple logic here.
-            cloneCopy = (planeCount == 1) || (createInfo.fragments > 1);
+            cloneCopy = (planeCount == 1) || ((createInfo.arraySize == 1) && (createInfo.fragments > 1));
         }
         else // Allow for some 8bpp MSAA images.
         {
@@ -2937,16 +2927,13 @@ Result Device::CreateCmdBuffer(
     {
         result = Result::Success;
 
-        if (IsGfx11(m_gfxIpLevel))
+        if (IsGfx11F32UnpackedRegPairsSupported())
         {
-            if (IsGfx11F32())
-            {
-                *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11UniversalCmdBufferF32(*this, createInfo);
-            }
-            else
-            {
-                *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11UniversalCmdBufferRs64(*this, createInfo);
-            }
+            *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11UniversalCmdBufferF32(*this, createInfo);
+        }
+        else if (IsGfx11Rs64())
+        {
+            *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11UniversalCmdBufferRs64(*this, createInfo);
         }
         else
         {
@@ -3422,20 +3409,6 @@ static uint32 CalcLlcNoalloc(
 }
 
 // =====================================================================================================================
-uint32 Device::BufferSrdResourceLevel() const
-{
-    uint32  resourceLevel = 1;
-
-    // GFX11 parts don't have a "resource level" bit in their buffer SRDs.
-    if (IsGfx11(*Parent()))
-    {
-        resourceLevel = 0;
-    }
-
-    return resourceLevel;
-}
-
-// =====================================================================================================================
 // Gfx10+ function for creating typed buffer view SRDs.
 void PAL_STDCALL Device::CreateTypedBufferViewSrds(
     const IDevice*        pDevice,
@@ -3485,19 +3458,18 @@ void PAL_STDCALL Device::CreateTypedBufferViewSrds(
 
         // Get the HW format enumeration corresponding to the view-specified format.
         const BUF_FMT hwBufFmt = Formats::Gfx9::HwBufFmt(pFmtInfo, pBufferViewInfo->swizzledFormat.format);
-        const uint32  resLevel = pGfxDevice->BufferSrdResourceLevel();
 
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
         PAL_ASSERT(hwBufFmt != BUF_FMT_INVALID);
-        pOutSrd->u32All[3] = ((SqSelX      << SqBufRsrcTWord3DstSelXShift)            |
-                              (SqSelY      << SqBufRsrcTWord3DstSelYShift)            |
-                              (SqSelZ      << SqBufRsrcTWord3DstSelZShift)            |
-                              (SqSelW      << SqBufRsrcTWord3DstSelWShift)            |
-                              (hwBufFmt    << Gfx10SqBufRsrcTWord3FormatShift)        |
-                              (resLevel    << Gfx10SqBufRsrcTWord3ResourceLevelShift) |
-                              (OobSelect   << SqBufRsrcTWord3OobSelectShift)          |
-                              (llcNoalloc  << BvhSqBufRsrcTWord3LlcNoallocShift)      |
-                              (SQ_RSRC_BUF << SqBufRsrcTWord3TypeShift));
+        pOutSrd->u32All[3] = ((SqSelX                 << SqBufRsrcTWord3DstSelXShift)            |
+                              (SqSelY                 << SqBufRsrcTWord3DstSelYShift)            |
+                              (SqSelZ                 << SqBufRsrcTWord3DstSelZShift)            |
+                              (SqSelW                 << SqBufRsrcTWord3DstSelWShift)            |
+                              (hwBufFmt               << Gfx10SqBufRsrcTWord3FormatShift)        |
+                              (BufferSrdResourceLevel << Gfx10SqBufRsrcTWord3ResourceLevelShift) |
+                              (OobSelect              << SqBufRsrcTWord3OobSelectShift)          |
+                              (llcNoalloc             << BvhSqBufRsrcTWord3LlcNoallocShift)      |
+                              (SQ_RSRC_BUF            << SqBufRsrcTWord3TypeShift));
 
         pOutSrd++;
         pBufferViewInfo++;
@@ -3513,8 +3485,6 @@ void PAL_STDCALL Device::CreateUntypedBufferViewSrds(
     void*                 pOut)
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
-    const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
-    const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
 
     sq_buf_rsrc_t* pOutSrd = static_cast<sq_buf_rsrc_t*>(pOut);
 
@@ -3528,38 +3498,31 @@ void PAL_STDCALL Device::CreateUntypedBufferViewSrds(
             (HighPart(pBufferViewInfo->gpuAddr) |
              (static_cast<uint32>(pBufferViewInfo->stride) << SqBufRsrcTWord1StrideShift));
 
-        pOutSrd->u32All[2] = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
-                                                        static_cast<uint32>(pBufferViewInfo->stride));
+        pOutSrd->u32All[2] = Device::CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
+                                                    static_cast<uint32>(pBufferViewInfo->stride));
 
         PAL_DEBUG_BUILD_ONLY_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
 
-        uint32 llcNoalloc = 0;
-
-        if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
-        {
-            // The SRD has a two-bit field where the high-bit is the control for "read" operations
-            // and the low bit is the control for bypassing the MALL on write operations.
-            llcNoalloc = CalcLlcNoalloc(pBufferViewInfo->flags.bypassMallRead,
-                                        pBufferViewInfo->flags.bypassMallWrite);
-        }
+        // The SRD has a two-bit field where the high-bit is the control for "read" operations
+        // and the low bit is the control for bypassing the MALL on write operations.
+        // For parts that do not have MALL - HW ignores these fields!
+        const uint32 llcNoalloc = CalcLlcNoalloc(pBufferViewInfo->flags.bypassMallRead,
+                                                 pBufferViewInfo->flags.bypassMallWrite);
 
         if (pBufferViewInfo->gpuAddr != 0)
         {
-            const uint32 resLevel  = pGfxDevice->BufferSrdResourceLevel();
             const uint32 oobSelect = ((pBufferViewInfo->stride == 1) ||
                                       (pBufferViewInfo->stride == 0)) ? SQ_OOB_COMPLETE : SQ_OOB_INDEX_ONLY;
 
-            PAL_DEBUG_BUILD_ONLY_ASSERT((llcNoalloc == 0) || (IsGfx103Plus(*pPalDevice)));
-
-            pOutSrd->u32All[3] = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)            |
-                                  (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)            |
-                                  (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)            |
-                                  (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)            |
-                                  (BUF_FMT_32_UINT << Gfx10SqBufRsrcTWord3FormatShift)        |
-                                  (resLevel        << Gfx10SqBufRsrcTWord3ResourceLevelShift) |
-                                  (oobSelect       << SqBufRsrcTWord3OobSelectShift)          |
-                                  (llcNoalloc      << BvhSqBufRsrcTWord3LlcNoallocShift)      |
-                                  (SQ_RSRC_BUF     << SqBufRsrcTWord3TypeShift));
+            pOutSrd->u32All[3] = ((SQ_SEL_X               << SqBufRsrcTWord3DstSelXShift)            |
+                                  (SQ_SEL_Y               << SqBufRsrcTWord3DstSelYShift)            |
+                                  (SQ_SEL_Z               << SqBufRsrcTWord3DstSelZShift)            |
+                                  (SQ_SEL_W               << SqBufRsrcTWord3DstSelWShift)            |
+                                  (BUF_FMT_32_UINT        << Gfx10SqBufRsrcTWord3FormatShift)        |
+                                  (BufferSrdResourceLevel << Gfx10SqBufRsrcTWord3ResourceLevelShift) |
+                                  (oobSelect              << SqBufRsrcTWord3OobSelectShift)          |
+                                  (llcNoalloc             << BvhSqBufRsrcTWord3LlcNoallocShift)      |
+                                  (SQ_RSRC_BUF            << SqBufRsrcTWord3TypeShift));
         }
         else
         {
@@ -5511,6 +5474,20 @@ IpTriple DetermineIpLevel(
             level = { .major = 11, .minor = 0, .stepping = 0 };
         }
         else
+#if PAL_BUILD_HAWK_POINT1
+        if (AMDGPU_IS_HAWK_POINT1(familyId, eRevId))
+        {
+            level = { .major = 11, .minor = 0, .stepping = 0 };
+        }
+        else
+#endif
+#if PAL_BUILD_HAWK_POINT2
+        if (AMDGPU_IS_HAWK_POINT2(familyId, eRevId))
+        {
+            level = { .major = 11, .minor = 0, .stepping = 0 };
+        }
+        else
+#endif
         {
             PAL_NOT_IMPLEMENTED_MSG("FAMILY_PHX Revision %d unsupported", eRevId);
         }
@@ -5559,6 +5536,7 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
         break;
     case GfxIpLevel::GfxIp11_0:
     case GfxIpLevel::GfxIp11_5:
+        // fallthrough, gfx11.x use Gfx11MergedFormatPropertiesTable
         pTable = &Gfx11MergedFormatPropertiesTable;
         break;
 
@@ -6208,7 +6186,9 @@ void InitializeGpuChipProperties(
         if (AMDGPU_IS_STRIX1(pInfo->familyId, pInfo->eRevId))
         {
             pInfo->gpuType                             = GpuType::Integrated;
-            pInfo->revision                            = AsicRevision::Strix1;
+            {
+                pInfo->revision                        = AsicRevision::Strix1;
+            }
             pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
             pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
             pInfo->gfx9.maxNumCuPerSh                  = 8; // (GC__NUM_WGP0_PER_SA(4) + GC__NUM_WGP1_PER_SA(0)) * 2
@@ -6435,6 +6415,78 @@ void InitializeGpuChipProperties(
                 UINT_MAX);
         }
         else
+#if PAL_BUILD_HAWK_POINT1
+        if (AMDGPU_IS_HAWK_POINT1(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                             = GpuType::Integrated;
+            pInfo->revision                            = AsicRevision::HawkPoint1;
+            pInfo->gfxStepping                         = Abi::GfxIpSteppingPhoenix;
+            pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingPhoenix;
+            pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
+            pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
+            pInfo->gfx9.maxNumCuPerSh                  = 6; // (GC__NUM_WGP0_PER_SA (3) + GC__NU\M_WGP1_PER_SA (0)) * 2
+            pInfo->gfx9.maxNumRbPerSe                  = 4; // GC__NUM_RB_PER_SA (2) * NUM_SA (2) (may eventually be 3)
+            pInfo->gfx9.numPackerPerSc                 = 4;
+            pInfo->gfx9.parameterCacheLines            = 256;
+            pInfo->gfx9.gfx10.numGl2a                  = 4; // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c                  = 4; // GC__NUM_GL2C
+            pInfo->gfx9.gfx10.numWgpAboveSpi           = 3; // GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi           = 0; // GC__NUM_WGP1_PER_SA
+            pInfo->gfx9.supportFp16Dot2                = 1;
+            pInfo->gfx9.supportInt8Dot                 = 1;
+            pInfo->gfx9.supportInt4Dot                 = 1;
+            pInfo->gfxip.tccSizeInBytes                = 2_MiB;
+
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectPhx1  = 44;
+            constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectPhx1 = 44;
+
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectPhx1,
+                PfpUcodeVersionDispatchSupportedExecuteIndirectPhx1,
+                UINT_MAX);
+        }
+        else
+#endif
+#if PAL_BUILD_HAWK_POINT2
+        if (AMDGPU_IS_HAWK_POINT2(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                             = GpuType::Integrated;
+            pInfo->revision                            = AsicRevision::HawkPoint2;
+            pInfo->gfxStepping                         = Abi::GfxIpSteppingPhoenix;
+            pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingPhoenix;
+            pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
+            pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
+            pInfo->gfx9.maxNumCuPerSh                  = 4; // (GC__NUM_WGP0_PER_SA (2) + GC__NUM_WGP1_PER_SA (0)) * 2
+            pInfo->gfx9.maxNumRbPerSe                  = 1; // GC__NUM_RB_PER_SA (1) * NUM_SA (1)
+            pInfo->gfx9.numPackerPerSc                 = 4;
+            pInfo->gfx9.parameterCacheLines            = 256;
+            pInfo->gfx9.gfx10.numGl2a                  = 4; // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c                  = 4; // GC__NUM_GL2C
+            pInfo->gfx9.gfx10.numWgpAboveSpi           = 2; // GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi           = 0; // GC__NUM_WGP1_PER_SA
+            pInfo->gfx9.supportFp16Dot2                = 1;
+            pInfo->gfx9.supportInt8Dot                 = 1;
+            pInfo->gfx9.supportInt4Dot                 = 1;
+            pInfo->gfxip.tccSizeInBytes                = 1_MiB;
+
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectPhx2  = 9;
+            constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectPhx2 = 9;
+
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectPhx2,
+                PfpUcodeVersionDispatchSupportedExecuteIndirectPhx2,
+                UINT_MAX);
+        }
+        else
+#endif
         {
             PAL_ASSERT_ALWAYS_MSG("Unknown PHX Revision %d", pInfo->eRevId);
         }
@@ -7742,6 +7794,45 @@ uint32 Device::GetShaderPrefetchSize(
     // Return in terms of register units (cachelines).  Don't allow a value larger than the register supports.
     const gpusize cacheLines = Min(MaxPrefetchSize, (prefetchSizeAligned / CachelineSizeBytes));
     return static_cast<uint32>(cacheLines);
+}
+
+// =====================================================================================================================
+// Check if the device is running F32 and supports unpacked reg pairs.
+bool Device::IsGfx11F32UnpackedRegPairsSupported() const
+{
+    const uint32 pfpUcodeVersion = m_pParent->ChipProperties().pfpUcodeVersion;
+
+    bool useUnpackedRegPairs = false;
+
+    if (IsGfx11F32())
+    {
+        if (IsPhoenix1(*m_pParent))
+        {
+            useUnpackedRegPairs = (pfpUcodeVersion >= 43);
+        }
+        else if (IsPhoenix2(*m_pParent))
+        {
+            useUnpackedRegPairs = (pfpUcodeVersion >= 9);
+        }
+#if PAL_BUILD_STRIX_HALO
+        else if (IsStrixHalo(*m_pParent))
+        {
+            useUnpackedRegPairs = (pfpUcodeVersion >= 41);
+        }
+#endif
+        else if (IsStrix1(*m_pParent))
+        {
+            useUnpackedRegPairs = (pfpUcodeVersion >= 41);
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Unknown GFX11 F32 ASIC! Please add support!");
+        }
+
+        PAL_ALERT_MSG((useUnpackedRegPairs == false), "GFX11 F32 device doesn't support unpacked reg pairs!");
+    }
+
+    return useUnpackedRegPairs;
 }
 
 } // Gfx9

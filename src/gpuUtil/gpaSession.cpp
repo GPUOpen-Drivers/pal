@@ -103,9 +103,8 @@ SqttVersion GfxipToSqttVersion(
         version = SQTT_VERSION_3_0;
         break;
     case Pal::GfxIpLevel::GfxIp11_0:
-        version = SQTT_VERSION_3_2;
-        break;
     case Pal::GfxIpLevel::GfxIp11_5:
+        // fallthrough
         version = SQTT_VERSION_3_2;
         break;
 #if PAL_BUILD_GFX12
@@ -647,6 +646,13 @@ Result GpaSession::Init()
         input.clockMode = DeviceClockMode::QueryPeak;
         m_peakClockFrequency = {};
         result = m_pDevice->SetClockMode(input, &m_peakClockFrequency);
+        if (result != Result::Success)
+        {
+            PAL_DPWARN("Failed to Query Peak Clocks with result %x", result);
+
+            // Ignore this result
+            result = Result::Success;
+        }
     }
 
     // Pre-calculate GPU memory alignment for timestamp results. Use the largest alignment across all engines to avoid

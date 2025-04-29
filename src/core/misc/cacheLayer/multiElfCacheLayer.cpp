@@ -621,6 +621,14 @@ Result MultiElfCacheLayer::WaitForEntry(
 }
 
 // =====================================================================================================================
+// Evict the specified entry
+Result MultiElfCacheLayer::Evict(
+    const Hash128* pHashId)
+{
+    return m_pNextLayer->Evict(pHashId);
+}
+
+// =====================================================================================================================
 // Increments statistics counters based on attempted operation and result
 void MultiElfCacheLayer::UpdateStatistics(
     MultiElfCacheStatisticsTypes stat,

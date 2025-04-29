@@ -236,13 +236,6 @@ static_assert(Gfx11MaxPackedUserEntryCountGfx <= Gfx11MaxRegPairCount, "Packing 
 // case the spill table address will be in slot [15].
 constexpr uint32 NumUserDataRegistersCompute = 16;
 
-// Maximum number of user-data entries that can be packed into packed register pairs for the compute stage.
-constexpr uint32 Gfx11MaxUserDataIndexCountCs   = NumUserDataRegistersCompute;
-// Maximum number of compute user-data entry packed register pairs.
-constexpr uint32 Gfx11MaxPackedUserEntryCountCs = NumUserDataRegistersCompute / 2;
-
-static_assert(Gfx11MaxPackedUserEntryCountCs <= Gfx11MaxRegPairCount, "Packing too many registers!");
-
 // HW doesn't provide enumerations for the values of the DB_DFSM_CONTROL.PUNCHOUT_MODE field.  Give
 // some nice names here.
 constexpr uint32 DfsmPunchoutModeAuto     = 0;
@@ -358,6 +351,9 @@ using SamplerSrd = sq_img_samp_t;
 
 // Size of buffer descriptor structure.
 constexpr uint32 DwordsPerBufferSrd = Util::NumBytesToNumDwords(sizeof(BufferSrd));
+
+// GFX11 parts don't have a "resource level" bit in the buffer SRD, pre-GFX10 set it to 1. It is OK so set 1 for GFX11.
+constexpr uint32 BufferSrdResourceLevel = 1;
 
 // Maximum scissor rect value for the top-left corner.
 constexpr uint32 ScissorMaxTL = 16383;
@@ -564,6 +560,17 @@ struct GraphicsPipelineSignature
     // Address of each shader stage's user-SGPR for sampleInfo, dualsourceblend, topology.
     PerStageUserData compositeData;
 
+    // The pipeline link consts. The whole graphics pipeline can have up to four of these. For each one,
+    // register "regAddr" (a user SGPR in one of the graphics stages) is programmed with pipeline link const
+    // "index", which is retrieved from the GraphicsPipeline, which returns the value of symbol
+    // _amdgpu_pipelineLinkN for index N.
+    static constexpr const uint32 MaxPipelineLinkConsts = 4;
+    struct PipelineLinkConst
+    {
+        uint16  index;
+        uint16  regAddr;
+    } pipelineLinkConsts[MaxPipelineLinkConsts];
+
     // Storing these flags near userDataHash to get cache locality as they are accessed together
     union
     {
@@ -712,8 +719,17 @@ enum AcquirePoint : uint8
     AcquirePointCount
 };
 
-// Minimum PFP uCode version that indicates the device is running in RS64 mode
-constexpr uint32 Gfx11Rs64MinPfpUcodeVersion = 300;
+// Minimum ucode version that supports the packed register pairs packet. Temporarily set to UINT_MAX to disable packet
+// usage till additional testing and validation is completed.
+constexpr uint32 Gfx11MinPfpVersionPackedRegPairsPacket        = 1448;
+// Minimum ucode version that supports the packed register pairs packet for compute. Currently not supported in SW.
+constexpr uint32 Gfx11MinMecVersionPackedRegPairsPacket        = 463;
+// Minimum ucode version that supports the EVENT_WRITE_ZPASS packet.
+constexpr uint32 Gfx11MinPfpVersionEventWriteZpassPacket       = 1458;
+// Minimum ucode version that RELEASE_MEM packet supports waiting CP DMA.
+constexpr uint32 Gfx11MinPfpVersionReleaseMemSupportsWaitCpDma = 2150;
+// Minimum F32 ucode version for PFP unpacked reg pairs.
+constexpr uint32 Gfx11F32MinPfpVersionUnpackedRegPairsPacket = 41;
 
 } // Gfx9
 } // Pal

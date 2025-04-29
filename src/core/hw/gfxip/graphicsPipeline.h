@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/hw/gfxip/pipeline.h"
+#include "palVector.h"
 
 namespace Pal
 {
@@ -82,8 +83,16 @@ public:
     const uint8* TargetWriteMasks() const { return &m_targetWriteMasks[0]; }
     uint8 NumColorTargets() const { return m_numColorTargets; }
 
-    uint32 NumGfxShaderLibraries() const { return m_numGfxShaderLibraries; }
-    const GraphicsShaderLibrary* GetGraphicsShaderLibrary(uint32 index) const { return m_gfxShaderLibraries[index]; }
+    // Accessors for array of graphics shader libraries that make up the pipeline.
+    Util::Span<const GraphicsShaderLibrary* const> GetGraphicsShaderLibraries() const { return m_gfxShaderLibraries; }
+    uint32 NumGfxShaderLibraries() const { return uint32(GetGraphicsShaderLibraries().NumElements()); }
+    const GraphicsShaderLibrary* GetGraphicsShaderLibrary(uint32 index) const
+    {
+        return GetGraphicsShaderLibraries()[index];
+    }
+
+    // Get pipeline link const value (address of _amdgpu_pipelineLinkN symbol for index N).
+    uint32 GetPipelineLinkConst(uint32 index) const;
 
 protected:
     GraphicsPipeline(Device* pDevice, bool isInternal);
@@ -108,7 +117,11 @@ protected:
 
     uint32 GetLateAllocVsLimit() const { return m_lateAllocVsLimit; }
 
+    // Set up pipeline link const values from _amdgpu_pipelineLinkN symbol values.
+    Result SetUpPipelineLinkConsts(const AbiReader& abiReader, const CodeObjectUploader& uploader);
+
     uint32  m_outputNumVertices; // The count of vertex of output primitive type.
+
 private:
     void InitFlags(
         const GraphicsPipelineCreateInfo&         createInfo,
@@ -170,14 +183,15 @@ private:
     uint8           m_targetWriteMasks[MaxColorTargets];
     uint8           m_numColorTargets;
 
-    const GraphicsShaderLibrary* m_gfxShaderLibraries[MaxGfxShaderLibraryCount];
-    uint32                       m_numGfxShaderLibraries;
+    Util::Vector<const GraphicsShaderLibrary*, MaxGfxShaderLibraryCount, Platform> m_gfxShaderLibraries;
 
     // Use this late_alloc_vs limit if lateAllocVsLimit flag is set.
     uint32  m_lateAllocVsLimit;
 
     ViewInstancingDescriptor m_viewInstancingDesc;  // View instancing descriptor.
     LogicOp                  m_logicOp;             // ROP code this pipeline was created with
+
+    Util::Vector<uint32, 4, Platform> m_pipelineLinkConsts; // _amdgpu_pipelineLinkN symbol values
 
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(GraphicsPipeline);

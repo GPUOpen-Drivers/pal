@@ -51,7 +51,6 @@ struct DepthStencilViewRegs
     regDB_RENDER_OVERRIDE2           dbRenderOverride2;
     regDB_HTILE_DATA_BASE            dbHtileDataBase;
     regDB_DEPTH_SIZE_XY              dbDepthSizeXy;
-    regDB_Z_INFO                     dbZInfo;
     regDB_STENCIL_INFO               dbStencilInfo;
     regDB_Z_READ_BASE                dbZReadBase;
     regDB_STENCIL_READ_BASE          dbStencilReadBase;
@@ -126,7 +125,19 @@ public:
         const uint8           numFragments,
         regDB_RENDER_CONTROL* pDbRenderControl);
 
-    regDB_Z_INFO DbZInfo() const { return m_regs.dbZInfo; }
+    regDB_Z_INFO DbZInfo(ImageLayout depthLayout, ImageLayout stencilLayout) const
+    {
+        regDB_Z_INFO                       dbZInfo    = m_dbZInfo;
+        const DepthStencilCompressionState depthState =
+            ImageLayoutToDepthCompressionState(m_depthLayoutToState, depthLayout);
+
+        if ((depthLayout.usages == 0) && ((stencilLayout.usages & LayoutDepthStencilTarget) != 0))
+        {
+            dbZInfo.bits.FORMAT = 0;
+        }
+
+        return dbZInfo;
+    }
 
     static constexpr uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |
                                                       DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK       |
@@ -150,7 +161,8 @@ protected:
         const DepthStencilViewCreateInfo&         createInfo,
         const DepthStencilViewInternalCreateInfo& internalInfo,
         const Formats::Gfx9::MergedFlatFmtInfo*   pFmtInfo,
-        DepthStencilViewRegs*                     pRegs);
+        DepthStencilViewRegs*                     pRegs,
+        regDB_Z_INFO*                             pDbZInfo);
 
     void InitRegisters(
         const Device&                             device,
@@ -212,6 +224,7 @@ private:
     uint32               m_baseArraySlice;
     uint32               m_arraySize;
     DepthStencilViewRegs m_regs;
+    regDB_Z_INFO         m_dbZInfo; // Written at draw-time
 
     PAL_DISALLOW_DEFAULT_CTOR(DepthStencilView);
 };

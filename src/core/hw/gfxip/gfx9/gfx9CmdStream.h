@@ -86,40 +86,34 @@ public:
     uint32* WriteSetOneShReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
 
     template <bool Pm4OptImmediate>
-    uint32* WriteSetOneShRegIndex(
-        uint32                          regAddr,
-        uint32                          regData,
-        Pm4ShaderType                   shaderType,
-        PFP_SET_SH_REG_INDEX_index_enum index,
-        uint32*                         pCmdSpace);
-    uint32* WriteSetOneShRegIndex(
-        uint32                          regAddr,
-        uint32                          regData,
-        Pm4ShaderType                   shaderType,
-        PFP_SET_SH_REG_INDEX_index_enum index,
-        uint32*                         pCmdSpace);
+    uint32* WriteSetOneGfxShRegIndexApplyCuMask(
+        uint32  regAddr,
+        uint32  regData,
+        uint32* pCmdSpace);
+    uint32* WriteSetOneGfxShRegIndexApplyCuMask(
+        uint32  regAddr,
+        uint32  regData,
+        uint32* pCmdSpace);
     uint32* WriteSetSeqShRegsIndex(
-        uint32                          startRegAddr,
-        uint32                          endRegAddr,
+        uint32                          startRegAddrIn,
+        uint32                          endRegAddrIn,
         Pm4ShaderType                   shaderType,
-        const void*                     pData,
+        const void*                     pDataIn,
         PFP_SET_SH_REG_INDEX_index_enum index,
         uint32*                         pCmdSpace);
 
     template <bool pm4OptImmediate>
     uint32* WriteSetSeqContextRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
-    uint32* WriteSetSeqContextRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
+    uint32* WriteSetSeqContextRegs(uint32 startRegAddrIn, uint32 endRegAddrIn, const void* pDataIn, uint32* pCmdSpace);
 
-    template <bool pm4OptImmediate>
-    uint32* WriteLoadSeqContextRegs(uint32 startRegAddr, uint32 regCount, gpusize dataVirtAddr, uint32* pCmdSpace);
     uint32* WriteLoadSeqContextRegs(uint32 startRegAddr, uint32 regCount, gpusize dataVirtAddr, uint32* pCmdSpace);
 
     template <bool Pm4OptImmediate>
     uint32* WriteSetSeqShRegs(
-        uint32        startRegAddr,
-        uint32        endRegAddr,
+        uint32        startRegAddrIn,
+        uint32        endRegAddrIn,
         Pm4ShaderType shaderType,
-        const void*   pData,
+        const void*   pDataIn,
         uint32*       pCmdSpace);
     uint32* WriteSetSeqShRegs(
         uint32        startRegAddr,
@@ -147,16 +141,6 @@ public:
         const UserDataEntryMap& entryMap,
         const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
-
-    template <bool IgnoreDirtyFlags>
-    static void AccumulateUserDataEntriesForSgprs(
-        const UserDataEntryMap& entryMap,
-        const UserDataEntries&  entries,
-        const uint16            baseUserDataReg,
-        PackedRegisterPair*     pValidRegPairs,
-        UserDataEntryLookup*    pRegLookup,
-        uint32                  minLookupVal,
-        uint32*                 pNumValidRegs);
 
     template <Pm4ShaderType ShaderType, bool Pm4OptImmediate>
     uint32* WriteSetShRegPairs(PackedRegisterPair* pRegPairs,
@@ -197,6 +181,10 @@ public:
                                     uint32                   numRegPairs,
                                     uint32*                  pCmdSpace);
 
+    template <Pm4ShaderType ShaderType>
+    uint32* WriteSetShRegPairs(const RegisterValuePair* pRegPairs,
+                               uint32                   numRegPairs,
+                               uint32*                  pCmdSpace);
     template <Pm4ShaderType ShaderType, bool Pm4OptImmediate>
     uint32* WriteSetShRegPairs(const RegisterValuePair* pRegPairs,
                                uint32                   numRegPairs,
@@ -273,7 +261,6 @@ private:
     const CmdUtil& m_cmdUtil;
     Pm4Optimizer*  m_pPm4Optimizer;       // This will only be created if optimization is enabled for this stream.
     uint32*        m_pChunkPreamble;      // If non-null, the current chunk preamble was allocated here.
-    const bool     m_supportsHoleyOptimization;
     bool           m_perfCounterWindowEnabled;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdStream);

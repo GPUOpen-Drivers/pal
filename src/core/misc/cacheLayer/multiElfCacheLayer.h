@@ -47,6 +47,7 @@ public:
     virtual Result Init() override;
 
     virtual Result WaitForEntry(const Hash128* pHashId) override;
+    virtual Result Evict(const Hash128* pHashId) override;
 
     void SetNextStorageLayer(ICacheLayer* pNextStorageLayer) {m_pNextStorageLayer = pNextStorageLayer;}
 
@@ -111,7 +112,7 @@ private:
         // Data for ELFs contained in this archive
         ArFileFormat::FileHeader    elfHeaders[MaxElfsPerArchive];
         Hash128                     elfHashes[MaxElfsPerArchive];
-        size_t                      elfSizes[MaxElfsPerArchive];
+        uint64                      elfSizes[MaxElfsPerArchive];
     };
 
     // Entries chained together to represent an archive of arbitrary length in ELFs.
@@ -128,7 +129,7 @@ private:
         uint32                      numElfs;
         ArFileFormat::FileHeader    elfHeaders[MaxElfsPerChainEntry];
         Hash128                     elfHashes[MaxElfsPerChainEntry];
-        size_t                      elfSizes[MaxElfsPerChainEntry];
+        uint64                      elfSizes[MaxElfsPerChainEntry];
 
         Hash128                     nextChainEntryHash;
     };
@@ -139,7 +140,7 @@ private:
         // Archive data, for reconstruction and sanity checking
         Hash128                     hash;
         uint32                      numElfs;
-        size_t                      size;
+        uint64                      size;
         Hash128                     checksum;
 
         // We expect the vast majority of entries to be 3-ELF graphics pipelines

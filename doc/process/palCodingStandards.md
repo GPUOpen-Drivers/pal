@@ -1,5 +1,23 @@
 ```
 Copyright (c) 2019-2025 Advanced Micro Devices, Inc. All rights reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 - [Introduction](#introduction)
@@ -295,9 +313,82 @@ Preprocessor
 
 -   Constants or enumerations ***should*** be used instead of `#defines`.
 
--   Compiler-specific preprocessor `#pragma` directives ***must
-    not*** be used to disable compiler warnings. That is, the
-    directive "`#pragma warning`" ***must not*** be used.
+### Disabling Warnings
+-   `#pragma ... warning` is generally discouraged, but are permitted to be used in a few scenarios:
+    -   External libraries may disable warnings we want elsewhere. `#pragma` let us apply them specifically.
+    -   A one-off piece of hacky code that triggers a warning but we're ***certain*** is safe
+        may be wrapped in `#pragma` to disable the warning for that specific piece of code.
+-   `#pragma ... push` and `#pragma ... pop` ***must*** be used to control the scope of any disabled warnings.
+-  `#pragma ... push` ***should*** include a comment documenting what warnings are being disabled.
+    Or otherwise a nearby comment explaining why this block of code needs a warning disabled.
+-  `#pragma ... pops` ***should*** include a comment documenting what warnings are being re-enabled.
+    -   Unless the corresponding `#pragma ... push` is still visible.
+-   Warnings can also be compiler specific. If a warning only exists on one compiler, document it.
+-   `#pragma` directives are inherently compiler specific, and ***must*** only be visible to one compiler.
+
+Examples:
+
+Working with external libraries is a common reason to suppress compiler warnings.
+```cpp
+#if   defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-warning"
+#else
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+// This external lib triggers unknown-warning-option.
+// We've vetted this lib and we're confident there's no actual issues with it.
+// We don't want to modify the lib though because we want to bring in upstream changes in the future.
+// So let's just disable the warning temporarily.
+#include "someLib.h"
+#if   defined(__GNUC__)
+#pragma GCC diagnostic pop // -Wuknown-warning
+#else
+#pragma clang diagnostic pop // -Wunknown-warning-option
+#endif
+```
+
+In this example, we were only seeing the warning on gcc,
+but for completeness we disabled it on the other compilers just in case.
+```cpp
+#if   defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#else
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
+#endif
+    // gcc complains about m_member2 not being initalized in the ctor's initalizer list
+    MyClass() : m_member1{ 0 } { m_member2 = 0; }
+#if   defined(__GNUC__)
+#pragma GCC diagnostic pop // -Wuninitialized
+#else
+#pragma clang diagnostic pop // -Wuninitalized
+#endif
+```
+
+This warning only exists for MSVC. We should clearly comment that the warning doesn't exist for other compilers.
+```cpp
+    int m_array[]; // flexible array member
+```
+
+In this example, we're inside a linux-only file. MSVC will never see this file.
+Therefore the MSVC preprocessor branch can be omitted.
+```cpp
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wempty-body"
+#else
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wempty-body"
+#endif
+    {}
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop // -Wempty-body
+#else
+#pragma clang diagnostic pop // -Wempty-body
+#endif
+```
 
 Naming Conventions
 ----------------------
@@ -1361,6 +1452,17 @@ Structures and Typedefs
 
 Enumerations
 ------------
+
+-   Strong enums (`enum class`) ***should*** be used if possible.
+    Ideal use cases for strong-enums are fixed sets that benefit
+    from the strong enum's type-checking.
+
+-   Plain Enums (`enum`) ***must*** be used for enums that
+    are designed to be combined together, by bit-position, or that
+    are otherwise complicated by strong-typing.
+
+    -   Strong enums weren't always available to PAL. Interface code
+        may use plain enums more generally than our current guidelines.
 
 -   The size of the integer-representation of all enumeration types
     ***must*** be fully specified. The syntax for this in accordance

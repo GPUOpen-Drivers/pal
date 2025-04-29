@@ -73,8 +73,6 @@ private:
     ShaderStageInfo        m_taskStageInfo;
     ComputeShaderSignature m_taskSignature;
 
-    const bool m_shPairsPacketSupportedCs;
-
     PAL_DISALLOW_DEFAULT_CTOR(HybridGraphicsPipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(HybridGraphicsPipeline);
 };

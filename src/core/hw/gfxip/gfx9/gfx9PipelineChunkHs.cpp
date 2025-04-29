@@ -86,14 +86,14 @@ void PipelineChunkHs::LateInit(
         m_stageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
     }
 
-    m_regs.sh.spiShaderPgmRsrc1Hs.u32All      = AbiRegisters::SpiShaderPgmRsrc1Hs(metadata);
-    m_regs.sh.spiShaderPgmRsrc2Hs.u32All      = AbiRegisters::SpiShaderPgmRsrc2Hs(metadata);
-    m_regs.dynamic.spiShaderPgmRsrc3Hs.u32All = AbiRegisters::SpiShaderPgmRsrc3Hs(metadata, device);
-    m_regs.dynamic.spiShaderPgmRsrc4Hs.u32All =
-        AbiRegisters::SpiShaderPgmRsrc4Hs(metadata, device, chipProps.gfxLevel, m_stageInfo.codeLength);
-    m_regs.sh.spiShaderPgmChksumHs.u32All     = AbiRegisters::SpiShaderPgmChksumHs(metadata, device);
-    m_regs.context.vgtHosMinTessLevel.u32All  = AbiRegisters::VgtHosMinTessLevel(metadata);
-    m_regs.context.vgtHosMaxTessLevel.u32All  = AbiRegisters::VgtHosMaxTessLevel(metadata);
+    m_regs.sh.spiShaderPgmRsrc1Hs.u32All            = AbiRegisters::SpiShaderPgmRsrc1Hs(metadata);
+    m_regs.sh.spiShaderPgmRsrc2Hs.u32All            = AbiRegisters::SpiShaderPgmRsrc2Hs(metadata);
+    m_regs.dynamic.spiShaderPgmRsrc3Hs.u32All       = AbiRegisters::SpiShaderPgmRsrc3Hs(metadata, device);
+    m_regs.dynamic.spiShaderPgmRsrc4Hs.u32All       =
+        AbiRegisters::SpiShaderPgmRsrc4Hs(device, chipProps.gfxLevel, m_stageInfo.codeLength);
+    m_regs.sh.spiShaderPgmChksumHs.u32All           = AbiRegisters::SpiShaderPgmChksumHs(metadata, device);
+    m_regs.lowFreqContext.vgtHosMinTessLevel.u32All = AbiRegisters::VgtHosMinTessLevel(metadata);
+    m_regs.lowFreqContext.vgtHosMaxTessLevel.u32All = AbiRegisters::VgtHosMaxTessLevel(metadata);
 }
 
 // =====================================================================================================================
@@ -150,43 +150,40 @@ uint32* PipelineChunkHs::WriteShCommands<false>(
 // =====================================================================================================================
 template <bool Pm4OptEnabled>
 uint32* PipelineChunkHs::WriteDynamicRegs(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& hsStageInfo
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    uint8      wavesPerSeInUnitsOf16
     ) const
 {
-    HsRegs::Dynamic dynamic = m_regs.dynamic;
+    regSPI_SHADER_PGM_RSRC3_HS rsrc3Hs = m_regs.dynamic.spiShaderPgmRsrc3Hs;
 
-    if (hsStageInfo.wavesPerSh > 0)
+    if (wavesPerSeInUnitsOf16 != 0)
     {
-        dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+        rsrc3Hs.bits.WAVE_LIMIT = wavesPerSeInUnitsOf16;
     }
 
-    pCmdSpace = pCmdStream->WriteSetOneShRegIndex<Pm4OptEnabled>(mmSPI_SHADER_PGM_RSRC3_HS,
-                                                                 dynamic.spiShaderPgmRsrc3Hs.u32All,
-                                                                 ShaderGraphics,
-                                                                 index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                                 pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneGfxShRegIndexApplyCuMask<Pm4OptEnabled>(mmSPI_SHADER_PGM_RSRC3_HS,
+                                                                               rsrc3Hs.u32All,
+                                                                               pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShRegIndex<Pm4OptEnabled>(mmSPI_SHADER_PGM_RSRC4_HS,
-                                                                 dynamic.spiShaderPgmRsrc4Hs.u32All,
-                                                                 ShaderGraphics,
-                                                                 index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                                 pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneGfxShRegIndexApplyCuMask<Pm4OptEnabled>(
+        mmSPI_SHADER_PGM_RSRC4_HS,
+        m_regs.dynamic.spiShaderPgmRsrc4Hs.u32All,
+        pCmdSpace);
 
     return pCmdSpace;
 }
 
 template
 uint32* PipelineChunkHs::WriteDynamicRegs<true>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& hsStageInfo) const;
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    uint8      wavesPerSeInUnitsOf16) const;
 template
 uint32* PipelineChunkHs::WriteDynamicRegs<false>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& hsStageInfo) const;
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    uint8      wavesPerSeInUnitsOf16) const;
 
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused DWORD in
@@ -199,7 +196,7 @@ uint32* PipelineChunkHs::WriteContextCommands(
 {
     return pCmdStream->WriteSetSeqContextRegs<Pm4OptEnabled>(mmVGT_HOS_MAX_TESS_LEVEL,
                                                              mmVGT_HOS_MIN_TESS_LEVEL,
-                                                             &m_regs.context.vgtHosMaxTessLevel,
+                                                             &m_regs.lowFreqContext.vgtHosMaxTessLevel,
                                                              pCmdSpace);
 }
 
@@ -276,7 +273,7 @@ void PipelineChunkHs::AccumulateShRegs(
 // =====================================================================================================================
 // Accumulates this pipeline chunk's context registers into an array of packed register pairs.
 template <typename T>
-void PipelineChunkHs::AccumulateContextRegs(
+void PipelineChunkHs::AccumulateLowFreqContextRegs(
     T*      pRegPairs,
     uint32* pNumRegs
     ) const
@@ -289,19 +286,19 @@ void PipelineChunkHs::AccumulateContextRegs(
                             pNumRegs,
                             mmVGT_HOS_MAX_TESS_LEVEL,
                             mmVGT_HOS_MIN_TESS_LEVEL,
-                            &m_regs.context.vgtHosMaxTessLevel);
+                            &m_regs.lowFreqContext.vgtHosMaxTessLevel);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + HsRegs::NumContextReg));
+    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + HsRegs::NumLowFreqContextReg));
 #endif
 }
 
 template
-void PipelineChunkHs::AccumulateContextRegs(
+void PipelineChunkHs::AccumulateLowFreqContextRegs(
     PackedRegisterPair* pRegPairs,
     uint32*             pNumRegs) const;
 template
-void PipelineChunkHs::AccumulateContextRegs(
+void PipelineChunkHs::AccumulateLowFreqContextRegs(
     RegisterValuePair* pRegPairs,
     uint32*            pNumRegs) const;
 

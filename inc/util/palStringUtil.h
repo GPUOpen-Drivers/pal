@@ -32,13 +32,15 @@
 #pragma once
 
 #include <cstring>
-#include <stdlib.h>
+#include <cwchar>
+#include <type_traits>
+
+#include "palUtil.h"
 
 namespace Util
 {
-
-/// Returns the length of a wchar_t based string.  This function is necessary when specifying the -fshort-wchar option
-/// because the standard library wcslen still interprets its argument using a 4 byte UTF-32 wide character.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 919
+/// Returns the length of a wchar_t based string.
 ///
 /// @param [in]  wide string to query
 ///
@@ -46,8 +48,7 @@ namespace Util
 extern size_t PalWcslen(
     const wchar_t* pWideStr);
 
-/// Performs a reverse string find of wide character wc.  This function is necessary when specifying the -fshort-wchar
-/// option because the standard library wcsrchr still interprets its arguments using a 4 byte UTF-32 wide character.
+/// Performs a reverse string find of wide character wc.
 ///
 /// @param [in]  wide string to scan
 /// @param [in]  wide character to find
@@ -56,6 +57,7 @@ extern size_t PalWcslen(
 extern wchar_t* PalWcsrchr(
     wchar_t *pStr,
     wchar_t wc);
+#endif
 
 /// When the -fshort-char compiler option is specified, wchar_t is 16 bits, but mbstowcs still treats the dest
 /// as 32 bit so we provide our own implementation.
@@ -130,10 +132,57 @@ extern size_t BytesToStr(
     size_t      bufferSize,
     size_t      blockSize);
 
-// =====================================================================================================================
-// Automatic helper for wrapping <cstring> length calls.
-inline uint32 StringLength(const char*    s) { return static_cast<uint32>(strlen(s)); }
-inline uint32 StringLength(const wchar_t* s) { return static_cast<uint32>(PalWcslen(s)); }
+/// Returns the length of the string.
+///
+/// @returns String length.
+constexpr uint32 StringLength(
+    const char* pString)
+{
+    // TODO: On C++23 we can replace this with consteval-if.
+    // TODO: When we upgrade PAL_CPLUSPLUS then we can rely that std::is_constant_evaluated() is always defined.
+#if defined(__cpp_lib_is_constant_evaluated)
+    if (std::is_constant_evaluated())
+#else
+    if (__builtin_is_constant_evaluated())
+#endif
+    {
+        uint32 length = 0;
+        while (pString[length] != '\0')
+        {
+            length++;
+        }
+        return length;
+    }
+    else
+    {
+        return uint32(std::strlen(pString));
+    }
+}
+/// Returns the length of the string.
+///
+/// @returns String length.
+constexpr uint32 StringLength(
+    const wchar_t* pString)
+{
+    // TODO: On C++23 we can replace this with consteval-if.
+    // TODO: When we upgrade PAL_CPLUSPLUS then we can rely that std::is_constant_evaluated() is always defined.
+#if defined(__cpp_lib_is_constant_evaluated)
+    if (std::is_constant_evaluated())
+#else
+    if (__builtin_is_constant_evaluated())
+#endif
+    {
+        uint32 length = 0;
+        while (pString[length] != L'\0')
+        {
+            length++;
+        }
+        return length;
+    }
+    else
+    {
+        return uint32(std::wcslen(pString));
+    }
+}
 
 } // Util
-

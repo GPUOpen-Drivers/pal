@@ -89,7 +89,7 @@ struct ReleaseMemGeneric
     gpusize          dstAddr;     // The the selected data here, must be aligned to the data byte size.
     ReleaseMemCaches cacheSync;   // Caches can only be synced by EOP release_mems.
     bool             usePws;      // This event should increment the PWS counters.
-    bool             waitCpDma;   // If wait CP DMA to be idle, only available with supported PFP version; clients must
+    bool             waitCpDma;   // If wait CP DMA to be idle, only available with supported PFP version; caller must
                                   // query EnableReleaseMemWaitCpDma() to make sure ReleaseMem packet supports waiting
                                   // CP DMA before setting it true.
     bool             noConfirmWr; // Disable confirmation of data write after EOP

@@ -43,8 +43,7 @@ struct RegState
     struct
     {
         uint32 valid     :  1;  // This register has been set in this stream, value is valid.
-        uint32 mustWrite :  1;  // All writes to this register must be preserved (can't optimize them out).
-        uint32 reserved  : 30;
+        uint32 reserved  : 31;
     } flags;
 
     uint32 value;
@@ -74,6 +73,12 @@ struct SetBaseState
 #endif
 };
 
+enum StateType
+{
+    Sh,
+    Context
+};
+
 using ShRegState   = RegGroupState<ShRegUsedRangeSize>;
 using CntxRegState = RegGroupState<CntxRegUsedRangeSize>;
 
@@ -87,18 +92,23 @@ public:
 
     void Reset();
 
-    void SetShRegInvalid(uint32 regAddr) { m_shRegs.state[regAddr - PERSISTENT_SPACE_START].flags.valid = 0; }
+    void SetShRegInvalid(uint32 regAddr)
+    {
+         PAL_ASSERT((regAddr >= PERSISTENT_SPACE_START) && (regAddr < (PERSISTENT_SPACE_START + ShRegUsedRangeSize)));
+         m_shRegs.state[regAddr - PERSISTENT_SPACE_START].flags.valid = 0;
+    }
+
+    void SetCtxRegInvalid(uint32 regAddr)
+    {
+        PAL_ASSERT((regAddr >= CONTEXT_SPACE_START) && (regAddr < (CONTEXT_SPACE_START + CntxRegUsedRangeSize)));
+        m_cntxRegs.state[regAddr - CONTEXT_SPACE_START].flags.valid = 0;
+    }
 
     bool MustKeepSetContextReg(uint32 regAddr, uint32 regData);
     bool MustKeepSetShReg(uint32 regAddr, uint32 regData);
     bool MustKeepContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData);
     bool MustKeepSetBase(gpusize address, uint32 index, Pm4ShaderType shaderType);
 
-    // These functions take a fully built packet header and the corresponding register data and will write the
-    // optimized version into pCmdSpace.
-    uint32* WriteOptimizedSetSeqShRegs(PM4_ME_SET_SH_REG setData, const uint32* pData, uint32* pCmdSpace);
-    uint32* WriteOptimizedSetSeqContextRegs(PM4_PFP_SET_CONTEXT_REG setData, const uint32* pData, uint32* pCmdSpace);
-
     template <Pm4ShaderType ShaderType>
     uint32* WriteOptimizedSetShRegPairs(
         const PackedRegisterPair* pRegPairs,
@@ -118,27 +128,20 @@ public:
         const RegisterValuePair* pRegPairs,
         uint32                   numRegs,
         uint32*                  pCmdSpace);
-
-    // These functions take a fully built LOAD_DATA header(s) and will update the state of the optimizer state
-    // based on the packet's contents.
-    void HandleLoadShRegs(const PM4_ME_LOAD_SH_REG& loadData)
-        { HandlePm4LoadReg(loadData, PM4_ME_LOAD_SH_REG_SIZEDW__CORE, &m_shRegs); }
-    void HandleLoadContextRegs(const PM4_PFP_LOAD_CONTEXT_REG& loadData)
-        { HandlePm4LoadReg(loadData, PM4_ME_LOAD_CONTEXT_REG_SIZEDW__CORE, &m_cntxRegs); }
-    void HandleLoadContextRegsIndex(const PM4_PFP_LOAD_CONTEXT_REG_INDEX& loadData);
 
 #if PAL_DEVELOPER_BUILD
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 
-private:
-    template <typename SetDataPacket, size_t RegisterCount>
-    uint32* OptimizePm4SetReg(
-        SetDataPacket                 setData,
-        const uint32*                 pRegData,
-        uint32*                       pDstCmd,
-        RegGroupState<RegisterCount>* pRegState);
+    static bool IsRegisterMustWrite(uint32 regOffset);
 
+    template <StateType RegType>
+    bool OptimizePm4SetRegSeq(
+        uint32*        pStartRegAddr,
+        uint32*        pEndRegAddr,
+        const uint32** ppData);
+
+private:
     template <RegisterRangeType RegType>
     uint32* OptimizePm4SetRegPairsPacked(
         const PackedRegisterPair* pRegPairs,
@@ -151,27 +154,10 @@ private:
         uint32                   numRegs,
         uint32*                  pCmdSpace);
 
-    template <typename LoadDataPacket, size_t RegisterCount>
-    void HandlePm4LoadReg(
-        const LoadDataPacket&         loadData,
-        uint32                        loadDataSize,
-        RegGroupState<RegisterCount>* pRegState);
-
-    template <typename LoadDataIndexPacket, size_t RegisterCount>
-    void HandlePm4LoadRegIndex(
-        const LoadDataIndexPacket&    loadDataIndex,
-        uint32                        loadDataIndexSize,
-        RegGroupState<RegisterCount>* pRegState);
-
-    void HandlePm4SetShRegOffset(const PM4_PFP_SET_SH_REG_OFFSET& setShRegOffset);
-    void HandlePm4SetContextRegIndirect(const PM4_PFP_SET_CONTEXT_REG& setData);
-
-    uint32 GetPm4PacketSize(PM4_PFP_TYPE_3_HEADER pm4Header) const;
-
+#if PAL_DEVELOPER_BUILD
     const Device&   m_device;
+#endif
     const CmdUtil&  m_cmdUtil;
-
-    const bool m_splitPackets;
 
     // Shadow register state for context and SH registers.
     CntxRegState  m_cntxRegs;

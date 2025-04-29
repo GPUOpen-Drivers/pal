@@ -331,7 +331,6 @@ uint16 ExecuteIndirectMeta::ProcessCommandIndex(
     const bool  useEightBitMask)
 {
     uint16 commandIndex = 0;
-    constexpr uint32 EightBitMask = 0xFF;
 
     const bool incConstRegMapped  = (m_metaData.incConstRegCount > 0);
     const bool drawIndexRegMapped = (drawIndexRegOffset != UserDataNotMapped) && (useConstantDrawIndex == false);
@@ -345,7 +344,7 @@ uint16 ExecuteIndirectMeta::ProcessCommandIndex(
         }
 
         m_metaData.commandIndexEnable = true;
-        commandIndex = (useEightBitMask ? m_metaData.incConstReg[0] & EightBitMask : m_metaData.incConstReg[0]);
+        commandIndex = (useEightBitMask ? uint8(m_metaData.incConstReg[0]) : m_metaData.incConstReg[0]);
     }
     else if (drawIndexRegMapped)
     {

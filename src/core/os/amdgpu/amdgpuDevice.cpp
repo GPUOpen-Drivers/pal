@@ -52,6 +52,8 @@
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
 #if PAL_BUILD_GFX12
 #include "core/addrMgr/addrMgr3/addrMgr3.h"
+#endif
+#if PAL_BUILD_GFX12
 #include "core/hw/gfxip/gfx12/gfx12Device.h"
 #endif
 
@@ -682,6 +684,11 @@ Result Device::OsLateInit()
         m_featureState.supportPowerDpmIoctl = 1;
     }
 
+    if (IsDrmVersionOrGreater(3, 59))
+    {
+        m_featureState.alwaysInitializedToZero = 1;
+    }
+
     return result;
 }
 
@@ -899,6 +906,10 @@ Result Device::GetProperties(
 
         pInfo->gpuMemoryProperties.flags.supportHostMappedForeignMemory =
             static_cast<Platform*>(m_pPlatform)->IsHostMappedForeignMemorySupported();
+
+        pInfo->gpuMemoryProperties.flags.alwaysInitializedToZero = m_featureState.alwaysInitializedToZero;
+
+        pInfo->osProperties.supportMemoryBudgetQuery = 1;
     }
 
     return result;
@@ -1006,6 +1017,10 @@ Result Device::InitGpuProperties()
             break;
         }
     }
+
+    // We can't know this from the kernel, so assume its true
+    // See: workarounds.waCwsrThreadGroupTrap
+    m_chipProperties.gfx9.cwsrEnabled = true;
 
     switch (m_chipProperties.gfxTriple.major)
     {
@@ -1235,7 +1250,7 @@ void Device::InitGfx9ChipProperties()
     else
     {
 #if PAL_BUILD_NULL_DEVICE
-        NullDevice::Device::FillGfx9ChipProperties(&m_chipProperties);
+        NullDevice::Device::FillGfx9ChipProperties(&m_chipProperties, GetPlatform()->PlatformSettings());
 #else
         PAL_ASSERT_ALWAYS_MSG("NullDevice spoofing requested but not compiled in!");
 #endif
@@ -1437,7 +1452,7 @@ void Device::InitGfx12ChipProperties()
     else
     {
 #if PAL_BUILD_NULL_DEVICE
-        NullDevice::Device::FillGfx12ChipProperties(&m_chipProperties);
+        NullDevice::Device::FillGfx12ChipProperties(&m_chipProperties, GetPlatform()->PlatformSettings());
 #else
         PAL_ASSERT_ALWAYS_MSG("NullDevice spoofing requested but not compiled in!");
 #endif
@@ -2375,7 +2390,7 @@ void Device::GetDisplayDccInfo(
         displayDcc.rbAligned   = 0;
 
 #if PAL_BUILD_GFX12
-        if (IsGfx12(*this) && IsDrmVersionOrGreater(3, 58))
+        if (IsGfx12Plus(*this) && IsDrmVersionOrGreater(3, 58))
         {
             displayDcc.dcc_256_256_plane0 = 0;
             displayDcc.dcc_256_128_plane0 = 1;
@@ -3765,11 +3780,12 @@ void Device::UpdateMetaData(
     pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
 
 #if PAL_BUILD_GFX12
-    if (IsGfx12(*this))
+    if (IsGfx12Plus(*this))
     {
         const AddrMgr3::TileInfo*const pTileInfo   = AddrMgr3::GetTileInfo(&image, 0);
         pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
 
+        static_assert(uint32(AMDGPU_ADDR3_SWIZZLE_MODE_MAX_TYPE) == uint32(ADDR3_MAX_TYPE));
         static_assert(uint32(AMDGPU_ADDR_RSRC_TEX_2D)            == uint32(ADDR_RSRC_TEX_2D));
 
         const auto curAddr3SwizzleMode =
@@ -3874,7 +3890,7 @@ void Device::UpdateMetaData(
                                             (&pUmdMetaData->shared_metadata_info);
 
 #if PAL_BUILD_GFX12
-        if (IsGfx12(*this))
+        if (IsGfx12Plus(*this))
         {
             if ((sharedMetadataInfo.hiZOffset != 0) || (sharedMetadataInfo.hiSOffset != 0))
             {
@@ -6964,6 +6980,50 @@ void Device::GetModifiersList(
 
         AddModifier(format, pModifierCount, pModifiersList, DRM_FORMAT_MOD_LINEAR);
     }
+}
+
+// =====================================================================================================================
+// Query current gpu memory usage info of specified heap group of the device.
+Result Device::QueryGpuMemoryBudgetInfo(
+    GpuMemoryBudgetInfo* pInfo)
+{
+    Result result = Result::Success;
+
+    struct amdgpu_heap_info heap_info = {0};
+
+    if (m_drmProcs.pfnAmdgpuQueryHeapInfo(m_hDevice,
+        AMDGPU_GEM_DOMAIN_VRAM,
+        AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+        &heap_info) == 0)
+    {
+        pInfo->systemUsage[GpuHeapGroupLocal] = heap_info.heap_usage;
+    }
+    else
+    {
+        result = Result::ErrorInvalidValue;
+    }
+
+    if ((result == Result::Success) &&
+        (m_drmProcs.pfnAmdgpuQueryHeapInfo(m_hDevice, AMDGPU_GEM_DOMAIN_VRAM, 0, &heap_info) == 0))
+    {
+        pInfo->systemUsage[GpuHeapGroupInvisible] = heap_info.heap_usage;
+    }
+    else
+    {
+        result = Result::ErrorInvalidValue;
+    }
+
+    if ((result == Result::Success) &&
+        (m_drmProcs.pfnAmdgpuQueryHeapInfo(m_hDevice, AMDGPU_GEM_DOMAIN_GTT, 0, &heap_info) == 0))
+    {
+        pInfo->systemUsage[GpuHeapGroupNonLocal] = heap_info.heap_usage;
+    }
+    else
+    {
+        result = Result::ErrorInvalidValue;
+    }
+
+    return result;
 }
 
 } // Amdgpu

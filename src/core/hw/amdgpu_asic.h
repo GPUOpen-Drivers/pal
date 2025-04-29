@@ -40,7 +40,7 @@
 #define FAMILY_RPL     0x95 // 149 / Raphael
 #define FAMILY_STX     0x96 // 150 / Strix
 #define FAMILY_MDN     0x97 // 151 / Mendocino
-#if PAL_BUILD_NAVI4X
+#if PAL_BUILD_GFX12
 #define FAMILY_NV4     0x98 // 152 / Navi4x
 #endif
 
@@ -62,9 +62,7 @@
 
 #if PAL_BUILD_GFX12
 // Gfx12
-#if PAL_BUILD_NAVI4X
 #define FAMILY_IS_NV4(f)     FAMILY_IS(f, NV4)
-#endif
 #endif
 
 #define AMDGPU_UNKNOWN          0xFF
@@ -89,9 +87,15 @@
 #define AMDGPU_NAVI32_RANGE        0x20, 0xff // 32 <= x < 255
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80 // 1 <= x < 128
 #define AMDGPU_PHOENIX2_RANGE      0x80, 0xC0 // 128 <= x < 192
+#if PAL_BUILD_HAWK_POINT1
+#define AMDGPU_HAWK_POINT1_RANGE   0xC0, 0xF0 // 192 <= x < 240
+#endif
+#if PAL_BUILD_HAWK_POINT2
+#define AMDGPU_HAWK_POINT2_RANGE   0xF0, 0xFF // 240 <= x < 255
+#endif
 
 // Gfx11.5
-#define AMDGPU_STRIX1_RANGE          0x01, 0x40 // 1  <= x < 64 (tentative)
+#define AMDGPU_STRIX1_RANGE        0x01, 0x40 // 1  <= x < 64 (tentative)
 #if PAL_BUILD_STRIX_HALO
 #define AMDGPU_STRIX_HALO_RANGE    0xC0, 0xFF // 192 <= x < 255 (tentative)
 #endif
@@ -127,6 +131,12 @@
 #define ASICREV_IS_NAVI33(r)           ASICREV_IS(r, NAVI33)
 #define ASICREV_IS_PHOENIX1(r)         ASICREV_IS(r, PHOENIX1)
 #define ASICREV_IS_PHOENIX2(r)         ASICREV_IS(r, PHOENIX2)
+#if PAL_BUILD_HAWK_POINT1
+#define ASICREV_IS_HAWK_POINT1(r)      ASICREV_IS(r, HAWK_POINT1)
+#endif
+#if PAL_BUILD_HAWK_POINT2
+#define ASICREV_IS_HAWK_POINT2(r)      ASICREV_IS(r, HAWK_POINT2)
+#endif
 
 // Gfx11.5
 #define ASICREV_IS_STRIX1(r)           ASICREV_IS(r, STRIX1)
@@ -161,6 +171,12 @@
 #define AMDGPU_IS_NAVI33(f, r)        AMDGPU_IS(f, r, NV3, NAVI33)
 #define AMDGPU_IS_PHOENIX1(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX1)
 #define AMDGPU_IS_PHOENIX2(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX2)
+#if PAL_BUILD_HAWK_POINT1
+#define AMDGPU_IS_HAWK_POINT1(f, r)   AMDGPU_IS(f, r, PHX, HAWK_POINT1)
+#endif
+#if PAL_BUILD_HAWK_POINT2
+#define AMDGPU_IS_HAWK_POINT2(f, r)   AMDGPU_IS(f, r, PHX, HAWK_POINT2)
+#endif
 
 // Gfx11.5
 #define AMDGPU_IS_STRIX1(f,r)         AMDGPU_IS(f, r, STX, STRIX1)
@@ -191,6 +207,12 @@
 #define DEVICE_ID_NV3_NAVI33_P_73F0     0x73F0
 #define DEVICE_ID_PHX1_15BF             0x15BF // Phoenix1
 #define DEVICE_ID_PHX2_15C8             0x15C8 // Phoenix2
+#if PAL_BUILD_HAWK_POINT1
+#define DEVICE_ID_HP1_1900              0x1900 // HawkPoint1
+#endif
+#if PAL_BUILD_HAWK_POINT2
+#define DEVICE_ID_HP2_1901              0x1901 // HawkPoint2
+#endif
 
 // Gf11.5
 #define DEVICE_ID_STX1_150E             0x150E // Strix1

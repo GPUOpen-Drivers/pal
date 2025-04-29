@@ -123,7 +123,7 @@ void GetRegistryPaths(std::set<std::string>* pRegistryPaths)
                             registryPath = std::wstring(L"SYSTEM\\CurrentControlSet\\Control\\Class\\") + registryPath;
                             registryPath = registryPath + std::wstring(L"\\UMD");
 
-                            std::wstring subkeys[] = { L"DXC", L"VULKAN", L"DXXP" };
+                            std::wstring subkeys[] = { L"DXC", L"VULKAN", L"DXXP", L"DX9P" };
                             for (const auto& subkey : subkeys)
                             {
                                 HKEY hKey;

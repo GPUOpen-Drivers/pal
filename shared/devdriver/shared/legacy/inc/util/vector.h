@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,9 @@
 
 #include <ddPlatform.h>
 
+#if !DD_PLATFORM_WINDOWS_KM
 #include <type_traits>
+#endif
 #include <cstring>
 
 namespace DevDriver
@@ -479,7 +481,15 @@ namespace DevDriver
 
         // This indirection fixes the warning comparision of a constant with another constant. This should be
         // replace with `if constexpr` once AMDLog upgrades to support C++17.
-        constexpr bool is_type_trivial() { return std::is_trivial_v<T>; }
+        constexpr bool is_type_trivial()
+        {
+#if !DD_PLATFORM_WINDOWS_KM
+            return std::is_trivial_v<T>;
+#else
+            // <type_traits> not available in kernel so treat every type as nontrivial
+            return false;
+#endif
+        }
 
         T m_data[defaultCapacity];
         T* m_pData;

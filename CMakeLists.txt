@@ -31,12 +31,6 @@ project(PAL LANGUAGES CXX)
 
 message(STATUS "PAL_SOURCE_DIR = ${PAL_SOURCE_DIR}")
 
-include(PalBuildParameters)
-include(PalCodegen)
-include(PalOptions)
-include(PalOverrides)
-include(PalPrecompiledHeaders)
-
 # Create PAL targets:
 # - pal : The overall PAL target that a client links to
 # - palUtil : Just the PAL util library
@@ -49,6 +43,16 @@ target_link_libraries(pal PUBLIC palUtil)
 add_library(palCompilerDeps STATIC)
 target_link_libraries(palCompilerDeps PRIVATE palUtil)
 target_link_libraries(pal PRIVATE palCompilerDeps)
+
+# PAL's build parameters must be defined *after* the pal target is defined.
+# To aid in the sharing of PAL build parameters, set_target_property() is used on the pal
+# target to provide a method for clients to retrieve the final, proper value of the build parameter.
+# set_target_property() will not work if the target is not yet defined.
+include(PalBuildParameters)
+include(PalOnlyBuildParameters)
+include(PalCodegen)
+include(PalOverrides)
+include(PalPrecompiledHeaders)
 
 add_subdirectory(cmake)
 add_subdirectory(inc)

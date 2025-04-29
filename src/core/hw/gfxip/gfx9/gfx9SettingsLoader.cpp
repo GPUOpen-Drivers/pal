@@ -49,16 +49,6 @@ namespace Pal
 namespace Gfx9
 {
 
-// Minimum ucode version that supports the packed register pairs packet. Temporarily set to UINT_MAX to disable packet
-// usage till additional testing and validation is completed.
-constexpr uint32 Gfx11MinPfpVersionPackedRegPairsPacket   = 1448;
-// Minimum ucode version that supports the packed register pairs packet for compute. Currently not supported.
-constexpr uint32 Gfx11MinPfpVersionPackedRegPairsPacketCs = UINT_MAX;
-// Minimum ucode version that supports the EVENT_WRITE_ZPASS packet.
-constexpr uint32 Gfx11MinPfpVersionEventWriteZpassPacket  = 1458;
-// Minimum ucode version that RELEASE_MEM packet supports waiting CP DMA.
-constexpr uint32 Gfx11MinPfpVersionReleaseMemSupportsWaitCpDma = 2150;
-
 // =====================================================================================================================
 SettingsLoader::SettingsLoader(
     Pal::Device* pDevice)
@@ -663,8 +653,9 @@ static void SetupGfx11Workarounds(
     const Pal::Device&  device,
     Gfx9PalSettings*    pSettings)
 {
-    const uint32 familyId = device.ChipProperties().familyId;
-    const uint32 eRevId   = device.ChipProperties().eRevId;
+    const uint32 familyId    = device.ChipProperties().familyId;
+    const uint32 eRevId      = device.ChipProperties().eRevId;
+    const bool   cwsrEnabled = device.ChipProperties().gfx9.cwsrEnabled;
 
     Gfx11SwWarDetection workarounds = {};
     const bool waFound = DetectGfx11SoftwareWorkaroundsByChip(familyId, eRevId, &workarounds);
@@ -673,7 +664,7 @@ static void SetupGfx11Workarounds(
 #if PAL_ENABLE_PRINTS_ASSERTS
     constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00684B00 }; // Workarounds handled by PAL.
     constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000714FC }; // Workarounds handled by other components.
-    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x0000A001 }; // Workarounds that should be handled by PAL that
+    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x0080A001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
     constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00102002 }; // Workarounds marked invalid, thus not handled.
@@ -689,7 +680,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 55, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 56, "Workaround count mismatch between PAL and SWD");
 
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
     {
@@ -710,7 +701,8 @@ static void SetupGfx11Workarounds(
     pSettings->waReplaceEventsWithTsEvents = workarounds.ppDbPWSIssueForDepthWrite_TextureRead_A_;
     pSettings->waAddPostambleEvent         = workarounds.geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_;
     pSettings->waLineStippleReset          = workarounds.geometryPaPALineStippleResetError_A_;
-    pSettings->waCwsrThreadgroupTrap       = workarounds.shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_;
+    pSettings->waCwsrThreadgroupTrap       =
+        (cwsrEnabled && workarounds.shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_);
 
     // We've experimentally determined that "intrinsic rate enable" has better perf than disabling RB+ when blending.
     pSettings->waEnableIntrinsicRateEnable = workarounds.sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_;
@@ -864,7 +856,7 @@ void SettingsLoader::OverrideDefaults(
 
     m_settings.gfx11EnableContextRegPairOptimization = pfpUcodeVersion >= Gfx11MinPfpVersionPackedRegPairsPacket;
     m_settings.gfx11EnableShRegPairOptimization      = pfpUcodeVersion >= Gfx11MinPfpVersionPackedRegPairsPacket;
-    m_settings.gfx11EnableShRegPairOptimizationCs    = pfpUcodeVersion >= Gfx11MinPfpVersionPackedRegPairsPacketCs;
+    m_settings.gfx11EnableShRegPairOptimizationCs    = false;
     m_settings.gfx11EnableZpassPacketOptimization    = pfpUcodeVersion >= Gfx11MinPfpVersionEventWriteZpassPacket;
 
     // Only enable for RS64 FW based GFX11 which adds the support.

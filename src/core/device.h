@@ -522,6 +522,10 @@ constexpr uint32 MaxVgprPerShader = 256;
 constexpr uint32 Gfx9MaxShaderEngines = 6;  // GFX11 parts have six SE's
 #endif
 
+// Minimum PFP/MEC uCode version that indicates the device is running in RS64 mode
+constexpr uint32 Gfx11Rs64MinPfpUcodeVersion = 300;
+constexpr uint32 Gfx11Rs64MinMecUcodeVersion = 300;
+
 // =====================================================================================================================
 // Helper function to convert GfxIpLevel + stepping into a IpTriple
 constexpr IpTriple CreateGfxTriple(
@@ -740,6 +744,17 @@ struct GpuChipProperties
         uint32 activePixelPackerMask[ActivePixelPackerMaskDwords];
 
 #if PAL_BUILD_GFX12
+        // GFXIP information pertaining to SE-specific work graph scheduler (WGS) RS64 cores
+        struct
+        {
+            bool supported;                             // WGS cores are supported on the gfxip
+            uint32 metadataAddrAlignment;               // WGS metadata memory address alignment.
+            uint32 instrCacheAddrAlignment;             // WGS firmware instruction cache required address
+                                                        // alignment. Firmware instruction memory region should be
+                                                        // aligned to this boundary.
+            uint32 dataCacheAddrAlignment;              // WGS firmware data cache required address alignment.
+                                                        // Firmware data memory should be aligned to this boundary.
+        } wgs;
 #endif
 
         struct
@@ -903,16 +918,17 @@ struct GpuChipProperties
                 uint64 stateShadowingByCpFwUserAlloc       :  1; // FW state shadowing memory is allocated by PAL.
                 uint64 supportCooperativeMatrix            :  1; // HW supports cooperative matrix
                 uint64 placeholder6                        :  1;
-                uint32 supportBFloat16                     :  1; // Indicates support for bfloat16
-                uint32 supportFloat8                       :  1; // HW supports float 8-bit.
-                uint32 supportInt4                         :  1; // HW supports integer 4-bit.
+                uint64 supportBFloat16                     :  1; // Indicates support for bfloat16
+                uint64 supportFloat8                       :  1; // HW supports float 8-bit.
+                uint64 supportInt4                         :  1; // HW supports integer 4-bit.
 #if PAL_BUILD_GFX12
-                uint32 supportCooperativeMatrix2           :  1; // HW supports Gfx12 extenson cooperative matrix.
+                uint64 supportCooperativeMatrix2           :  1; // HW supports Gfx12 extenson cooperative matrix.
 #else
                 uint64 placeholder7                        :  1;
 #endif
-                uint64 placeholder8 : 1;
-                uint64 reserved                            :  7;
+                uint64 placeholder8 : 2;
+                uint64 cwsrEnabled                         :  1; // Compute Wave Save/Restore is enabled
+                uint64 reserved                            :  5;
             };
 
             RayTracingIpLevel        rayTracingIp;      //< HW RayTracing IP version
@@ -1326,7 +1342,7 @@ public:
         const ShaderLibraryCreateInfo& createInfo,
         Result*                        pResult) const override
     {
-        return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetShaderLibrarySize(createInfo, pResult);
+        return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetMaybeArchiveLibrarySize(createInfo, pResult);
     }
 
     virtual Result CreateShaderLibrary(
@@ -1335,8 +1351,8 @@ public:
         IShaderLibrary**               ppLibrary) override
     {
         return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
-                m_pGfxDevice->CreateShaderLibrary(createInfo, pPlacementAddr,
-                                                  createInfo.flags.clientInternal, ppLibrary);
+                m_pGfxDevice->CreateMaybeArchiveLibrary(createInfo, pPlacementAddr,
+                                                        createInfo.flags.clientInternal, ppLibrary);
     }
 
     // NOTE: Part of the public IDevice interface.
@@ -1440,6 +1456,12 @@ public:
         const ExternalQueueSemaphoreOpenInfo& openInfo,
         void*                                 pPlacementAddr,
         IQueueSemaphore**                     ppQueueSemaphore) override;
+
+#if ( PAL_AMDGPU_BUILD)
+    // NOTE: Part of the public IDevice interface.
+    virtual Result QueryGpuMemoryBudgetInfo(
+        GpuMemoryBudgetInfo* pInfo) override { return Result::Unsupported; }
+#endif
 
     Result CreateInternalFence(
         const FenceCreateInfo& createInfo,
@@ -2305,7 +2327,9 @@ inline bool IsGfx12Plus(const Device& device)
 
 constexpr bool IsGfx11(GfxIpLevel gfxLevel)
 {
-    return (gfxLevel == GfxIpLevel::GfxIp11_0) || (gfxLevel == GfxIpLevel::GfxIp11_5);
+    return (gfxLevel == GfxIpLevel::GfxIp11_0)
+           || (gfxLevel == GfxIpLevel::GfxIp11_5)
+            ;
 }
 
 inline bool IsGfx11(const Device& device)
@@ -2375,6 +2399,19 @@ inline bool IsPhoenixFamily(const Device& device)
 {
     return FAMILY_IS_PHX(device.ChipProperties().familyId);
 }
+
+#if PAL_BUILD_HAWK_POINT1
+inline bool IsHawkPoint1(const Device& device)
+{
+    return AMDGPU_IS_HAWK_POINT1(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+#endif
+#if PAL_BUILD_HAWK_POINT2
+inline bool IsHawkPoint2(const Device& device)
+{
+    return AMDGPU_IS_HAWK_POINT2(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+#endif
 
 #if PAL_BUILD_GFX12
 inline bool IsNavi4x(const Device& device)

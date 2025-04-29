@@ -58,8 +58,7 @@ CmdStream::CmdStream(
                  isNested),
     m_cmdUtil(device.CmdUtil()),
     m_pPm4Optimizer(nullptr),
-    m_pChunkPreamble(nullptr),
-    m_supportsHoleyOptimization(GetGfx9Settings(*m_device.Parent()).enableHoleyOptimization)
+    m_pChunkPreamble(nullptr)
 {
 }
 
@@ -172,12 +171,7 @@ uint32* CmdStream::WriteRegisters(
          (startAddr == Gfx10::mmSPI_SHADER_PGM_RSRC4_VS)))
     {
         // Handle indexed SH
-        pCmdSpace = WriteSetOneShRegIndex(
-            startAddr,
-            *pRegData,
-            ShaderGraphics,
-            index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-            pCmdSpace);
+        pCmdSpace = WriteSetOneGfxShRegIndexApplyCuMask(startAddr, *pRegData, pCmdSpace);
     }
     else if ((count == 1) && ((startAddr == mmVGT_INDEX_TYPE) || (startAddr == mmVGT_NUM_INSTANCES)))
     {
@@ -558,20 +552,18 @@ uint32* CmdStream::WriteSetOneShReg<ShaderCompute>(
 
 // =====================================================================================================================
 // Wrapper for the Pm4OptImmediate templated method.
-uint32* CmdStream::WriteSetOneShRegIndex(
-    uint32                          regAddr,
-    uint32                          regData,
-    Pm4ShaderType                   shaderType,
-    PFP_SET_SH_REG_INDEX_index_enum index,
-    uint32*                         pCmdSpace)
+uint32* CmdStream::WriteSetOneGfxShRegIndexApplyCuMask(
+    uint32  regAddr,
+    uint32  regData,
+    uint32* pCmdSpace)
 {
     if (m_flags.optimizeCommands == 0)
     {
-        pCmdSpace = WriteSetOneShRegIndex<false>(regAddr, regData, shaderType, index, pCmdSpace);
+        pCmdSpace = WriteSetOneGfxShRegIndexApplyCuMask<false>(regAddr, regData, pCmdSpace);
     }
     else
     {
-        pCmdSpace = WriteSetOneShRegIndex<true>(regAddr, regData, shaderType, index, pCmdSpace);
+        pCmdSpace = WriteSetOneGfxShRegIndexApplyCuMask<true>(regAddr, regData, pCmdSpace);
     }
 
     return pCmdSpace;
@@ -581,16 +573,17 @@ uint32* CmdStream::WriteSetOneShRegIndex(
 // Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <bool Pm4OptImmediate>
-uint32* CmdStream::WriteSetOneShRegIndex(
-    uint32                          regAddr,
-    uint32                          regData,
-    Pm4ShaderType                   shaderType,
-    PFP_SET_SH_REG_INDEX_index_enum index,
-    uint32*                         pCmdSpace)
+uint32* CmdStream::WriteSetOneGfxShRegIndexApplyCuMask(
+    uint32  regAddr,
+    uint32  regData,
+    uint32* pCmdSpace)
 {
     if ((Pm4OptImmediate == false) || m_pPm4Optimizer->MustKeepSetShReg(regAddr, regData))
     {
-        const size_t totalDwords = m_cmdUtil.BuildSetOneShRegIndex(regAddr, shaderType, index, pCmdSpace);
+        const size_t totalDwords = m_cmdUtil.BuildSetOneShRegIndex(regAddr,
+                                                                   ShaderGraphics,
+                                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                                   pCmdSpace);
 
         pCmdSpace[CmdUtil::ShRegSizeDwords] = regData;
         pCmdSpace += totalDwords;
@@ -600,19 +593,15 @@ uint32* CmdStream::WriteSetOneShRegIndex(
 }
 
 template
-uint32* CmdStream::WriteSetOneShRegIndex<true>(
-    uint32                          regAddr,
-    uint32                          regData,
-    Pm4ShaderType                   shaderType,
-    PFP_SET_SH_REG_INDEX_index_enum index,
-    uint32*                         pCmdSpace);
+uint32* CmdStream::WriteSetOneGfxShRegIndexApplyCuMask<true>(
+    uint32  regAddr,
+    uint32  regData,
+    uint32* pCmdSpace);
 template
-uint32* CmdStream::WriteSetOneShRegIndex<false>(
-    uint32                          regAddr,
-    uint32                          regData,
-    Pm4ShaderType                   shaderType,
-    PFP_SET_SH_REG_INDEX_index_enum index,
-    uint32*                         pCmdSpace);
+uint32* CmdStream::WriteSetOneGfxShRegIndexApplyCuMask<false>(
+    uint32  regAddr,
+    uint32  regData,
+    uint32* pCmdSpace);
 
 // =====================================================================================================================
 // Wrapper for the Pm4OptImmediate templated version.
@@ -640,22 +629,23 @@ uint32* CmdStream::WriteSetSeqShRegs(
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <bool Pm4OptImmediate>
 uint32* CmdStream::WriteSetSeqShRegs(
-    uint32        startRegAddr,
-    uint32        endRegAddr,
+    uint32        startRegAddrIn,
+    uint32        endRegAddrIn,
     Pm4ShaderType shaderType,
-    const void*   pData,
+    const void*   pDataIn,
     uint32*       pCmdSpace)
 {
+    bool          issuePacket  = true;
+    uint32        startRegAddr = startRegAddrIn;
+    uint32        endRegAddr   = endRegAddrIn;
+    const uint32* pData        = static_cast<const uint32*>(pDataIn);
+
     if (Pm4OptImmediate)
     {
-        PM4_ME_SET_SH_REG setData;
-        m_cmdUtil.BuildSetSeqShRegs(startRegAddr, endRegAddr, shaderType, &setData);
-
-        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setData,
-                                                                static_cast<const uint32*>(pData),
-                                                                pCmdSpace);
+        issuePacket = m_pPm4Optimizer->OptimizePm4SetRegSeq<StateType::Sh>(&startRegAddr, &endRegAddr, &pData);
     }
-    else
+
+    if (issuePacket)
     {
         const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(startRegAddr, endRegAddr, shaderType, pCmdSpace);
 
@@ -670,17 +660,17 @@ uint32* CmdStream::WriteSetSeqShRegs(
 
 template
 uint32* CmdStream::WriteSetSeqShRegs<true>(
-    uint32        startRegAddr,
-    uint32        endRegAddr,
+    uint32        startRegAddrIn,
+    uint32        endRegAddrIn,
     Pm4ShaderType shaderType,
-    const void*   pData,
+    const void*   pDataIn,
     uint32*       pCmdSpace);
 template
 uint32* CmdStream::WriteSetSeqShRegs<false>(
-    uint32        startRegAddr,
-    uint32        endRegAddr,
+    uint32        startRegAddrIn,
+    uint32        endRegAddrIn,
     Pm4ShaderType shaderType,
-    const void*   pData,
+    const void*   pDataIn,
     uint32*       pCmdSpace);
 
 // =====================================================================================================================
@@ -705,23 +695,24 @@ uint32* CmdStream::WriteSetZeroSeqShRegs(
 // Builds a PM4 packet to set the given registers unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* CmdStream::WriteSetSeqShRegsIndex(
-    uint32                          startRegAddr,
-    uint32                          endRegAddr,
+    uint32                          startRegAddrIn,
+    uint32                          endRegAddrIn,
     Pm4ShaderType                   shaderType,
-    const void*                     pData,
+    const void*                     pDataIn,
     PFP_SET_SH_REG_INDEX_index_enum index,
     uint32*                         pCmdSpace)
 {
+    bool          issuePacket  = true;
+    uint32        startRegAddr = startRegAddrIn;
+    uint32        endRegAddr   = endRegAddrIn;
+    const uint32* pData        = static_cast<const uint32*>(pDataIn);
+
     if (m_flags.optimizeCommands == 1)
     {
-        PM4_ME_SET_SH_REG setData;
-        m_cmdUtil.BuildSetSeqShRegsIndex(startRegAddr, endRegAddr, shaderType, index, &setData);
-
-        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setData,
-                                                                static_cast<const uint32*>(pData),
-                                                                pCmdSpace);
+        issuePacket = m_pPm4Optimizer->OptimizePm4SetRegSeq<StateType::Sh>(&startRegAddr, &endRegAddr, &pData);
     }
-    else
+
+    if (issuePacket)
     {
         const size_t totalDwords =
             m_cmdUtil.BuildSetSeqShRegsIndex(startRegAddr, endRegAddr, shaderType, index, pCmdSpace);
@@ -734,58 +725,6 @@ uint32* CmdStream::WriteSetSeqShRegsIndex(
 
     return pCmdSpace;
 }
-
-// =====================================================================================================================
-// Helper function for accumulating the user-SGPR's mapped to user-data entries into packed register pairs for graphics
-// or compute shader stages.
-template <bool IgnoreDirtyFlags>
-void CmdStream::AccumulateUserDataEntriesForSgprs(
-    const UserDataEntryMap& entryMap,
-    const UserDataEntries&  entries,
-    const uint16            baseUserDataRegAddr,
-    PackedRegisterPair*     pValidRegPairs,
-    UserDataEntryLookup*    pRegLookup,
-    uint32                  minLookupVal,
-    uint32*                 pNumValidRegs)
-{
-    const uint16 firstUserSgpr = entryMap.firstUserSgprRegAddr;
-    const uint16 userSgprCount = entryMap.userSgprCount;
-
-    for (uint16 sgprIndex = 0; sgprIndex < userSgprCount; ++sgprIndex)
-    {
-        if (IgnoreDirtyFlags || WideBitfieldIsSet(entries.dirty, entryMap.mappedEntry[sgprIndex]))
-        {
-            const uint32 regAddr = sgprIndex + firstUserSgpr;
-            const uint32 value   = entries.entries[entryMap.mappedEntry[sgprIndex]];
-            SetOneUserDataEntryPairPackedValue(regAddr,
-                                               baseUserDataRegAddr,
-                                               value,
-                                               pValidRegPairs,
-                                               pRegLookup,
-                                               minLookupVal,
-                                               pNumValidRegs);
-        }
-    }
-}
-
-template
-void CmdStream::AccumulateUserDataEntriesForSgprs<true>(
-    const UserDataEntryMap& entryMap,
-    const UserDataEntries&  entries,
-    const uint16            baseUserDataRegAddr,
-    PackedRegisterPair*     pValidRegPairs,
-    UserDataEntryLookup*    pRegLookup,
-    uint32                  minLookupVal,
-    uint32*                 pNumValidRegs);
-template
-void CmdStream::AccumulateUserDataEntriesForSgprs<false>(
-    const UserDataEntryMap& entryMap,
-    const UserDataEntries&  entries,
-    const uint16            baseUserDataRegAddr,
-    PackedRegisterPair*     pValidRegPairs,
-    UserDataEntryLookup*    pRegLookup,
-    uint32                  minLookupVal,
-    uint32*                 pNumValidRegs);
 
 // =====================================================================================================================
 // Builds a PM4 packet to set the given packed register pairs unless the PM4 optimizer indicates that it is redundant.
@@ -900,6 +839,16 @@ uint32* CmdStream::WriteSetConstShRegPairs<ShaderGraphics, true>(
     uint32*                   pCmdSpace);
 template
 uint32* CmdStream::WriteSetConstShRegPairs<ShaderGraphics, false>(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace);
+template
+uint32* CmdStream::WriteSetConstShRegPairs<ShaderCompute, true>(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    numRegs,
+    uint32*                   pCmdSpace);
+template
+uint32* CmdStream::WriteSetConstShRegPairs<ShaderCompute, false>(
     const PackedRegisterPair* pRegPairs,
     uint32                    numRegs,
     uint32*                   pCmdSpace);
@@ -1070,6 +1019,32 @@ uint32* CmdStream::WriteSetContextRegPairs(
 }
 
 // =====================================================================================================================
+// Wrapper for unpacked variant of WriteSetShRegPairs when PM4Opt isn't statically known.
+template <Pm4ShaderType ShaderType>
+uint32* CmdStream::WriteSetShRegPairs(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace)
+{
+    if (m_flags.optimizeCommands)
+    {
+        pCmdSpace = WriteSetShRegPairs<ShaderType, true>(pRegPairs, numRegPairs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetShRegPairs<ShaderType, false>(pRegPairs, numRegPairs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderCompute>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace);
+
+// =====================================================================================================================
 // Write an array of constant SH RegisterValuePair values to HW.
 template <Pm4ShaderType ShaderType, bool Pm4OptEnabled>
 uint32* CmdStream::WriteSetShRegPairs(
@@ -1099,6 +1074,16 @@ uint32* CmdStream::WriteSetShRegPairs<ShaderGraphics, true>(
     uint32*                  pCmdSpace);
 template
 uint32* CmdStream::WriteSetShRegPairs<ShaderGraphics, false>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace);
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderCompute, true>(
+    const RegisterValuePair* pRegPairs,
+    uint32                   numRegPairs,
+    uint32*                  pCmdSpace);
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderCompute, false>(
     const RegisterValuePair* pRegPairs,
     uint32                   numRegPairs,
     uint32*                  pCmdSpace);
@@ -1171,16 +1156,16 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs(
                 pCmdPayload[sgpr] = entries.entries[entryMap.mappedEntry[sgpr]];
             }
 
+            // PM4Opt path wrote userdata to scratch space on the stack - just call normal write method.
             if (Pm4OptEnabled)
             {
-                PM4_ME_SET_SH_REG setShReg;
-                m_cmdUtil.BuildSetSeqShRegs(firstUserSgpr,
-                                            (firstUserSgpr + userSgprCount - 1),
-                                            shaderType,
-                                            &setShReg);
-
-                pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
+                pCmdSpace = WriteSetSeqShRegs<Pm4OptEnabled>(firstUserSgpr,
+                                                             (firstUserSgpr + userSgprCount - 1),
+                                                             shaderType,
+                                                             scratchMem,
+                                                             pCmdSpace);
             }
+            // The PM4Opt off path forms the packets inline in the command buffer - just need to add header/offset.
             else
             {
                 const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(firstUserSgpr,
@@ -1190,74 +1175,6 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs(
                 // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
                 PAL_ASSERT(totalDwords == (userSgprCount + CmdUtil::ShRegSizeDwords));
                 pCmdSpace += totalDwords;
-            }
-        }
-    }
-    else if (m_supportsHoleyOptimization)
-    {
-        // Bitmasks of which sgpr needed to be updated since the corresponding user data entry is dirty.
-        uint32 sgprDirtyMask = 0;
-        for (uint16 sgpr = 0; sgpr < userSgprCount; ++sgpr)
-        {
-            sgprDirtyMask |= WideBitfieldIsSet(entries.dirty, entryMap.mappedEntry[sgpr]) << sgpr;
-        }
-
-        // We write a set of sgprs using one SET_SH packet if the distance between each two sgprs is
-        // less than or equal to MaxDistance, so that we reduce the number of packets we use to write sgpr.
-        BitIter32 sgprDirtyMaskIter(sgprDirtyMask);
-        while (sgprDirtyMaskIter.IsValid())
-        {
-            // Get the first set bit.
-            uint32 index      = sgprDirtyMaskIter.Get();
-            uint32 startIndex = index;
-
-            // the longest distance between each two sgprs which are written in one SET_SH packet.
-            constexpr uint32 MaxDistance = 4;
-
-            // The loop is used to find the first break larger than MaxDistance before writing a packet.
-            do
-            {
-                sgprDirtyMaskIter.Next();
-                if ((sgprDirtyMaskIter.IsValid()) && (index + MaxDistance >= sgprDirtyMaskIter.Get()))
-                {
-                    index = sgprDirtyMaskIter.Get();
-                }
-                else
-                {
-                    break;
-                }
-            } while (sgprDirtyMaskIter.IsValid());
-
-            uint16 packetSgprCount = 0;
-            for (uint32 sgpr = startIndex; sgpr <= index; ++sgpr)
-            {
-                pCmdPayload[packetSgprCount++] = entries.entries[entryMap.mappedEntry[sgpr]];
-            }
-
-            if (packetSgprCount > 0)
-            {
-                const uint16 packetFirstSgpr = (firstUserSgpr + startIndex);
-                if (Pm4OptEnabled)
-                {
-                    PM4_ME_SET_SH_REG setShReg;
-                    m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
-                                                (packetFirstSgpr + packetSgprCount - 1),
-                                                shaderType,
-                                                &setShReg);
-
-                    pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
-                }
-                else
-                {
-                    const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
-                                                                           (packetFirstSgpr + packetSgprCount - 1),
-                                                                           shaderType,
-                                                                           pCmdSpace);
-                    // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
-                    PAL_ASSERT(totalDwords == (packetSgprCount + CmdUtil::ShRegSizeDwords));
-                    pCmdSpace += totalDwords;
-                    pCmdPayload += totalDwords;
-                }
             }
         }
     }
@@ -1281,16 +1198,16 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs(
 
             if (packetSgprCount > 0)
             {
+                // PM4Opt path wrote userdata to scratch space on the stack - just call normal write method.
                 if (Pm4OptEnabled)
                 {
-                    PM4_ME_SET_SH_REG setShReg;
-                    m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
-                                                (packetFirstSgpr + packetSgprCount - 1),
-                                                shaderType,
-                                                &setShReg);
-
-                    pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
+                    pCmdSpace = WriteSetSeqShRegs<Pm4OptEnabled>(packetFirstSgpr,
+                                                                 (packetFirstSgpr + packetSgprCount - 1),
+                                                                 shaderType,
+                                                                 scratchMem,
+                                                                 pCmdSpace);
                 }
+                // The PM4Opt off path forms the packets inline in the command buffer - just need to add header/offset.
                 else
                 {
                     const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
@@ -1331,47 +1248,6 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs<false, ShaderGraphics, false>(
     uint32* pCmdSpace);
 
 // =====================================================================================================================
-// Builds a PM4 packet to load a single group of consecutive context registers from an indirect video memory offset.
-// Returns a pointer to the next unused DWORD in pCmdSpace.
-template <bool Pm4OptEnabled>
-uint32* CmdStream::WriteLoadSeqContextRegs(
-    uint32      startRegAddr,
-    uint32      regCount,
-    gpusize     dataVirtAddr,
-    uint32*     pCmdSpace)
-{
-    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
-
-    // In gfx9+, PM4_PFP_LOAD_CONTEXT_REG_INDEX is always supported.
-    const size_t packetSizeDwords = m_cmdUtil.BuildLoadContextRegsIndex<true>(
-                                    dataVirtAddr,
-                                    startRegAddr,
-                                    regCount,
-                                    pCmdSpace);
-    if (Pm4OptEnabled)
-    {
-        m_pPm4Optimizer->HandleLoadContextRegsIndex(
-                reinterpret_cast<const PM4_PFP_LOAD_CONTEXT_REG_INDEX&>(*pCmdSpace));
-    }
-    pCmdSpace += packetSizeDwords;
-
-    return pCmdSpace;
-}
-
-template
-uint32* CmdStream::WriteLoadSeqContextRegs<true>(
-    uint32      startRegAddr,
-    uint32      regCount,
-    gpusize     dataVirtAddr,
-    uint32*     pCmdSpace);
-template
-uint32* CmdStream::WriteLoadSeqContextRegs<false>(
-    uint32      startRegAddr,
-    uint32      regCount,
-    gpusize     dataVirtAddr,
-    uint32*     pCmdSpace);
-
-// =====================================================================================================================
 // Wrapper for the real WriteLoadSeqContextRegs() for when the caller doesn't know if the immediate mode pm4 optimizer
 // is enabled.
 uint32* CmdStream::WriteLoadSeqContextRegs(
@@ -1380,14 +1256,19 @@ uint32* CmdStream::WriteLoadSeqContextRegs(
     gpusize     dataVirtAddr,
     uint32*     pCmdSpace)
 {
-    if (m_flags.optimizeCommands == 1)
+    const size_t packetSizeDwords = m_cmdUtil.BuildLoadContextRegsIndex<true>(dataVirtAddr,
+                                                                              startRegAddr,
+                                                                              regCount,
+                                                                              pCmdSpace);
+    if (m_flags.optimizeCommands)
     {
-        pCmdSpace = WriteLoadSeqContextRegs<true>(startRegAddr, regCount, dataVirtAddr, pCmdSpace);
+        // Mark all regs updated on the GPU invalid in the PM4Optimizer.
+        for (uint32 x = 0; x < regCount; x++)
+        {
+            m_pPm4Optimizer->SetCtxRegInvalid(startRegAddr + x);
+        }
     }
-    else
-    {
-        pCmdSpace = WriteLoadSeqContextRegs<false>(startRegAddr, regCount, dataVirtAddr, pCmdSpace);
-    }
+    pCmdSpace += packetSizeDwords;
 
     return pCmdSpace;
 }
@@ -1397,23 +1278,26 @@ uint32* CmdStream::WriteLoadSeqContextRegs(
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <bool Pm4OptEnabled>
 uint32* CmdStream::WriteSetSeqContextRegs(
-    uint32      startRegAddr,
-    uint32      endRegAddr,
-    const void* pData,
+    uint32      startRegAddrIn,
+    uint32      endRegAddrIn,
+    const void* pDataIn,
     uint32*     pCmdSpace)
 {
-    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+    PAL_DEBUG_BUILD_ONLY_ASSERT((m_flags.optimizeCommands == Pm4OptEnabled) ||
+                                (Pm4Optimizer::IsRegisterMustWrite(startRegAddrIn) &&
+                                 Pm4Optimizer::IsRegisterMustWrite(endRegAddrIn)));
+
+    bool          issuePacket  = true;
+    uint32        startRegAddr = startRegAddrIn;
+    uint32        endRegAddr   = endRegAddrIn;
+    const uint32* pData        = static_cast<const uint32*>(pDataIn);
 
     if (Pm4OptEnabled)
     {
-        PM4_PFP_SET_CONTEXT_REG setData;
-        m_cmdUtil.BuildSetSeqContextRegs(startRegAddr, endRegAddr, &setData);
-
-        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqContextRegs(setData,
-                                                                     static_cast<const uint32*>(pData),
-                                                                     pCmdSpace);
+        issuePacket = m_pPm4Optimizer->OptimizePm4SetRegSeq<StateType::Context>(&startRegAddr, &endRegAddr, &pData);
     }
-    else
+
+    if (issuePacket)
     {
         // NOTE: We'll use other state tracking to determine whether a context roll occurred for non-immediate-mode
         //       optimizations.
@@ -1541,9 +1425,12 @@ void CmdStream::NotifyIndirectShRegWrite(
 {
     if (Pm4OptEnabled)
     {
-        for (uint32 x = 0; x < numRegsToInvalidate; x++)
+        if (regAddr != UserDataNotMapped)
         {
-            m_pPm4Optimizer->SetShRegInvalid(regAddr + x);
+            for (uint32 x = 0; x < numRegsToInvalidate; x++)
+            {
+                m_pPm4Optimizer->SetShRegInvalid(regAddr + x);
+            }
         }
     }
 }

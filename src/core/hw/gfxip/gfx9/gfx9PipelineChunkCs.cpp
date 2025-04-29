@@ -52,6 +52,7 @@ PipelineChunkCs::PipelineChunkCs(
     m_regs{},
     m_prefetchAddr(0),
     m_prefetchSize(0),
+    m_gfx11NumPairsRegs(0),
     m_pCsPerfDataInfo(pPerfDataInfo),
     m_pStageInfo(pStageInfo)
 {
@@ -63,16 +64,21 @@ PipelineChunkCs::PipelineChunkCs(
 
     const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
     const Gfx9PalSettings&   settings  = device.Settings();
-    m_flags.supportSpp        = chipProps.gfx9.supportSpp;
-    m_flags.isGfx11           = IsGfx11(chipProps.gfxLevel);
-    m_flags.acePrefetchMethod = settings.shaderPrefetchMethodAce;
-    m_flags.gfxPrefetchMethod = settings.shaderPrefetchMethodGfx;
+    m_flags.supportSpp                 = chipProps.gfx9.supportSpp;
+    m_flags.isGfx11                    = IsGfx11(chipProps.gfxLevel);
+    m_flags.useUnpackedRegPairs        = device.IsGfx11F32UnpackedRegPairsSupported();
+    m_flags.usePackedRegPairs          = device.IsGfx11PackedRegPairsSupported();
+    m_flags.acePrefetchMethod          = settings.shaderPrefetchMethodAce;
+    m_flags.gfxPrefetchMethod          = settings.shaderPrefetchMethodGfx;
 
     const uint32 maxWavesPerSe = chipProps.gfx9.numShaderArrays * Device::GetMaxWavesPerSh(chipProps, true);
     const uint32 numCuPerSe    = chipProps.gfx9.numShaderArrays * chipProps.gfx9.numCuPerSh;
 
     m_flags.maxWavesPerSe = maxWavesPerSe;
     m_flags.numCuPerSe    = numCuPerSe;
+
+    // We shouldn't see a scenario where unpacked && packed are both enabled even though RS64 technically supports this.
+    PAL_ASSERT((m_flags.useUnpackedRegPairs == 0) || (m_flags.useUnpackedRegPairs ^ m_flags.usePackedRegPairs));
 
     // Sanity check we didn't overflow any bitfields.
     PAL_ASSERT((m_flags.maxWavesPerSe == maxWavesPerSe) && (m_flags.numCuPerSe == numCuPerSe));
@@ -88,14 +94,6 @@ void PipelineChunkCs::DoLateInit(
     GpuSymbol symbol = { };
     if (pUploader != nullptr)
     {
-        if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
-        {
-            m_pStageInfo->codeLength = static_cast<size_t>(symbol.size);
-            PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
-
-            m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
-        }
-
         if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
         {
             m_regs.userDataInternalTable.bits.DATA = LowPart(symbol.gpuVirtAddr);
@@ -111,6 +109,37 @@ void PipelineChunkCs::DoLateInit(
     pThreadsPerTg->x = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
     pThreadsPerTg->y = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
     pThreadsPerTg->z = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
+
+    SetupRegPairs();
+}
+
+// =====================================================================================================================
+// Setups up reg pairs from m_regs.
+void PipelineChunkCs::SetupRegPairs()
+{
+    m_gfx11NumPairsRegs = 0;
+
+    if (m_flags.usePackedRegPairs)
+    {
+        AccumulateShCommandsSetPath(m_gfx11PackedRegPairs, &m_gfx11NumPairsRegs);
+
+        // Ensure we pad out to an even number of regs. It is important to reuse the very first
+        // value in this case which is always safe!
+        if ((m_gfx11NumPairsRegs % 2) != 0)
+        {
+            m_gfx11PackedRegPairs[m_gfx11NumPairsRegs / 2].offset1 = m_gfx11PackedRegPairs[0].offset0;
+            m_gfx11PackedRegPairs[m_gfx11NumPairsRegs / 2].value1  = m_gfx11PackedRegPairs[0].value0;
+            m_gfx11NumPairsRegs++;
+        }
+
+        PAL_ASSERT(m_gfx11NumPairsRegs <= (Gfx11MaxNumRs64PackedPairs * 2));
+    }
+    else if (m_flags.useUnpackedRegPairs)
+    {
+        AccumulateShCommandsSetPath(m_gfx11UnpackedRegPairs, &m_gfx11NumPairsRegs);
+
+        PAL_ASSERT(m_gfx11NumPairsRegs <= Gfx11MaxNumShRegPairRegs);
+    }
 }
 
 // =====================================================================================================================
@@ -125,6 +154,17 @@ void PipelineChunkCs::LateInit(
     CodeObjectUploader*                     pUploader)
 {
     InitRegisters(device, metadata, interleaveSize, wavefrontSize);
+
+    GpuSymbol symbol = { };
+    if ((pUploader != nullptr) &&
+        (pUploader->GetEntryPointGpuSymbol(Abi::HardwareStage::Cs, metadata, &symbol) == Result::Success))
+    {
+        m_pStageInfo->codeLength = static_cast<size_t>(symbol.size);
+        PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
+
+        m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
+    }
+
     DoLateInit(device, pThreadsPerTg, pUploader);
 }
 
@@ -139,6 +179,17 @@ void PipelineChunkCs::LateInit(
     CodeObjectUploader*     pUploader)
 {
     InitRegisters(device, registers, interleaveSize, wavefrontSize);
+
+    GpuSymbol symbol = { };
+    if ((pUploader != nullptr) &&
+        (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success))
+    {
+        m_pStageInfo->codeLength = static_cast<size_t>(symbol.size);
+        PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
+
+        m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
+    }
+
     DoLateInit(device, pThreadsPerTg, pUploader);
 }
 
@@ -169,6 +220,8 @@ void PipelineChunkCs::InitGpuAddrFromMesh(
         uint32 csTableLoVa = gsTableLoVa + pCsInternalTable->st_value - pGsInternalTable->st_value;
         m_regs.userDataInternalTable.bits.DATA = csTableLoVa;
     }
+
+    SetupRegPairs();
 }
 
 // =====================================================================================================================
@@ -558,34 +611,11 @@ void PipelineChunkCs::UpdateDynamicRegInfo(
 }
 
 // =====================================================================================================================
-// Accumulates a set of registers into an array of packed register pairs, analagous to WriteShCommandsSetPath().
-void PipelineChunkCs::AccumulateShCommandsDynamic(
-    PackedRegisterPair* pRegPairs,
-    uint32*             pNumRegs,
-    HwRegInfo::Dynamic  dynamicRegs
-    ) const
-{
-#if PAL_ENABLE_PRINTS_ASSERTS
-    const uint32 startingIdx = *pNumRegs;
-#endif
-
-    SetOneShRegValPair(pRegPairs, pNumRegs, mmCOMPUTE_PGM_RSRC2, dynamicRegs.computePgmRsrc2.u32All);
-
-    SetOneShRegValPair(pRegPairs,
-                       pNumRegs,
-                       mmCOMPUTE_RESOURCE_LIMITS,
-                       dynamicRegs.computeResourceLimits.u32All);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + NumDynamicRegs));
-#endif
-}
-
-// =====================================================================================================================
 // Accumulates a set of registers into an array of packed register pairs, analagous to WriteShCommandsDynamic().
+template<typename T>
 void PipelineChunkCs::AccumulateShCommandsSetPath(
-    PackedRegisterPair* pRegPairs,
-    uint32*             pNumRegs
+    T*      pRegPairs,
+    uint32* pNumRegs
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -639,13 +669,22 @@ void PipelineChunkCs::AccumulateShCommandsSetPath(
 #endif
 }
 
+template
+void PipelineChunkCs::AccumulateShCommandsSetPath(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs) const;
+template
+void PipelineChunkCs::AccumulateShCommandsSetPath(
+    RegisterValuePair* pRegPairs,
+    uint32*            pNumRegs) const;
+
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
+template <bool IsAce>
 uint32* PipelineChunkCs::WriteShCommands(
     CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
-    bool                            regPairsSupported,
     const DynamicComputeShaderInfo& csInfo,
     bool                            prefetch
     ) const
@@ -654,36 +693,39 @@ uint32* PipelineChunkCs::WriteShCommands(
 
     UpdateDynamicRegInfo(&dynamicRegs, csInfo);
 
-    if (regPairsSupported)
+    if ((m_flags.usePackedRegPairs) && (IsAce == false))
     {
-        PackedRegisterPair regPairs[NumHwRegInfoRegs] = {};
-        uint32             numRegs = 0;
-
-        static_assert(NumHwRegInfoRegs <= Gfx11RegPairMaxRegCount, "Requesting too many registers!");
-
-        AccumulateShCommandsSetPath(regPairs, &numRegs);
-        AccumulateShCommandsDynamic(regPairs, &numRegs, dynamicRegs);
-
-        if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
+        if (pCmdStream->Pm4OptimizerEnabled() == false)
         {
-            SetOneShRegValPair(regPairs, &numRegs, m_pCsPerfDataInfo->regOffset, m_pCsPerfDataInfo->gpuVirtAddr);
+            pCmdSpace = pCmdStream->WriteSetConstShRegPairs<ShaderCompute, false>(m_gfx11PackedRegPairs,
+                                                                                  m_gfx11NumPairsRegs,
+                                                                                  pCmdSpace);
         }
-
-        PAL_ASSERT(numRegs <= NumHwRegInfoRegs);
-
-        pCmdSpace = pCmdStream->WriteSetShRegPairs<ShaderCompute>(regPairs, numRegs, pCmdSpace);
+        else
+        {
+            pCmdSpace = pCmdStream->WriteSetConstShRegPairs<ShaderCompute, true>(m_gfx11PackedRegPairs,
+                                                                                 m_gfx11NumPairsRegs,
+                                                                                 pCmdSpace);
+        }
+    }
+    else if (m_flags.useUnpackedRegPairs && (IsAce == false)) //< PFP only supported.
+    {
+        pCmdSpace = pCmdStream->WriteSetShRegPairs<ShaderCompute>(m_gfx11UnpackedRegPairs,
+                                                                  m_gfx11NumPairsRegs,
+                                                                  pCmdSpace);
     }
     else
     {
         pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace);
-        pCmdSpace = WriteShCommandsDynamic(pCmdStream, pCmdSpace, dynamicRegs);
+    }
 
-        if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(m_pCsPerfDataInfo->regOffset,
-                                                                    m_pCsPerfDataInfo->gpuVirtAddr,
-                                                                    pCmdSpace);
-        }
+    pCmdSpace = WriteShCommandsDynamic(pCmdStream, pCmdSpace, dynamicRegs);
+
+    if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(m_pCsPerfDataInfo->regOffset,
+                                                                m_pCsPerfDataInfo->gpuVirtAddr,
+                                                                pCmdSpace);
     }
 
     if (prefetch && (m_prefetchAddr != 0))
@@ -706,6 +748,21 @@ uint32* PipelineChunkCs::WriteShCommands(
 
     return pCmdSpace;
 }
+
+template
+uint32* PipelineChunkCs::WriteShCommands<true>(
+    CmdStream*                      pCmdStream,
+    uint32*                         pCmdSpace,
+    const DynamicComputeShaderInfo& csInfo,
+    bool                            prefetch
+    ) const;
+template
+uint32* PipelineChunkCs::WriteShCommands<false>(
+    CmdStream*                      pCmdStream,
+    uint32*                         pCmdSpace,
+    const DynamicComputeShaderInfo& csInfo,
+    bool                            prefetch
+    ) const;
 
 // =====================================================================================================================
 // Writes PM4 set commands to the specified command stream.  This is used for writing pipeline state registers whose
@@ -811,6 +868,8 @@ void PipelineChunkCs::UpdateComputePgmRsrsAfterLibraryLink(
     m_regs.computePgmRsrc1         = rsrc1;
     m_regs.dynamic.computePgmRsrc2 = rsrc2;
     m_regs.computePgmRsrc3         = rsrc3;
+
+    SetupRegPairs();
 }
 
 // =====================================================================================================================
@@ -821,6 +880,16 @@ void PipelineChunkCs::Clone(
     m_prefetchAddr = chunkCs.m_prefetchAddr;
     m_prefetchSize = chunkCs.m_prefetchSize;
     m_flags        = chunkCs.m_flags;
+
+    if (m_flags.usePackedRegPairs)
+    {
+        memcpy(m_gfx11PackedRegPairs, chunkCs.m_gfx11PackedRegPairs, sizeof(m_gfx11PackedRegPairs));
+    }
+    else if (m_flags.useUnpackedRegPairs)
+    {
+        memcpy(m_gfx11UnpackedRegPairs, chunkCs.m_gfx11UnpackedRegPairs, sizeof(m_gfx11UnpackedRegPairs));
+    }
+    m_gfx11NumPairsRegs = chunkCs.m_gfx11NumPairsRegs;
 }
 
 } // Gfx9

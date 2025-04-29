@@ -690,18 +690,14 @@ uint32* GraphicsPipeline::WriteContextAndUConfigCommands(
             // Setup pairs offsets
             DepthOnlyOptRegsCtx::Init(depthOnlyOptCtxRegs);
 
-            auto* pSxDownConvert      =
+            auto* pSxDownConvert =
                 DepthOnlyOptRegsCtx::Get<mmSX_PS_DOWNCONVERT, SX_PS_DOWNCONVERT>(depthOnlyOptCtxRegs);
-            auto* pSpiShaderColFormat =
-                DepthOnlyOptRegsCtx::Get<mmSPI_SHADER_COL_FORMAT, SPI_SHADER_COL_FORMAT>(depthOnlyOptCtxRegs);
 
             // Initialize from immutable init-time copy which is assuming depth only opt is on.
-            *pSxDownConvert      = HighFreq::GetC<mmSX_PS_DOWNCONVERT, SX_PS_DOWNCONVERT>(m_highFreqRegs.pairs);
-            *pSpiShaderColFormat = m_highFreqRegs.spiShaderColFormat;
+            *pSxDownConvert = HighFreq::GetC<mmSX_PS_DOWNCONVERT, SX_PS_DOWNCONVERT>(m_highFreqRegs.pairs);
 
-            // Roll back these fields to the values associated with the optimization being disabled.
-            pSxDownConvert->bits.MRT0                    = m_depthOnlyOptMetadata.origSxDownConvertMrt0;
-            pSpiShaderColFormat->bits.COL0_EXPORT_FORMAT = m_depthOnlyOptMetadata.origSpiShaderCol0Format;
+            // Roll back the field to the value associated with the optimization being disabled.
+            pSxDownConvert->bits.MRT0 = m_depthOnlyOptMetadata.origSxDownConvertMrt0;
 
             numDepthOnlyCtxRegs = DepthOnlyOptRegsCtx::Size();
         }
@@ -1753,12 +1749,10 @@ void GraphicsPipeline::UpdateColorExportState(
         m_pDevice->GetPublicSettings()->optDepthOnlyExportRate)
     {
         // Save these off incase we need to disable optDepthOnlyExportRate due to dynamic state.
-        m_depthOnlyOptMetadata.isCandidate             = 1;
-        m_depthOnlyOptMetadata.origSxDownConvertMrt0   = pSxDownConvert->bits.MRT0;
-        m_depthOnlyOptMetadata.origSpiShaderCol0Format = m_highFreqRegs.spiShaderColFormat.bits.COL0_EXPORT_FORMAT;
+        m_depthOnlyOptMetadata.isCandidate           = 1;
+        m_depthOnlyOptMetadata.origSxDownConvertMrt0 = pSxDownConvert->bits.MRT0;
 
-        pSxDownConvert->bits.MRT0                                 = SX_RT_EXPORT_32_R;
-        m_highFreqRegs.spiShaderColFormat.bits.COL0_EXPORT_FORMAT = SPI_SHADER_32_R;
+        pSxDownConvert->bits.MRT0 = SX_RT_EXPORT_32_R;
     }
 }
 

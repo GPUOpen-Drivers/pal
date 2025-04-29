@@ -37,6 +37,8 @@ add_subdirectory(rpm)
 add_subdirectory(sdma)
 
 target_sources(pal PRIVATE
+    archiveLibrary.cpp
+    archiveLibrary.h
     archivePipeline.cpp
     archivePipeline.h
     borderColorPalette.cpp
@@ -85,6 +87,7 @@ target_sources(pal PRIVATE
     regPairHandler.h
     shaderLibrary.cpp
     shaderLibrary.h
+    shaderLibraryBase.h
     universalCmdBuffer.cpp
     universalCmdBuffer.h
 )

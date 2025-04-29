@@ -31,14 +31,21 @@
 
 #pragma once
 
-#include "palUtil.h"
+// pal
 #include "palAssert.h"
+#include "palAutoBuffer.h"
+#include "palFile.h"
 #include "palSpan.h"
 #include "palStringView.h"
 #include "palTime.h"
+#include "palUtil.h"
+#include "palVector.h"
+
+// stl
 #include <cerrno>
 #include <cstring>
 
+// platform
 #if   defined(__unix__)
 #define PAL_HAS_CPUID (__i386__ || __x86_64__)
 #if PAL_HAS_CPUID
@@ -430,6 +437,27 @@ extern Result MkDir(
 extern Result MkDirRecursively(
     const char* pPathName);
 
+/// A tuple containing a file's name and statistics
+struct StatName
+{
+    File::Stat stat;
+    char name[MaxPathStrLen];
+};
+
+/// Gets file information for the files in a directory
+///
+/// @param [in]  dirPath    string specifying the directory
+/// @param [out] pFileInfos list of information on every file in the directory
+///
+/// @returns Result::ErrorInvalidPointer if any of the input pointers are null
+/// @returns Util::ConvertWinError(GetLastError()) if there are any file I/O errors on Windows
+/// @returns Result::ErrorInvalidValue if there for all file I/O errors on Linux
+/// @returns Result::Success if the dir is empty
+/// @returns Result::Success otherwise
+extern Result GetFileInfoInDir(
+    StringView<char>                       dirPath,
+    Vector<StatName, 1, GenericAllocator>* pFileInfos);
+
 /// Counts the number of files found within the directory.
 ///
 /// @param [in]  pDirPath   string specifying the directory
@@ -470,6 +498,19 @@ extern Result GetFileNamesInDir(
 Result RemoveOldestFilesOfDirUntilSize(
     const char* pPathName,
     uint64      desiredSize);
+
+/// Non-recursively delete the least-recently-accesssed files until the total reaches size in bytes.
+///
+/// @param [in]     pDirPath    String specifying the directory.
+/// @param [in/out] pFileInfos  List of files. This span will be modified to remove the files which were deleted.
+/// @param          desiredSize The size you want to shrink the list of files to.
+///
+/// @returns Result::ErrorUnknown on File I/O error.
+///          Result::Success otherwise.
+Result RemoveOldestFilesOfDirUntilSize(
+    StringView<char> dirPath,
+    Span<StatName>*  pFileInfos,
+    uint64           desiredSize);
 
 /// Remove all files below threshold of a directory at the specified path.
 ///
@@ -652,4 +693,3 @@ extern bool IsDebuggerAttached();
 extern Result SetRwxFilePermissions(const char* pFileName);
 
 } // Util
-

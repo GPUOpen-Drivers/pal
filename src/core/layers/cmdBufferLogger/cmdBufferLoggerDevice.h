@@ -115,6 +115,15 @@ public:
         IImage**                            ppImage,
         IGpuMemory**                        ppGpuMemory) override;
 
+    virtual Result CreateQueryPool(
+        const QueryPoolCreateInfo& createInfo,
+        void*                      pPlacementAddr,
+        IQueryPool**               ppQueryPool) const override;
+
+    virtual size_t GetQueryPoolSize(
+        const QueryPoolCreateInfo& createInfo,
+        Result*                    pResult) const override;
+
     virtual Result CommitSettingsAndInit() override;
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
 

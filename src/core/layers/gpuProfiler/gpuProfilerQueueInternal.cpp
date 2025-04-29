@@ -790,37 +790,10 @@ Result Queue::ProcessSubmit(
                         ((m_pDevice->NumDfStreamingPerfCounters() > 0) &&
                          m_pDevice->LoggingEnabled()))
                     {
-                        CmdBufInfo* pNextCmdBufInfoList =
-                                &nextCmdBufInfoList[globalCmdBufInfoIdx + saveLocalCmdBufInfoIdx];
-
                         if (origSubQueueInfo.pCmdBufInfoList != nullptr)
                         {
-                            pNextCmdBufInfoList->u32All = origSubQueueInfo.pCmdBufInfoList[i].u32All;
-
-                            if (pNextCmdBufInfoList->isValid)
-                            {
-                                pNextCmdBufInfoList->pPrimaryMemory =
-                                    NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrimaryMemory);
-
-                                if ((pNextCmdBufInfoList->captureBegin) ||
-                                    (pNextCmdBufInfoList->captureEnd))
-                                {
-                                    pNextCmdBufInfoList->pDirectCapMemory =
-                                        NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pDirectCapMemory);
-                                }
-
-                                if (pNextCmdBufInfoList->privateFlip)
-                                {
-                                    pNextCmdBufInfoList->pPrivFlipMemory =
-                                        NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
-                                    pNextCmdBufInfoList->vidPnSourceId =
-                                        origSubQueueInfo.pCmdBufInfoList[i].vidPnSourceId;
-                                }
-
-                                pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
-                                pNextCmdBufInfoList->pEarlyPresentEvent =
-                                    origSubQueueInfo.pCmdBufInfoList[i].pEarlyPresentEvent;
-                            }
+                            NextCmdBufInfo(origSubQueueInfo.pCmdBufInfoList[i],
+                                           &nextCmdBufInfoList[globalCmdBufInfoIdx + saveLocalCmdBufInfoIdx]);
                         }
 
                         // Check if we need to add DF SPM info as well
@@ -1493,12 +1466,20 @@ Result Queue::BuildGpaSessionSampleConfig()
             PAL_ASSERT(m_gpaSessionSampleConfig.type == GpuUtil::GpaSampleType::None);
         }
 
+        // Paraphrase: If explicitly set to BOP else Auto with draw granularity or command buffer chaining.
+        //             Chaining can bleed work across command buffers and invalidly include prior work with TOP
+        bool bopPreSample =
+            ((settings.gpuProfilerConfig.beginTimestampPoint == GpuProfilerBeginTimestampBottomOfPipe) ||
+             ((settings.gpuProfilerConfig.beginTimestampPoint == GpuProfilerBeginTimestampAuto) &&
+              ((settings.gpuProfilerConfig.granularity == GpuProfilerGranularityDraw) ||
+               (m_pDevice->GetPublicSettings()->cmdBufBatchedSubmitChainLimit > 1))));
+
         // Always set timestamp pipe-point in the config info.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
-        m_gpaSessionSampleConfig.timing.preSample  = PipelineStageBottomOfPipe;
+        m_gpaSessionSampleConfig.timing.preSample  = bopPreSample ? PipelineStageBottomOfPipe : PipelineStageTopOfPipe;
         m_gpaSessionSampleConfig.timing.postSample = PipelineStageBottomOfPipe;
 #else
-        m_gpaSessionSampleConfig.timing.preSample  = HwPipeBottom;
+        m_gpaSessionSampleConfig.timing.preSample  = bopPreSample ? HwPipeBottom : HwPipeTop;
         m_gpaSessionSampleConfig.timing.postSample = HwPipeBottom;
 #endif
     }

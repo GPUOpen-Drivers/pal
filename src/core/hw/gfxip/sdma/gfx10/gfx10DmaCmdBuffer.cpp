@@ -1632,7 +1632,10 @@ uint32 DmaCmdBuffer::GetHwDimension(
         }
     }
 
-    // The HW dimension enumerations match our image-type dimensions.  i.e., 0 = 1d, 1 = 2d, 2 = 3d.
+    // The HW dimension enumerations should match our image-type dimensions.  i.e., 0 = 1d, 1 = 2d, 2 = 3d.
+    static_assert((static_cast<uint32>(Pal::ImageType::Tex1d) == 0) &&
+                  (static_cast<uint32>(Pal::ImageType::Tex2d) == 1) &&
+                  (static_cast<uint32>(Pal::ImageType::Tex3d) == 2));
     return static_cast<uint32>(imageType);
 }
 

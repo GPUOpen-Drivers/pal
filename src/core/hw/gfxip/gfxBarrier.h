@@ -221,7 +221,6 @@ protected:
 
     static bool IsReadOnlyTransition(uint32 srcAccessMask, uint32 dstAccessMask);
 
-    GfxDevice*const   m_pGfxDevice;
     Pal::Device*const m_pDevice;
     Platform*const    m_pPlatform;
 

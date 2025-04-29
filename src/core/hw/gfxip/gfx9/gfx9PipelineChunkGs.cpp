@@ -127,12 +127,12 @@ void PipelineChunkGs::LateInit(
         m_regs.sh.userDataLdsEsGsSize.u32All = metadata.pipeline.esGsLdsSize;
     }
 
-    m_regs.context.vgtGsInstanceCnt.u32All    = AbiRegisters::VgtGsInstanceCnt(metadata);
-    m_regs.context.vgtGsOutPrimType.u32All    = AbiRegisters::VgtGsOutPrimType(metadata, chipProps.gfxLevel);
-    m_regs.context.vgtEsGsRingItemSize.u32All = AbiRegisters::VgtEsGsRingItemSize(metadata);
-    m_regs.context.vgtGsMaxVertOut.u32All     = AbiRegisters::VgtGsMaxVertOut(metadata);
-    m_regs.context.geNggSubgrpCntl.u32All     = AbiRegisters::GeNggSubgrpCntl(metadata);
-    m_regs.context.paClNggCntl.u32All         = AbiRegisters::PaClNggCntl(createInfo, chipProps.gfxLevel);
+    m_regs.lowFreqContext.vgtGsInstanceCnt.u32All = AbiRegisters::VgtGsInstanceCnt(metadata);
+    m_regs.context.vgtGsOutPrimType.u32All        = AbiRegisters::VgtGsOutPrimType(metadata, chipProps.gfxLevel);
+    m_regs.context.vgtEsGsRingItemSize.u32All     = AbiRegisters::VgtEsGsRingItemSize(metadata);
+    m_regs.lowFreqContext.vgtGsMaxVertOut.u32All  = AbiRegisters::VgtGsMaxVertOut(metadata);
+    m_regs.lowFreqContext.geNggSubgrpCntl.u32All  = AbiRegisters::GeNggSubgrpCntl(metadata);
+    m_regs.lowFreqContext.paClNggCntl.u32All      = AbiRegisters::PaClNggCntl(createInfo, chipProps.gfxLevel);
 
     if (chipProps.gfxip.supportsHwVs)
     {
@@ -154,7 +154,7 @@ void PipelineChunkGs::LateInit(
         PAL_ASSERT(loadInfo.enableNgg || allHere);
     }
 
-    AbiRegisters::GeMaxOutputPerSubgroup(metadata, &m_regs.context.geMaxOutputPerSubgroup);
+    AbiRegisters::GeMaxOutputPerSubgroup(metadata, &m_regs.lowFreqContext.geMaxOutputPerSubgroup);
 }
 
 // =====================================================================================================================
@@ -238,42 +238,38 @@ uint32* PipelineChunkGs::WriteShCommands<false>(
 // =====================================================================================================================
 template <bool Pm4OptEnabled>
 uint32* PipelineChunkGs::WriteDynamicRegs(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& gsStageInfo
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    uint8      wavesPerSeInUnitsOf16
     ) const
 {
-    GsRegs::Dynamic dynamic = m_regs.dynamic;
-
-    if (gsStageInfo.wavesPerSh > 0)
+    regSPI_SHADER_PGM_RSRC3_GS rsrc3Gs = m_regs.dynamic.spiShaderPgmRsrc3Gs;
+    if (wavesPerSeInUnitsOf16 != 0)
     {
-        dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = gsStageInfo.wavesPerSh;
+        rsrc3Gs.bits.WAVE_LIMIT = wavesPerSeInUnitsOf16;
     }
 
-    pCmdSpace = pCmdStream->WriteSetOneShRegIndex<Pm4OptEnabled>(mmSPI_SHADER_PGM_RSRC3_GS,
-                                                                 dynamic.spiShaderPgmRsrc3Gs.u32All,
-                                                                 ShaderGraphics,
-                                                                 index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                                 pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneShRegIndex<Pm4OptEnabled>(mmSPI_SHADER_PGM_RSRC4_GS,
-                                                                 dynamic.spiShaderPgmRsrc4Gs.u32All,
-                                                                 ShaderGraphics,
-                                                                 index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                                 pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneGfxShRegIndexApplyCuMask<Pm4OptEnabled>(mmSPI_SHADER_PGM_RSRC3_GS,
+                                                                               rsrc3Gs.u32All,
+                                                                               pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneGfxShRegIndexApplyCuMask<Pm4OptEnabled>(
+        mmSPI_SHADER_PGM_RSRC4_GS,
+        m_regs.dynamic.spiShaderPgmRsrc4Gs.u32All,
+        pCmdSpace);
 
     return pCmdSpace;
 }
 
 template
 uint32* PipelineChunkGs::WriteDynamicRegs<true>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& gsStageInfo) const;
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    uint8      wavesPerSeInUnitsOf16) const;
 template
 uint32* PipelineChunkGs::WriteDynamicRegs<false>(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& gsStageInfo) const;
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    uint8      wavesPerSeInUnitsOf16) const;
 
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused DWORD in
@@ -285,21 +281,19 @@ uint32* PipelineChunkGs::WriteContextCommands(
     ) const
 {
     pCmdSpace = pCmdStream->WriteSetOneContextReg<Pm4OptEnabled>(mmGE_MAX_OUTPUT_PER_SUBGROUP,
-                                                                 m_regs.context.geMaxOutputPerSubgroup.u32All,
+                                                                 m_regs.lowFreqContext.geMaxOutputPerSubgroup.u32All,
                                                                  pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg<Pm4OptEnabled>(mmGE_NGG_SUBGRP_CNTL,
-                                                                 m_regs.context.geNggSubgrpCntl.u32All,
+                                                                 m_regs.lowFreqContext.geNggSubgrpCntl.u32All,
                                                                  pCmdSpace);
-
     pCmdSpace = pCmdStream->WriteSetOneContextReg<Pm4OptEnabled>(mmPA_CL_NGG_CNTL,
-                                                                 m_regs.context.paClNggCntl.u32All,
+                                                                 m_regs.lowFreqContext.paClNggCntl.u32All,
                                                                  pCmdSpace);
-
     pCmdSpace = pCmdStream->WriteSetOneContextReg<Pm4OptEnabled>(mmVGT_GS_MAX_VERT_OUT,
-                                                                 m_regs.context.vgtGsMaxVertOut.u32All,
+                                                                 m_regs.lowFreqContext.vgtGsMaxVertOut.u32All,
                                                                  pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg<Pm4OptEnabled>(mmVGT_GS_INSTANCE_CNT,
-                                                                 m_regs.context.vgtGsInstanceCnt.u32All,
+                                                                 m_regs.lowFreqContext.vgtGsInstanceCnt.u32All,
                                                                  pCmdSpace);
 
     if (m_flags.isGfx11)
@@ -431,27 +425,6 @@ void PipelineChunkGs::AccumulateContextRegs(
     const uint32 startingIdx = *pNumRegs;
 #endif
 
-    SetOneContextRegValPair(pRegPairs, pNumRegs,
-                            mmGE_MAX_OUTPUT_PER_SUBGROUP,
-                            m_regs.context.geMaxOutputPerSubgroup.u32All);
-    SetOneContextRegValPair(pRegPairs,
-                            pNumRegs,
-                            mmGE_NGG_SUBGRP_CNTL,
-                            m_regs.context.geNggSubgrpCntl.u32All);
-
-    SetOneContextRegValPair(pRegPairs,
-                            pNumRegs,
-                            mmPA_CL_NGG_CNTL,
-                            m_regs.context.paClNggCntl.u32All);
-    SetOneContextRegValPair(pRegPairs,
-                            pNumRegs,
-                            mmVGT_GS_MAX_VERT_OUT,
-                            m_regs.context.vgtGsMaxVertOut.u32All);
-    SetOneContextRegValPair(pRegPairs,
-                            pNumRegs,
-                            mmVGT_GS_INSTANCE_CNT,
-                            m_regs.context.vgtGsInstanceCnt.u32All);
-
     SetOneContextRegValPair(pRegPairs,
                             pNumRegs,
                             mmVGT_ESGS_RING_ITEMSIZE,
@@ -468,6 +441,53 @@ void PipelineChunkGs::AccumulateContextRegs(
     uint32*             pNumRegs) const;
 template
 void PipelineChunkGs::AccumulateContextRegs(
+    RegisterValuePair* pRegPairs,
+    uint32*            pNumRegs) const;
+
+// =====================================================================================================================
+// Accumulates this pipeline chunk's low freq context registers into an array of packed register pairs.
+template <typename T>
+void PipelineChunkGs::AccumulateLowFreqContextRegs(
+    T*      pRegPairs,
+    uint32* pNumRegs
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const uint32 startingIdx = *pNumRegs;
+#endif
+
+    SetOneContextRegValPair(pRegPairs,
+                            pNumRegs,
+                            mmGE_MAX_OUTPUT_PER_SUBGROUP,
+                            m_regs.lowFreqContext.geMaxOutputPerSubgroup.u32All);
+    SetOneContextRegValPair(pRegPairs,
+                            pNumRegs,
+                            mmGE_NGG_SUBGRP_CNTL,
+                            m_regs.lowFreqContext.geNggSubgrpCntl.u32All);
+    SetOneContextRegValPair(pRegPairs,
+                            pNumRegs,
+                            mmVGT_GS_MAX_VERT_OUT,
+                            m_regs.lowFreqContext.vgtGsMaxVertOut.u32All);
+    SetOneContextRegValPair(pRegPairs,
+                            pNumRegs,
+                            mmPA_CL_NGG_CNTL,
+                            m_regs.lowFreqContext.paClNggCntl.u32All);
+    SetOneContextRegValPair(pRegPairs,
+                            pNumRegs,
+                            mmVGT_GS_INSTANCE_CNT,
+                            m_regs.lowFreqContext.vgtGsInstanceCnt.u32All);
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + AccumulateLowFreqContextRegsMaxRegs));
+#endif
+}
+
+template
+void PipelineChunkGs::AccumulateLowFreqContextRegs(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs) const;
+template
+void PipelineChunkGs::AccumulateLowFreqContextRegs(
     RegisterValuePair* pRegPairs,
     uint32*            pNumRegs) const;
 

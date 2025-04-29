@@ -53,6 +53,7 @@ BorderColorPalette::BorderColorPalette(
 uint32* BorderColorPalette::WriteCommands(
     PipelineBindPoint bindPoint,
     gpusize           timestampGpuAddr,
+    uint32            timestampValue,
     CmdStream*        pCmdStream,
     uint32*           pCmdSpace
     ) const
@@ -67,7 +68,11 @@ uint32* BorderColorPalette::WriteCommands(
     if (bindPoint == PipelineBindPoint::Compute)
     {
         // We must wait for idle before changing the compute state.
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(pCmdStream->GetEngineType(), timestampGpuAddr, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(pCmdStream->GetEngineType(),
+                                               timestampGpuAddr,
+                                               timestampValue,
+                                               true,
+                                               pCmdSpace);
         pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(mmTA_CS_BC_BASE_ADDR,
                                                       mmTA_CS_BC_BASE_ADDR_HI,
                                                       addrRegValues,

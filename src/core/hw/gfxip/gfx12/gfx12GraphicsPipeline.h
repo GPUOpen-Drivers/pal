@@ -481,7 +481,6 @@ private:
     {
         // HighFreq (context regs)
         mmSX_PS_DOWNCONVERT,
-        mmSPI_SHADER_COL_FORMAT,
     };
 
     using DepthOnlyOptRegsCtx = RegPairHandler<decltype(DepthOnlyOptRegs), DepthOnlyOptRegs>;
@@ -492,8 +491,7 @@ private:
     {
         uint32 isCandidate             :  1; // Is this pipeline compatible with depth only opt?
         uint32 origSxDownConvertMrt0   :  4; // SX_DOWN_CONVERT.MRT0 if disabled.
-        uint32 origSpiShaderCol0Format :  4; // SPI_SHADER_COL_FORMAT.COL0_EXPORT_FORMAT if disabled.
-        uint32 reserved                : 23; // Reserved.
+        uint32 reserved                : 27; // Reserved.
     };
 
     DepthOnlyOptMetadata m_depthOnlyOptMetadata;

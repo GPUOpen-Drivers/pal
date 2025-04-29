@@ -27,11 +27,10 @@
 
 #include "core/device.h"
 #include "core/hw/gfxip/pipeline.h"
+#include "core/hw/gfxip/shaderLibraryBase.h"
 #include "palMsgPack.h"
 #include "palPipelineAbi.h"
-#include "palShaderLibrary.h"
 #include "palVector.h"
-#include "palSpan.h"
 
 namespace Pal
 {
@@ -40,10 +39,14 @@ using AbiReader = Util::Abi::PipelineAbiReader;
 
 // =====================================================================================================================
 // Hardware independent shader library class.
-class ShaderLibrary : public IShaderLibrary
+class ShaderLibrary : public ShaderLibraryBase
 {
 public:
     virtual void Destroy() override { this->~ShaderLibrary(); }
+
+    // Returns array of underlying singleton ShaderLibraries. If this is already a singleton ShaderLibrary,
+    // just returns a pointer to itself.
+    virtual ShaderLibrarySpan GetShaderLibraries() const override { return m_pSelf; }
 
     Result InitializeCodeObject(const ShaderLibraryCreateInfo& createInfo);
 
@@ -136,6 +139,8 @@ private:
     void DumpLibraryElf(
         Util::StringView<char> prefix,
         Util::StringView<char> name) const;
+
+    ShaderLibrary* m_pSelf;
 
     PAL_DISALLOW_DEFAULT_CTOR(ShaderLibrary);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderLibrary);

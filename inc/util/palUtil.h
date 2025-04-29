@@ -690,7 +690,7 @@ constexpr Result CollapseResults(Result lhs, Result rhs)
  * palMath.h defines a Math namespace with various constants and functions related to floating point conversions and
  * basic math rouintes like Sqrt().
  *
- * Additionally, palHashLiteralString.h defines a template metaprogramming string hash implementation that can produce
+ * Additionally, palInlineFuncs.h defines a template metaprogramming string hash implementation that can produce
  * a FNV1A hash for a string specified in the source code without the string showing up in a compiled release build.
  *
  * ### System Utilities

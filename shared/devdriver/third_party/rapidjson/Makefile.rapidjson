@@ -1,0 +1,18 @@
+####
+#
+#   Modifications Copyright© 2025 Advanced Micro Devices, Inc. All rights reserved.
+#
+####
+
+#-----------------------------------------------------------------------
+# Common RapidJson Implementation Files
+#-----------------------------------------------------------------------
+
+vpath %.cpp $(RAPID_JSON_DEPTH)
+
+
+#-----------------------------------------------------------------------
+# Common MPack Includes
+#-----------------------------------------------------------------------
+
+LCXXINCS += -I$(RAPID_JSON_DEPTH)/include/

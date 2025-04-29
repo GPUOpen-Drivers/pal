@@ -129,6 +129,8 @@ constexpr uint32 VsWaitStageMask  = (PipelineStageFetchIndices | PipelineStageSt
 constexpr uint32 PsWaitStageMask  = PipelineStagePs;
 constexpr uint32 CsWaitStageMask  = PipelineStageCs;
 
+constexpr uint32 VsPsCsWaitStageMask = VsWaitStageMask | PsWaitStageMask | CsWaitStageMask;
+
 // =====================================================================================================================
 // HWL Barrier Processing Manager: contain layout transition BLT and pre/post-BLT execution and memory dependencies.
 class BarrierMgr final : public Pal::GfxBarrierMgr
@@ -434,10 +436,9 @@ private:
 
     void FillCacheOperations(const SyncReqs& syncReqs, Developer::BarrierOperations* pOperations) const;
 
-    bool EnableReleaseMemWaitCpDma() const;
-
-    const CmdUtil&   m_cmdUtil;
-    const GfxIpLevel m_gfxIpLevel;
+    const Gfx9::Device& m_gfxDevice;
+    const CmdUtil&      m_cmdUtil;
+    const GfxIpLevel    m_gfxIpLevel;
 
     PAL_DISALLOW_DEFAULT_CTOR(BarrierMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(BarrierMgr);

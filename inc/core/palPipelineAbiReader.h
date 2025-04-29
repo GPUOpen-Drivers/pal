@@ -192,6 +192,9 @@ public:
     const SymbolEntry* FindSymbol(StringView<char>   name) const;
     ///@}
 
+    /// Gets the array of _amdgpu_pipelineLinkN symbols.
+    Util::Span<const SymbolEntry> GetPipelineLinkSymbols() const { return m_pipelineLinkSymbols; }
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 906
     /// @deprecated - Use GetSymbolHeader, GetSymbol, or CopySymbol.
     /// Check if a PipelineSymbolEntry exists and return it.
@@ -240,6 +243,8 @@ private:
                     PAL_CACHE_LINE_BYTES * 2> GenericSymbolMap;
 
     GenericSymbolMap m_genericSymbolsMap;
+
+    Util::Vector<SymbolEntry, 4, IndirectAllocator> m_pipelineLinkSymbols;
 };
 
 // =====================================================================================================================
@@ -251,7 +256,8 @@ PipelineAbiReader::PipelineAbiReader(
     m_allocator(pAllocator),
     m_elfReaders(&m_allocator),
     m_binary(binary),
-    m_genericSymbolsMap(16u, &m_allocator)
+    m_genericSymbolsMap(16u, &m_allocator),
+    m_pipelineLinkSymbols(&m_allocator)
 {
     PAL_ASSERT(pAllocator != nullptr);
 }

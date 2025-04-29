@@ -23,8 +23,9 @@
  *
  **********************************************************************************************************************/
 
-#include <string.h>
+#include <cstring>
 #include <codecvt>
+#include <cwchar>
 #include "palAssert.h"
 #include "palStringUtil.h"
 #include "palInlineFuncs.h"
@@ -32,8 +33,9 @@
 namespace Util
 {
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 919
 // =====================================================================================================================
-// Returns the length of a wchar_t based string.  This function is necessary when specifying the -fshort-wchar option
+// Returns the length of a wchar_t based string.
 size_t  PalWcslen(
     const wchar_t* pWideStr)    ///< [in] wide string to query
 {
@@ -80,6 +82,7 @@ extern wchar_t* PalWcsrchr(
 
     return pCurr;
 }
+#endif
 
 // =====================================================================================================================
 // Convert char string to UTF-16
@@ -94,13 +97,14 @@ bool ConvertCharStringToUtf16(
     const char* pCharNext = nullptr;
     char16_t*   pUtf16Next = nullptr;
 
-    std::codecvt_base::result retCode = converter.in(state,
-                                                     pSrc,
-                                                     pSrc+strlen(pSrc)+1,
-                                                     pCharNext,
-                                                     reinterpret_cast<char16_t*>(pDst),
-                                                     reinterpret_cast<char16_t*>(pDst) + dstSizeInWords,
-                                                     pUtf16Next);
+    std::codecvt_base::result retCode = converter.in(
+        state,
+        pSrc,
+        pSrc + std::strlen(pSrc) + 1,
+        pCharNext,
+        reinterpret_cast<char16_t*>(pDst),
+        reinterpret_cast<char16_t*>(pDst) + dstSizeInWords,
+        pUtf16Next);
     return (retCode == std::codecvt_base::ok);
 }
 
@@ -117,13 +121,14 @@ bool ConvertUtf16StringToUtf8(
     char*           pCharNext = nullptr;
     const char16_t* pUtf16Next = nullptr;
 
-    std::codecvt_base::result retCode = converter.out(state,
-                                                     reinterpret_cast<const char16_t*>(pSrc),
-                                                     reinterpret_cast<const char16_t*>(pSrc)+PalWcslen(pSrc)+1,
-                                                     pUtf16Next,
-                                                     pDst,
-                                                     pDst + dstSizeInBytes,
-                                                     pCharNext);
+    std::codecvt_base::result retCode = converter.out(
+        state,
+        reinterpret_cast<const char16_t*>(pSrc),
+        reinterpret_cast<const char16_t*>(pSrc) + std::wcslen(pSrc) + 1,
+        pUtf16Next,
+        pDst,
+        pDst + dstSizeInBytes,
+        pCharNext);
     return (retCode == std::codecvt_base::ok);
 }
 
@@ -142,18 +147,19 @@ bool ConvertWcharStringToUtf8(
     else
     {
         std::codecvt_utf8<char32_t> converter;
-        mbstate_t                   state = {0};
+        mbstate_t                   state{};
 
-        char*           pCharNext = nullptr;
+        char*           pCharNext  = nullptr;
         const char32_t* pUtf32Next = nullptr;
 
-        std::codecvt_base::result retCode = converter.out(state,
-                                                         reinterpret_cast<const char32_t*>(pSrc),
-                                                         reinterpret_cast<const char32_t*>(pSrc) + PalWcslen(pSrc) + 1,
-                                                         pUtf32Next,
-                                                         pDst,
-                                                         pDst + dstSizeInBytes,
-                                                         pCharNext);
+        std::codecvt_base::result retCode = converter.out(
+            state,
+            reinterpret_cast<const char32_t*>(pSrc),
+            reinterpret_cast<const char32_t*>(pSrc) + std::wcslen(pSrc) + 1,
+            pUtf32Next,
+            pDst,
+            pDst + dstSizeInBytes,
+            pCharNext);
         result = (retCode == std::codecvt_base::ok);
     }
     return result;
@@ -166,7 +172,7 @@ void CopyUtf16String(
     const wchar_t* pSrc,    ///< [in] Source string to copy.
     size_t         dstSize) ///< Length of the destination buffer, in wchar_t's.
 {
-    memcpy(pDst, pSrc, Util::Min(dstSize*sizeof(char16_t), sizeof(char16_t)*(PalWcslen(pSrc)+1)));
+    std::memcpy(pDst, pSrc, Util::Min(dstSize*sizeof(char16_t), sizeof(char16_t) * (std::wcslen(pSrc) + 1)));
 }
 
 // =====================================================================================================================

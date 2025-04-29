@@ -333,6 +333,7 @@ public:
     /// Not all SwapChain objects will necessarily support this operation.
     /// If this operation returns Result::Unsupported, the client is responsible for destroying and
     /// re-creating the swap chain object as a fallback.
+    /// Clients must release all presentable images linked to a swapchain before calling Resize.
     ///
     /// @param  [in]    width     New width.
     /// @param  [in]    width     New height.

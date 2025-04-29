@@ -1100,7 +1100,6 @@ Result Image::CreateDccObject(
 // to force decompressions which will force image-replacement in the copy code.
 bool Image::DoesImageSupportCopyCompression() const
 {
-    const Platform&               platform   = *m_device.GetPlatform();
     const GfxIpLevel              gfxLevel   = m_device.ChipProperties().gfxLevel;
     const MergedFlatFmtInfo*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(gfxLevel);
     ChNumFormat                   copyFormat = m_createInfo.swizzledFormat.format;
@@ -2028,18 +2027,25 @@ bool Image::IsFormatReplaceable(
         }
         else
         {
-            const bool isMmFormat = Formats::IsMmFormat(m_createInfo.swizzledFormat.format);
-
-            // DCC must either be disabled or we must be sure that it is decompressed.
-            // MM formats are also not replaceable
-            // because they have different black and white values and HW will convert which changes the data.
+            // RGB/YUV images have a few cases to consider:
+            // 1. If DCC is disabled it's always safe to do a format replacement on all HW.
+            // 2. GFX11 can allow format replacement if DCC is compressed because the original format is encoded into
+            //    the DCC key (but we gate it with a debug setting).
+            // 3. Otherwise, on GFX10, we must ensure that we only do a format replacement if DCC is decompressed.
             isFormatReplaceable =
-                (((HasDccData() == false)                                                               ||
-                  // GFX11 can always allow format replacement since the original format is encoded
-                  // into the DCC key; gate by the panel setting.
-                  (IsGfx11(m_device) && GetGfx9Settings(m_device).gfx11AlwaysAllowDccFormatReplacement) ||
-                  (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed)) &&
-                 (isMmFormat == false));
+                  ((HasDccData() == false) ||
+                   (IsGfx11(m_device) && GetGfx9Settings(m_device).gfx11AlwaysAllowDccFormatReplacement) ||
+                   (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed));
+
+            // Note that MM formats have different ideas of what "black" and "white" are (YUV limited range), so doing
+            // a format replacement when DCC is compressed is a bad idea as the AC01 codes will change value. However,
+            // this is not an issue, because DoesImageSupportCopyCompression() returns false for all MM formats, which
+            // means they should be decompressed in our copy layouts. This assert makes sure we don't try to do a format
+            // replacement in any circumstance where MM formats would have issues.
+            PAL_ASSERT((isFormatReplaceable == false) ||
+                       (Formats::IsMmFormat(m_createInfo.swizzledFormat.format) == false) ||
+                       (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed));
+
         }
     }
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,6 @@
 #include "ddClientURIService.h"
 #include "msgChannel.h"
 #include "ddTransferManager.h"
-#include "ddVersion.h"
 
 namespace DevDriver
 {
@@ -65,9 +64,6 @@ namespace DevDriver
                 {
                     // Write the header
                     pResponse->Write("--- Client Information ---");
-
-                    // Write the gpuopen library version string
-                    pResponse->Write("\nClient Version String: %s", GetVersionString());
 
                     // Write the branch definition string
                     pResponse->Write("\nClient Branch String: %s", DD_BRANCH_STRING);

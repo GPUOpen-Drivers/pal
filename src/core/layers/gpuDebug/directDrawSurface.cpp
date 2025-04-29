@@ -1148,6 +1148,87 @@ Result GetDdsPixelFormat(
                 result = Result::Unsupported;
                 break;
             }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+            case Pal::ChNumFormat::P216:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+            case Pal::ChNumFormat::YUV_420P10:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YUV_422P10:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YUV_444P10:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YUV_420P12:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YUV_422P12:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YUV_444P12:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YUV_420P16:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YUV_422P16:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YUV_444P16:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+            case Pal::ChNumFormat::YV16:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::YV24:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::NV24:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::P410:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::P416:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+#endif
             case Pal::ChNumFormat::Count:
             {
                 result = Result::Unsupported;
@@ -1159,8 +1240,19 @@ Result GetDdsPixelFormat(
                 break;
             }
         }
-        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xBE,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xCE,
                       "Format table needs updating!");
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xC9,
+                      "Format table needs updating!");
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xC0,
+                      "Format table needs updating!");
+#else
+        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xBF,
+                      "Format table needs updating!");
+#endif
 #if !DXGI_FORMAT_DEFINED
         if (pDdspf->fourCC == MAKEFOURCC('D','X','1','0'))
         {

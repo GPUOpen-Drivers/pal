@@ -53,8 +53,7 @@ ComputePipeline::ComputePipeline(
     m_ringSizeComputeScratch{},
     m_chunkCs(*pDevice,
               &m_stageInfo,
-              &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
-    m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
+              &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)])
 {
 }
 
@@ -90,8 +89,8 @@ Result ComputePipeline::HwlInit(
         // - Dynamic threadgroup sizes.
         // - Init or Fini kernels.
         if (TestAnyFlagSet(desc.kernel_code_properties,
-                           AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_FLAT_SCRATCH_INIT |
-                           AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE) ||
+                           llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_FLAT_SCRATCH_INIT |
+                           llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE) ||
             (metadata.KernelKind() != HsaAbi::Kind::Normal))
         {
             PAL_ASSERT_ALWAYS_MSG("Unsupported scratch memory usage mode");
@@ -380,6 +379,7 @@ Result ComputePipeline::LinkWithLibraries(
 
 // =====================================================================================================================
 // Writes the PM4 commands required to bind this pipeline. Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool IsAce>
 uint32* ComputePipeline::WriteCommands(
     CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
@@ -387,14 +387,28 @@ uint32* ComputePipeline::WriteCommands(
     bool                            prefetch
     ) const
 {
-    pCmdSpace =  m_chunkCs.WriteShCommands(pCmdStream,
-                                           pCmdSpace,
-                                           m_shPairsPacketSupportedCs,
-                                           csInfo,
-                                           prefetch);
+    pCmdSpace =  m_chunkCs.WriteShCommands<IsAce>(pCmdStream,
+                                                  pCmdSpace,
+                                                  csInfo,
+                                                  prefetch);
 
     return pCmdSpace;
 }
+
+template
+uint32* ComputePipeline::WriteCommands<true>(
+    CmdStream*                      pCmdStream,
+    uint32*                         pCmdSpace,
+    const DynamicComputeShaderInfo& csInfo,
+    bool                            prefetch
+    ) const;
+template
+uint32* ComputePipeline::WriteCommands<false>(
+    CmdStream*                      pCmdStream,
+    uint32*                         pCmdSpace,
+    const DynamicComputeShaderInfo& csInfo,
+    bool                            prefetch
+    ) const;
 
 // =====================================================================================================================
 // Obtains shader compilation stats.

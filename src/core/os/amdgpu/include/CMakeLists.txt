@@ -42,23 +42,9 @@ set(PAL_XCB_REQUIRED ON)
 
 # Needed for dri3Loader.h
 if (PAL_XCB_REQUIRED)
-    if(NOT DEFINED DK_X11)
-        if(DEFINED GLOBAL_ROOT_DK_DIR AND NOT "${GLOBAL_ROOT_DK_DIR}" STREQUAL "")
-            if(TARGET_ARCHITECTURE_BITS EQUAL 64)
-                set(DK_X11 ${GLOBAL_ROOT_DK_DIR}/xfree86/1.19_64a)
-            elseif(TARGET_ARCHITECTURE_BITS EQUAL 32)
-                set(DK_X11 ${GLOBAL_ROOT_DK_DIR}/xfree86/1.19_x86)
-            endif()
-            target_include_directories(pal PUBLIC ${DK_X11}/include)
-            target_include_directories(pal PUBLIC ${DK_X11}/include/linux)
-        else()
-            find_package(X11 REQUIRED)
-            set(DK_X11 ${X11_INCLUDE_DIR})
-            target_include_directories(pal PUBLIC ${DK_X11})
-        endif()
-
-        message(STATUS "DK_X11 not set. Defaulting to ${DK_X11}")
-    endif()
+    find_package(X11 REQUIRED)
+    target_include_directories(pal PUBLIC ${X11_INCLUDE_DIR})
+    message(STATUS "X11_INCLUDE_DIR not set. Defaulting to ${X11_INCLUDE_DIR}")
 
     # XCB headers
     target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/shared/amdgpu/include)

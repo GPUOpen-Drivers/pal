@@ -24,13 +24,14 @@
  **********************************************************************************************************************/
 
 // pal
+#include "lnxSysUtil.h"
+#include "palAutoBuffer.h"
 #include "palFile.h"
 #include "palHashMapImpl.h"
 #include "palMemTrackerImpl.h"
 #include "palSysMemory.h"
-#include "palSysUtil.h"
 #include "palUuid.h"
-#include "lnxSysUtil.h"
+#include "palVectorImpl.h"
 
 // stl
 #include <cstdio>
@@ -601,7 +602,7 @@ Result GetExecutableName(
         result = Result::ErrorInvalidMemorySize;
     }
 
-    wchar_t*const pLastSlash = Wcsrchr(pWcBuffer, L'/');
+    wchar_t*const pLastSlash = std::wcsrchr(pWcBuffer, L'/');
     (*ppWcFilename) = (pLastSlash == nullptr) ? pWcBuffer : (pLastSlash + 1);
 
     return result;
@@ -737,7 +738,11 @@ static Result GetLibFileBuildId(
         {
             found = true;
             static_assert(sizeof(dllStat.mtime) <= sizeof(pBuildId->data), "Build ID is too small!");
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 922
             PAL_ASSERT(dllStat.mtime != 0);
+#else
+            PAL_ASSERT(dllStat.mtime != system_clock::time_point::min());
+#endif
             memcpy(&pBuildId->data[0], &dllStat.mtime, sizeof(dllStat.mtime));
         }
     }
@@ -870,6 +875,67 @@ Result MkDirRecursively(
         }
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+Result GetFileInfoInDir(
+    StringView<char>                       dirPath,
+    Vector<StatName, 1, GenericAllocator>* pFileInfos)
+{
+    // verify input
+    Result result =
+        ((dirPath.Data()   == nullptr) ||
+         (dirPath.Length() == 0)       ||
+         (pFileInfos       == nullptr)) ?
+        Result::ErrorInvalidPointer : Result::Success;
+
+    // get the file count so we know how big of a span to make
+    size_t fileCount = 0;
+    size_t charCount = 0;
+    if (result == Result::Success)
+    {
+        result = CountFilesInDir(dirPath, &fileCount, &charCount);
+    }
+
+    if (result == Result::Success)
+    {
+        // get the names of all the files
+        constexpr size_t AssumedNumFiles = 128;
+        AutoBuffer<StringView<char>, AssumedNumFiles, GenericAllocator> fileNames{ fileCount, nullptr };
+        AutoBuffer<char, AssumedNumFiles* MaxPathStrLen, GenericAllocator> allFileNamesMem{ charCount, nullptr };
+        result = GetFileNamesInDir(dirPath, fileNames, allFileNamesMem);
+
+        // might as well reserve space in the vector if we're already assuming a certain number of files
+        if (result == Result::Success)
+        {
+            result = pFileInfos->Reserve(AssumedNumFiles);
+        }
+
+        if (result == Result::Success)
+        {
+            for (const StringView<char>& fileName : fileNames)
+            {
+                // copy the name
+                StatName statName{};
+                Strncpy(statName.name, fileName.Data(), std::size(statName.name));
+
+                // get the stat
+                result = File::GetStat(statName.name, &statName.stat);
+                if (result != Result::Success)
+                {
+                    break;
+                }
+
+                // add it to the list
+                result = pFileInfos->PushBack(statName);
+                if (result != Result::Success)
+                {
+                    break;
+                }
+            }
+        }
+    }
     return result;
 }
 

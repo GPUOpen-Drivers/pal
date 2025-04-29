@@ -168,7 +168,8 @@ public:
         const ComputePipeline*      pCsPipeline,
         ExecuteIndirectPacketInfo*  pPacketInfo,
         ExecuteIndirectMeta*        pMeta,
-        const EiDispatchOptions&    options);
+        const EiDispatchOptions&    options,
+        const EiUserDataRegs&       regs);
 
     void ExecuteIndirectPacket(
         const IIndirectCmdGenerator& generator,
@@ -258,6 +259,12 @@ private:
         DispatchDims offset,
         DispatchDims launchSize,
         DispatchDims logicalSize);
+
+    virtual size_t BuildWriteToZero(
+        gpusize       dstAddr,
+        uint32        numDwords,
+        const uint32* pZeros,
+        uint32*       pCmdSpace) const override;
 
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;

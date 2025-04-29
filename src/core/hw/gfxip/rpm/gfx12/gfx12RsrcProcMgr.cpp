@@ -803,226 +803,222 @@ void RsrcProcMgr::CmdClearDepthStencil(
     // we may need to allocate more boxes than will fit in the fixed virtual space.
     AutoBuffer<Box, 16, Platform> boxes(rectCount, m_pDevice->GetPlatform());
 
-    if (boxes.Capacity() >= rectCount)
-    {
-        const bool        clearAutoSync   = TestAnyFlagSet(flags, DsClearAutoSync);
-        const bool        useGfxClear     = IsDepthStencilGfxClearPreferred(clearAutoSync);
-        const bool        needComputeSync = ((useGfxClear == false) && clearAutoSync);
-        const auto&       createInfo      = dstImage.GetImageCreateInfo();
-        const auto&       gfx12Image      = *static_cast<const Image*>(dstImage.GetGfxImage());
-        const HiSZ*       pHiSZ           = gfx12Image.GetHiSZ();
-        const ChNumFormat imageFormat     = createInfo.swizzledFormat.format;
-        const bool        supportsDepth   = m_pDevice->Parent()->SupportsDepth(imageFormat, ImageTiling::Optimal);
-        const bool        fullBoxClear    = (rectCount  == 0) ||
-                                             ((rectCount == 1) &&
-                                             (pRects[0].offset.x == 0) &&
-                                             (pRects[0].offset.y == 0) &&
-                                             (pRects[0].extent.width  == createInfo.extent.width) &&
-                                             (pRects[0].extent.height == createInfo.extent.height));
-
-        // Check if need pre/post sync for potential CS expand HiSZ range in gfx clear path.
-        bool needHiSZExpandSyncForGfxClear = false;
-        if (useGfxClear && fullBoxClear && gfx12Image.HasHiSZStateMetaData())
-        {
-            for (uint32 rangeIdx = 0; rangeIdx < rangeCount; rangeIdx++)
-            {
-                if ((pRanges[rangeIdx].numPlanes == 1) && dstImage.IsRangeFullSlices(pRanges[rangeIdx]))
-                {
-                    needHiSZExpandSyncForGfxClear = true;
-                    break;
-                }
-            }
-        }
-
-        if (needComputeSync || needHiSZExpandSyncForGfxClear)
-        {
-            AcquireReleaseInfo acqRelInfo  = {};
-            acqRelInfo.srcGlobalStageMask  = PipelineStageDsTarget;
-            acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
-            acqRelInfo.srcGlobalAccessMask = CoherDepthStencilTarget;
-            acqRelInfo.dstGlobalAccessMask = CoherShader;
-            acqRelInfo.reason              = Developer::BarrierReasonPreComputeDepthStencilClear;
-
-            pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-        }
-
-        for (uint32 i = 0; i < rectCount; i++)
-        {
-            boxes[i].offset.x      = pRects[i].offset.x;
-            boxes[i].offset.y      = pRects[i].offset.y;
-            boxes[i].offset.z      = 0;
-            boxes[i].extent.width  = pRects[i].extent.width;
-            boxes[i].extent.height = pRects[i].extent.height;
-            boxes[i].extent.depth  = 1;
-        }
-
-        const bool trackBltActiveFlags = (clearAutoSync == false);
-
-        for (uint32 rangeIdx = 0; rangeIdx < rangeCount; rangeIdx++)
-        {
-            // Update HiSZ state metadata to allow enable HiZ/HiS after subresource full resummarization.
-            const bool setHiSZStateMetadata =
-                gfx12Image.HasHiSZStateMetaData()        &&
-                // partial Clear is fine for compute path as ExpandHiSZWithFullRange() always handles full box.
-                ((useGfxClear == false) || fullBoxClear) &&
-                dstImage.IsRangeFullSlices(pRanges[rangeIdx]);
-
-            if (useGfxClear)
-            {
-                PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
-
-                uint32 clearMask = 0;
-
-                if (pRanges[rangeIdx].numPlanes == 2)
-                {
-                    PAL_ASSERT(supportsDepth);
-                    clearMask = ClearDepth | ClearStencil;
-                }
-                else if ((pRanges[rangeIdx].startSubres.plane == 0) && supportsDepth)
-                {
-                    clearMask = ClearDepth;
-                }
-                else
-                {
-                    clearMask = ClearStencil;
-                }
-
-                DepthStencilClearGraphics(pCmdBuffer,
-                                          gfx12Image,
-                                          pRanges[rangeIdx],
-                                          depth,
-                                          stencil,
-                                          stencilWriteMask,
-                                          clearMask,
-                                          depthLayout,
-                                          stencilLayout,
-                                          rectCount,
-                                          boxes.Data());
-            }
-            else
-            {
-                // Compute Clear path
-                for (uint32 plane = 0; plane < pRanges[rangeIdx].numPlanes; plane++)
-                {
-                    SubresRange range = pRanges[rangeIdx];
-
-                    range.startSubres.plane += plane;
-                    range.numPlanes          = 1;
-
-                    const bool           isDepth      = (range.startSubres.plane == 0) && supportsDepth;
-                    const SwizzledFormat subresFormat = dstImage.SubresourceInfo(range.startSubres)->format;
-
-                    ClearColor clearColor = {};
-
-                    if (isDepth)
-                    {
-                        // For Depth slow clears, we use a float clear color.
-                        clearColor.type        = ClearColorType::Float;
-                        clearColor.f32Color[0] = depth;
-                    }
-                    else
-                    {
-                        PAL_ASSERT(m_pDevice->Parent()->SupportsStencil(imageFormat, ImageTiling::Optimal));
-
-                        // For Stencil plane we use the stencil value directly.
-                        clearColor.type                = ClearColorType::Uint;
-                        clearColor.u32Color[0]         = stencil;
-                        clearColor.disabledChannelMask = ~stencilWriteMask;
-                    }
-
-                    LinearClearDesc desc = {};
-                    bool mustFallBack = true;
-
-                    if (LinearClearSupportsImage(dstImage, clearColor, range, rectCount, boxes.Data()) &&
-                        FillLinearClearDesc(dstImage, range, subresFormat, &desc))
-                    {
-                        const Gfx12PalSettings& settings = GetGfx12Settings(m_pDevice->Parent());
-
-                        mustFallBack = TryLinearImageClear(pCmdBuffer, dstImage, settings, desc, clearColor,
-                                                           trackBltActiveFlags);
-                    }
-
-                    if (mustFallBack)
-                    {
-                        SlowClearCompute(pCmdBuffer,
-                                         dstImage,
-                                         isDepth ? depthLayout : stencilLayout,
-                                         clearColor,
-                                         subresFormat,
-                                         range,
-                                         trackBltActiveFlags,
-                                         rectCount,
-                                         boxes.Data());
-                    }
-
-                    const ImageLayout           hiszValidLayout = gfx12Image.GetHiSZValidLayout(range.startSubres.plane);
-                    const DepthStencilHiSZState hiszState       =
-                        ImageLayoutToDepthStencilHiSZState(hiszValidLayout, isDepth ? depthLayout : stencilLayout);
-
-                    if (gfx12Image.HasHiSZ() &&
-                        ((isDepth && pHiSZ->HiZEnabled()) || ((isDepth == false) && pHiSZ->HiSEnabled())) &&
-                        // Force expand HiSZ range if setHiSZStateMetadata is true.
-                        ((hiszState == DepthStencilWithHiSZ) || setHiSZStateMetadata))
-                    {
-                        constexpr uint8_t StencilWriteMaskFull = 0xFF;
-
-                        if (fullBoxClear && (stencilWriteMask == StencilWriteMaskFull))
-                        {
-                            // If full clear, fix up HiZ/HiS based on clear value.
-                            FixupHiSZWithClearValue(pCmdBuffer, dstImage, range, depth, stencil, trackBltActiveFlags);
-                        }
-                        else
-                        {
-                            // If partial clear, fix up HiZ/HiS with full range.
-                            ExpandHiSZWithFullRange(pCmdBuffer, dstImage, range, trackBltActiveFlags);
-                        }
-                    }
-                }
-            }
-
-            if (setHiSZStateMetadata)
-            {
-                // Expand the other plane so can safely re-enable HiSZ.
-                if (pRanges[rangeIdx].numPlanes == 1)
-                {
-                    SubresRange range = pRanges[rangeIdx];
-                    range.startSubres.plane = (range.startSubres.plane == 0) ? 1 : 0;
-
-                    // Note: This is only necessary if both HiZ and HiS are enabled.
-                    if (((range.startSubres.plane == 0) && pHiSZ->HiZEnabled()) ||
-                        ((range.startSubres.plane == 1) && pHiSZ->HiSEnabled()))
-                    {
-                        ExpandHiSZWithFullRange(pCmdBuffer, dstImage, range, trackBltActiveFlags);
-                    }
-                }
-
-                Pm4Predicate pktPredicate = Pm4Predicate(pCmdBuffer->GetPacketPredicate());
-                auto* const  pCmdStream   = static_cast<CmdStream*>(pCmdBuffer->GetMainCmdStream());
-                uint32*      pCmdSpace    = pCmdStream->ReserveCommands();
-
-                pCmdSpace = gfx12Image.UpdateHiSZStateMetaData(pRanges[rangeIdx], true, pktPredicate,
-                                                               pCmdBuffer->GetEngineType(), pCmdSpace);
-
-                pCmdStream->CommitCommands(pCmdSpace);
-            }
-        }
-
-        if (needComputeSync || needHiSZExpandSyncForGfxClear)
-        {
-            AcquireReleaseInfo acqRelInfo  = {};
-            acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
-            acqRelInfo.dstGlobalStageMask  = PipelineStageDsTarget;
-            acqRelInfo.srcGlobalAccessMask = CoherShader;
-            acqRelInfo.dstGlobalAccessMask = CoherDepthStencilTarget;
-            acqRelInfo.reason              = Developer::BarrierReasonPostComputeDepthStencilClear;
-
-            pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-        }
-    }
-    else
+    if (boxes.Capacity() < rectCount)
     {
         // Notify the command buffer if AutoBuffer allocation has failed.
         pCmdBuffer->NotifyAllocFailure();
+        return;
+    }
+
+    for (uint32 i = 0; i < rectCount; i++)
+    {
+        boxes[i].offset.x      = pRects[i].offset.x;
+        boxes[i].offset.y      = pRects[i].offset.y;
+        boxes[i].offset.z      = 0;
+        boxes[i].extent.width  = pRects[i].extent.width;
+        boxes[i].extent.height = pRects[i].extent.height;
+        boxes[i].extent.depth  = 1;
+    }
+
+    const bool        clearAutoSync   = TestAnyFlagSet(flags, DsClearAutoSync);
+    const bool        useGfxClear     = pCmdBuffer->IsGraphicsSupported() &&
+                                        dstImage.IsDepthStencilTarget()   &&
+                                        IsDepthStencilGfxClearPreferred(clearAutoSync);
+    const bool        needComputeSync = ((useGfxClear == false) && clearAutoSync);
+    const auto&       createInfo      = dstImage.GetImageCreateInfo();
+    const auto&       gfx12Image      = *static_cast<const Image*>(dstImage.GetGfxImage());
+    const HiSZ*       pHiSZ           = gfx12Image.GetHiSZ();
+    const ChNumFormat imageFormat     = createInfo.swizzledFormat.format;
+    const bool        supportsDepth   = m_pDevice->Parent()->SupportsDepth(imageFormat, ImageTiling::Optimal);
+    const bool        fullBoxClear    = BoxesCoverWholeExtent(createInfo.extent, rectCount, boxes.Data());
+
+    // Check if need pre/post sync for potential CS expand HiSZ range in gfx clear path.
+    bool needHiSZExpandSyncForGfxClear = false;
+    if (useGfxClear && fullBoxClear && gfx12Image.HasHiSZStateMetaData())
+    {
+        for (uint32 rangeIdx = 0; rangeIdx < rangeCount; rangeIdx++)
+        {
+            if ((pRanges[rangeIdx].numPlanes == 1) && dstImage.IsRangeFullSlices(pRanges[rangeIdx]))
+            {
+                needHiSZExpandSyncForGfxClear = true;
+                break;
+            }
+        }
+    }
+
+    if (needComputeSync || needHiSZExpandSyncForGfxClear)
+    {
+        AcquireReleaseInfo acqRelInfo  = {};
+        acqRelInfo.srcGlobalStageMask  = PipelineStageDsTarget;
+        acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
+        acqRelInfo.srcGlobalAccessMask = CoherDepthStencilTarget;
+        acqRelInfo.dstGlobalAccessMask = CoherShader;
+        acqRelInfo.reason              = Developer::BarrierReasonPreComputeDepthStencilClear;
+
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+    }
+
+    const bool trackBltActiveFlags = (clearAutoSync == false);
+
+    for (uint32 rangeIdx = 0; rangeIdx < rangeCount; rangeIdx++)
+    {
+        // Update HiSZ state metadata to allow enable HiZ/HiS after subresource full resummarization.
+        const bool setHiSZStateMetadata =
+            gfx12Image.HasHiSZStateMetaData()        &&
+            // partial Clear is fine for compute path as ExpandHiSZWithFullRange() always handles full box.
+            ((useGfxClear == false) || fullBoxClear) &&
+            dstImage.IsRangeFullSlices(pRanges[rangeIdx]);
+
+        if (useGfxClear)
+        {
+            PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+
+            uint32 clearMask = 0;
+
+            if (pRanges[rangeIdx].numPlanes == 2)
+            {
+                PAL_ASSERT(supportsDepth);
+                clearMask = ClearDepth | ClearStencil;
+            }
+            else if ((pRanges[rangeIdx].startSubres.plane == 0) && supportsDepth)
+            {
+                clearMask = ClearDepth;
+            }
+            else
+            {
+                clearMask = ClearStencil;
+            }
+
+            DepthStencilClearGraphics(pCmdBuffer,
+                                      gfx12Image,
+                                      pRanges[rangeIdx],
+                                      depth,
+                                      stencil,
+                                      stencilWriteMask,
+                                      clearMask,
+                                      depthLayout,
+                                      stencilLayout,
+                                      rectCount,
+                                      boxes.Data());
+        }
+        else
+        {
+            // Compute Clear path
+            for (uint32 plane = 0; plane < pRanges[rangeIdx].numPlanes; plane++)
+            {
+                SubresRange range = pRanges[rangeIdx];
+
+                range.startSubres.plane += plane;
+                range.numPlanes          = 1;
+
+                const bool           isDepth      = (range.startSubres.plane == 0) && supportsDepth;
+                const SwizzledFormat subresFormat = dstImage.SubresourceInfo(range.startSubres)->format;
+
+                ClearColor clearColor = {};
+
+                if (isDepth)
+                {
+                    // For Depth slow clears, we use a float clear color.
+                    clearColor.type        = ClearColorType::Float;
+                    clearColor.f32Color[0] = depth;
+                }
+                else
+                {
+                    PAL_ASSERT(m_pDevice->Parent()->SupportsStencil(imageFormat, ImageTiling::Optimal));
+
+                    // For Stencil plane we use the stencil value directly.
+                    clearColor.type                = ClearColorType::Uint;
+                    clearColor.u32Color[0]         = stencil;
+                    clearColor.disabledChannelMask = ~stencilWriteMask;
+                }
+
+                LinearClearDesc desc = {};
+                bool mustFallBack = true;
+
+                if (LinearClearSupportsImage(dstImage, clearColor, range, rectCount, boxes.Data()) &&
+                    FillLinearClearDesc(dstImage, range, subresFormat, &desc))
+                {
+                    const Gfx12PalSettings& settings = GetGfx12Settings(m_pDevice->Parent());
+
+                    mustFallBack = TryLinearImageClear(pCmdBuffer, dstImage, settings, desc, clearColor,
+                                                       trackBltActiveFlags);
+                }
+
+                if (mustFallBack)
+                {
+                    SlowClearCompute(pCmdBuffer,
+                                     dstImage,
+                                     isDepth ? depthLayout : stencilLayout,
+                                     clearColor,
+                                     subresFormat,
+                                     range,
+                                     trackBltActiveFlags,
+                                     rectCount,
+                                     boxes.Data());
+                }
+
+                const ImageLayout           hiszValidLayout = gfx12Image.GetHiSZValidLayout(range.startSubres.plane);
+                const DepthStencilHiSZState hiszState       =
+                    ImageLayoutToDepthStencilHiSZState(hiszValidLayout, isDepth ? depthLayout : stencilLayout);
+
+                if (gfx12Image.HasHiSZ() &&
+                    ((isDepth && pHiSZ->HiZEnabled()) || ((isDepth == false) && pHiSZ->HiSEnabled())) &&
+                    // Force expand HiSZ range if setHiSZStateMetadata is true.
+                    ((hiszState == DepthStencilWithHiSZ) || setHiSZStateMetadata))
+                {
+                    constexpr uint8_t StencilWriteMaskFull = 0xFF;
+
+                    if (fullBoxClear && (stencilWriteMask == StencilWriteMaskFull))
+                    {
+                        // If full clear, fix up HiZ/HiS based on clear value.
+                        FixupHiSZWithClearValue(pCmdBuffer, dstImage, range, depth, stencil, trackBltActiveFlags);
+                    }
+                    else
+                    {
+                        // If partial clear, fix up HiZ/HiS with full range.
+                        ExpandHiSZWithFullRange(pCmdBuffer, dstImage, range, trackBltActiveFlags);
+                    }
+                }
+            }
+        }
+
+        if (setHiSZStateMetadata)
+        {
+            // Expand the other plane so can safely re-enable HiSZ.
+            if (pRanges[rangeIdx].numPlanes == 1)
+            {
+                SubresRange range = pRanges[rangeIdx];
+                range.startSubres.plane = (range.startSubres.plane == 0) ? 1 : 0;
+
+                // Note: This is only necessary if both HiZ and HiS are enabled.
+                if (((range.startSubres.plane == 0) && pHiSZ->HiZEnabled()) ||
+                    ((range.startSubres.plane == 1) && pHiSZ->HiSEnabled()))
+                {
+                    ExpandHiSZWithFullRange(pCmdBuffer, dstImage, range, trackBltActiveFlags);
+                }
+            }
+
+            Pm4Predicate pktPredicate = Pm4Predicate(pCmdBuffer->GetPacketPredicate());
+            auto* const  pCmdStream   = static_cast<CmdStream*>(pCmdBuffer->GetMainCmdStream());
+            uint32*      pCmdSpace    = pCmdStream->ReserveCommands();
+
+            pCmdSpace = gfx12Image.UpdateHiSZStateMetaData(pRanges[rangeIdx], true, pktPredicate,
+                                                           pCmdBuffer->GetEngineType(), pCmdSpace);
+
+            pCmdStream->CommitCommands(pCmdSpace);
+        }
+    }
+
+    if (needComputeSync || needHiSZExpandSyncForGfxClear)
+    {
+        AcquireReleaseInfo acqRelInfo  = {};
+        acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
+        acqRelInfo.dstGlobalStageMask  = PipelineStageDsTarget;
+        acqRelInfo.srcGlobalAccessMask = CoherShader;
+        acqRelInfo.dstGlobalAccessMask = CoherDepthStencilTarget;
+        acqRelInfo.reason              = Developer::BarrierReasonPostComputeDepthStencilClear;
+
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
     }
 }
 

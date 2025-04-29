@@ -37,6 +37,10 @@
 #include <cstdint>
 #include <cstdlib>
 
+#if SWD_STRINGIFY
+#include <cstring>
+#endif
+
 // Forward declarations:
 union Gfx11SwWarDetection;
 
@@ -70,7 +74,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 55;
+constexpr uint32_t Gfx11NumWorkarounds = 56;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +85,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xff800000,
+    0xff000000,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -161,7 +165,7 @@ union Gfx11SwWarDetection
 
         uint32_t textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      : 1;
 
-#if    SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+#if SWD_BUILD_GAINSBOROUGH   || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t shaderSpFalsePositiveVGPRWriteKillForDUALOpcodeInstructions_A_                                                                                                       : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -173,7 +177,7 @@ union Gfx11SwWarDetection
 
         uint32_t geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             : 1;
 
-#if     SWD_BUILD_PHX2|| SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+#if SWD_BUILD_GAINSBOROUGH    || SWD_BUILD_PHX2|| SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t ppCbFDCCKeysWithFragComp_MSAASettingCauseHangsInCB_A_                                                                                                                : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -199,7 +203,7 @@ union Gfx11SwWarDetection
         uint32_t                                                                                                                                                                      : 1;
 #endif
 
-#if    SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+#if SWD_BUILD_GAINSBOROUGH   || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t textureTcpGfx11_5MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                         : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -207,13 +211,13 @@ union Gfx11SwWarDetection
 
         uint32_t textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                           : 1;
 
-#if     SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+#if SWD_BUILD_GAINSBOROUGH    || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t ppSc1ApexLegendsImageCorruptionInZPrePassMode_A_                                                                                                                     : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
 #endif
 
-#if    SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+#if SWD_BUILD_GAINSBOROUGH   || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
         uint32_t shaderSqSqgShaderHangDueToSQInstructionStore_IS_CacheDeadlock_A_                                                                                                     : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -223,7 +227,13 @@ union Gfx11SwWarDetection
 
         uint32_t                                                                                                                                                                      : 1;
 
-        uint32_t reserved                                                                                                                                                             : 9;
+#if SWD_BUILD_GAINSBOROUGH    || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+        uint32_t geometryGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_                                                                                       : 1;
+#else
+        uint32_t                                                                                                                                                                      : 1;
+#endif
+
+        uint32_t reserved                                                                                                                                                             : 8;
     };
 
     uint32_t u32All[Gfx11StructDwords];
@@ -486,6 +496,37 @@ void DetectPhoenix2A0Workarounds(
 }
 #endif
 
+#if SWD_BUILD_GAINSBOROUGH
+// =====================================================================================================================
+void DetectGainsboroughA0Workarounds(
+    Gfx11SwWarDetection* pWorkarounds)
+{
+    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                  = 1;
+    pWorkarounds->controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                      = 1;
+    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
+    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->geometryGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_                                                                                       = 1;
+    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
+    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
+    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
+    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                               = 1;
+    pWorkarounds->ppCbFDCCKeysWithFragComp_MSAASettingCauseHangsInCB_A_                                                                                                                = 1;
+    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                                = 1;
+    pWorkarounds->ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ = 1;
+    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 = 1;
+    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                   = 1;
+    pWorkarounds->ppSc1ApexLegendsImageCorruptionInZPrePassMode_A_                                                                                                                     = 1;
+    pWorkarounds->shaderSpFalsePositiveVGPRWriteKillForDUALOpcodeInstructions_A_                                                                                                       = 1;
+    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                  = 1;
+    pWorkarounds->shaderSqSqgShaderHangDueToSQInstructionStore_IS_CacheDeadlock_A_                                                                                                     = 1;
+    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   = 1;
+    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                          = 1;
+    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                            = 1;
+    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
+    pWorkarounds->textureTcpGfx11_5MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                         = 1;
+}
+#endif
+
 #if SWD_BUILD_STRIX1
 // =====================================================================================================================
 void DetectStrix1A0Workarounds(
@@ -495,6 +536,7 @@ void DetectStrix1A0Workarounds(
     pWorkarounds->controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                      = 1;
     pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
     pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->geometryGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_                                                                                       = 1;
     pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
     pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
     pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
@@ -525,6 +567,7 @@ void DetectStrix1B0Workarounds(
     pWorkarounds->controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                      = 1;
     pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
     pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->geometryGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_                                                                                       = 1;
     pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
     pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
     pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
@@ -553,6 +596,7 @@ void DetectStrixHaloA0Workarounds(
     pWorkarounds->controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                      = 1;
     pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
     pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->geometryGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_                                                                                       = 1;
     pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
     pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
     pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
@@ -600,6 +644,233 @@ static void Gfx11OverrideDefaults(
 }
 
 } // namespace swd_internal
+
+#if SWD_STRINGIFY
+// =====================================================================================================================
+std::string StringifyActiveGfx11Workarounds(
+    const Gfx11SwWarDetection& workarounds)
+{
+    std::string output = "Workarounds enabled for Gfx11:\n";
+
+    if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_ != 0)
+    {
+        output += " - ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_\n";
+    }
+    if (workarounds.shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_ != 0)
+    {
+        output += " - shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_\n";
+    }
+    if (workarounds.shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_B_ != 0)
+    {
+        output += " - shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_B_\n";
+    }
+    if (workarounds.shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_ != 0)
+    {
+        output += " - shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_\n";
+    }
+    if (workarounds.shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_ != 0)
+    {
+        output += " - shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_\n";
+    }
+    if (workarounds.shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_ != 0)
+    {
+        output += " - shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_\n";
+    }
+    if (workarounds.shaderSpfailedToDetectPartialForwardingStall_A_ != 0)
+    {
+        output += " - shaderSpfailedToDetectPartialForwardingStall_A_\n";
+    }
+    if (workarounds.shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_ != 0)
+    {
+        output += " - shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_\n";
+    }
+    if (workarounds.ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_ != 0)
+    {
+        output += " - ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_\n";
+    }
+    if (workarounds.ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_ != 0)
+    {
+        output += " - ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_\n";
+    }
+    if (workarounds.ppDbPWSIssueForDepthWrite_TextureRead_A_ != 0)
+    {
+        output += " - ppDbPWSIssueForDepthWrite_TextureRead_A_\n";
+    }
+    if (workarounds.geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_ != 0)
+    {
+        output += " - geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_\n";
+    }
+    if (workarounds.ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_ != 0)
+    {
+        output += " - ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_\n";
+    }
+    if (workarounds.sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_ != 0)
+    {
+        output += " - sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_\n";
+    }
+    if (workarounds.shaderSqSqgSQGTTWPTRIssues_A_ != 0)
+    {
+        output += " - shaderSqSqgSQGTTWPTRIssues_A_\n";
+    }
+    if (workarounds.shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_ != 0)
+    {
+        output += " - shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_\n";
+    }
+    if (workarounds.sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_ != 0)
+    {
+        output += " - sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_\n";
+    }
+    if (workarounds.ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_ != 0)
+    {
+        output += " - ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_\n";
+    }
+    if (workarounds.sioSpiBciSoftLockIssue_A_ != 0)
+    {
+        output += " - sioSpiBciSoftLockIssue_A_\n";
+    }
+    if (workarounds.sioSpiBciSpyGlassRevealedABugInSpiRaRscselGsThrottleModuleWhichIsCausedByGsPsVgprLdsInUsesVariableDroppingMSBInRelevantMathExpression_A_ != 0)
+    {
+        output += " - sioSpiBciSpyGlassRevealedABugInSpiRaRscselGsThrottleModuleWhichIsCausedByGsPsVgprLdsInUsesVariableDroppingMSBInRelevantMathExpression_A_\n";
+    }
+    if (workarounds.geometryPaStereoPositionNanCheckBug_A_ != 0)
+    {
+        output += " - geometryPaStereoPositionNanCheckBug_A_\n";
+    }
+    if (workarounds.geometryPaPALineStippleResetError_A_ != 0)
+    {
+        output += " - geometryPaPALineStippleResetError_A_\n";
+    }
+    if (workarounds.gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_ != 0)
+    {
+        output += " - gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_\n";
+    }
+    if (workarounds.ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_ != 0)
+    {
+        output += " - ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_\n";
+    }
+    if (workarounds.sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_ != 0)
+    {
+        output += " - sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_\n";
+    }
+    if (workarounds.textureTaGfx11TAUnableToSupportScratchSVS_A_ != 0)
+    {
+        output += " - textureTaGfx11TAUnableToSupportScratchSVS_A_\n";
+    }
+    if (workarounds.cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_ != 0)
+    {
+        output += " - cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_\n";
+    }
+    if (workarounds.shaderSqcMissingTTTokens_A_ != 0)
+    {
+        output += " - shaderSqcMissingTTTokens_A_\n";
+    }
+    if (workarounds.controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_ != 0)
+    {
+        output += " - controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_\n";
+    }
+    if (workarounds.shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_ != 0)
+    {
+        output += " - shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_\n";
+    }
+    if (workarounds.textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_ != 0)
+    {
+        output += " - textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_\n";
+    }
+#if SWD_BUILD_GAINSBOROUGH   || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+    if (workarounds.shaderSpFalsePositiveVGPRWriteKillForDUALOpcodeInstructions_A_ != 0)
+    {
+        output += " - shaderSpFalsePositiveVGPRWriteKillForDUALOpcodeInstructions_A_\n";
+    }
+#endif
+    if (workarounds.controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_ != 0)
+    {
+        output += " - controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_\n";
+    }
+    if (workarounds.shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_ != 0)
+    {
+        output += " - shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_\n";
+    }
+    if (workarounds.geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_ != 0)
+    {
+        output += " - geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_\n";
+    }
+#if SWD_BUILD_GAINSBOROUGH    || SWD_BUILD_PHX2|| SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+    if (workarounds.ppCbFDCCKeysWithFragComp_MSAASettingCauseHangsInCB_A_ != 0)
+    {
+        output += " - ppCbFDCCKeysWithFragComp_MSAASettingCauseHangsInCB_A_\n";
+    }
+#endif
+    if (workarounds.shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_ != 0)
+    {
+        output += " - shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_\n";
+    }
+    if (workarounds.controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_ != 0)
+    {
+        output += " - controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_\n";
+    }
+    if (workarounds.entireSubsystemUndershootCausesHighDroop_A_ != 0)
+    {
+        output += " - entireSubsystemUndershootCausesHighDroop_A_\n";
+    }
+    if (workarounds.ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_ != 0)
+    {
+        output += " - ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_\n";
+    }
+    if (workarounds.ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ != 0)
+    {
+        output += " - ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_\n";
+    }
+#if SWD_BUILD_STRIX1
+    if (workarounds.shaderLdsPotentialIssueValdnGCTheBehaviorChangeInDsWriteB8_A_ != 0)
+    {
+        output += " - shaderLdsPotentialIssueValdnGCTheBehaviorChangeInDsWriteB8_A_\n";
+    }
+#endif
+#if SWD_BUILD_GAINSBOROUGH   || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+    if (workarounds.textureTcpGfx11_5MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_ != 0)
+    {
+        output += " - textureTcpGfx11_5MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_\n";
+    }
+#endif
+    if (workarounds.textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_ != 0)
+    {
+        output += " - textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_\n";
+    }
+#if SWD_BUILD_GAINSBOROUGH    || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+    if (workarounds.ppSc1ApexLegendsImageCorruptionInZPrePassMode_A_ != 0)
+    {
+        output += " - ppSc1ApexLegendsImageCorruptionInZPrePassMode_A_\n";
+    }
+#endif
+#if SWD_BUILD_GAINSBOROUGH   || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+    if (workarounds.shaderSqSqgShaderHangDueToSQInstructionStore_IS_CacheDeadlock_A_ != 0)
+    {
+        output += " - shaderSqSqgShaderHangDueToSQInstructionStore_IS_CacheDeadlock_A_\n";
+    }
+#endif
+    if (workarounds.shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_ != 0)
+    {
+        output += " - shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_\n";
+    }
+#if SWD_BUILD_GAINSBOROUGH    || SWD_BUILD_STRIX1|| SWD_BUILD_STRIX_HALO
+    if (workarounds.geometryGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_ != 0)
+    {
+        output += " - geometryGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_\n";
+    }
+#endif
+
+    return output;
+}
+
+// =====================================================================================================================
+std::string StringifyActiveGfx11Workarounds(
+    const uint32_t* pWorkarounds)
+{
+    Gfx11SwWarDetection workarounds = {};
+    memcpy(&workarounds.u32All[0], pWorkarounds, Gfx11StructDwords * sizeof(uint32_t));
+    return StringifyActiveGfx11Workarounds(workarounds);
+}
+#endif
 
 // =====================================================================================================================
 bool DetermineGfx11Target(
@@ -686,7 +957,7 @@ bool DetermineGfx11Target(
         }
 #endif
 #if SWD_BUILD_STRIX1
-        else if ((0x10 <= eRevId) && (eRevId < 0x20))
+        else if ((0x10 <= eRevId) && (eRevId < 0x40))
         {
             (*pMajor)    = 11;
             (*pMinor)    = 5;
@@ -695,11 +966,20 @@ bool DetermineGfx11Target(
         }
 #endif
 #if SWD_BUILD_STRIX_HALO
-        else if ((0xC0 <= eRevId) && (eRevId < 0xE0))
+        else if ((0xC0 <= eRevId) && (eRevId < 0xD0))
         {
             (*pMajor)    = 11;
             (*pMinor)    = 5;
             (*pStepping) = 1;
+            successful   = true;
+        }
+#endif
+#if SWD_BUILD_GAINSBOROUGH
+        else if ((0xD0 <= eRevId) && (eRevId < 0xE0))
+        {
+            (*pMajor)    = 11;
+            (*pMinor)    = 5;
+            (*pStepping) = 65532;
             successful   = true;
         }
 #endif
@@ -724,7 +1004,6 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
     {
         if (false)
         {
-            // Handle sanitization woes.
         }
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
         {
@@ -751,7 +1030,6 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
     {
         if (false)
         {
-            // Handle sanitization woes.
         }
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
         {
@@ -771,7 +1049,6 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
     {
         if (false)
         {
-            // Handle sanitization woes.
         }
 #if SWD_BUILD_STRIX1
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
@@ -781,16 +1058,23 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
         }
 #endif
 #if SWD_BUILD_STRIX1
-        else if ((0x10 <= eRevId) && (eRevId < 0x20))
+        else if ((0x10 <= eRevId) && (eRevId < 0x40))
         {
             swd_internal::DetectStrix1B0Workarounds(pWorkarounds);
             successful = true;
         }
 #endif
 #if SWD_BUILD_STRIX_HALO
-        else if ((0xC0 <= eRevId) && (eRevId < 0xE0))
+        else if ((0xC0 <= eRevId) && (eRevId < 0xD0))
         {
             swd_internal::DetectStrixHaloA0Workarounds(pWorkarounds);
+            successful = true;
+        }
+#endif
+#if SWD_BUILD_GAINSBOROUGH
+        else if ((0xD0 <= eRevId) && (eRevId < 0xE0))
+        {
+            swd_internal::DetectGainsboroughA0Workarounds(pWorkarounds);
             successful = true;
         }
 #endif
@@ -857,6 +1141,13 @@ bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     else if ((major == 11) && (minor == 5) && (stepping == 1))
     {
         swd_internal::DetectStrixHaloA0Workarounds(pWorkarounds);
+        successful = true;
+    }
+#endif
+#if SWD_BUILD_GAINSBOROUGH
+    else if ((major == 11) && (minor == 5) && (stepping == 65532))
+    {
+        swd_internal::DetectGainsboroughA0Workarounds(pWorkarounds);
         successful = true;
     }
 #endif

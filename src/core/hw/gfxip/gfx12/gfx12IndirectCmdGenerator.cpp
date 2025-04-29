@@ -40,7 +40,7 @@ namespace Gfx12
 {
 
 // =====================================================================================================================
-// Translate user data register offset from PERSISTENT_SPACE_START-based to COMPUTE_USER_DATA_0-based.
+// Shift user data register offset from PERSISTENT_SPACE_START-based to COMPUTE_USER_DATA_0-based.
 // It is designed for EiDispatchTaskMesh submitting to ACE
 static uint8 AceTaskRegOffset(
     uint16 regOffset)
@@ -58,7 +58,7 @@ static uint8 AceTaskRegOffset(
 }
 
 // =====================================================================================================================
-// Translate user data register offset from PERSISTENT_SPACE_START-based to mmSPI_SHADER_USER_DATA_HS_0-based.
+// Shift user data register offset from PERSISTENT_SPACE_START-based to mmSPI_SHADER_USER_DATA_HS_0-based.
 // It is designed for EiDraw & EiDrawIndexed submitting to GFX
 static uint8 GfxHsRegOffset(
     uint16 regOffset)
@@ -432,6 +432,8 @@ void IndirectCmdGenerator::PopulateExecuteIndirectParams(
     ExecuteIndirectMetaData*      pMetaData  = pMeta->GetMetaData();
     ExecuteIndirectOp*            pPacketOp  = pMeta->GetOp();
 
+    const uint32 pfpVersion = m_device.Parent()->ChipProperties().pfpUcodeVersion;
+
     const auto* pGfxPipeline    = isGfx ? static_cast<const GraphicsPipeline*>(pPipeline) : nullptr;
     const auto* pCsPipeline     = isGfx ? nullptr : static_cast<const ComputePipeline*>(pPipeline);
     const auto* pHybridPipeline = isGfx ? static_cast<const HybridGraphicsPipeline*>(pPipeline) : nullptr;
@@ -445,8 +447,10 @@ void IndirectCmdGenerator::PopulateExecuteIndirectParams(
     const bool hasTaskShader = isGfx ? pGfxPipeline->HasTaskShader() : false;
     const bool isTaskEnabled = ((Type() == GeneratorType::DispatchMesh) && hasTaskShader);
 
-    const bool isTessEnabled  = isGfx ? pGfxPipeline->IsTessEnabled() : false;
-    const bool hsHwRegSupport = (m_device.Parent()->ChipProperties().pfpUcodeVersion >= EiV2HsHwRegFixPfpVersion);
+    const bool isTessEnabled = isGfx ? pGfxPipeline->IsTessEnabled() : false;
+
+    const bool hsHwRegSupport      = (pfpVersion >= EiV2HsHwRegFixPfpVersion);
+    const bool workGroupRegSupport = (pfpVersion >= EiV2WorkGroupRegFixPfpVersion);
 
     for (uint32 cmdIndex = 0; cmdIndex < cmdCount; cmdIndex++)
     {
@@ -496,9 +500,14 @@ void IndirectCmdGenerator::PopulateExecuteIndirectParams(
                           static_cast<uint8>(operation__pfp_execute_indirect_v2__dispatch));
             pMetaData->opType = operation__pfp_execute_indirect_v2__dispatch;
 
-            pPacketOp->dispatch.dataOffset           = pParamData[cmdIndex].argBufOffset;
-            pPacketOp->dispatch.locData.commandIndex =
+            pPacketOp->dispatch.dataOffset                 = pParamData[cmdIndex].argBufOffset;
+            pPacketOp->dispatch.locData.numWorkGroup       =
+                workGroupRegSupport ? regs.numWorkGroupReg : 0;
+            pPacketOp->dispatch.locData.numWorkGroupEnable =
+                workGroupRegSupport ? (regs.numWorkGroupReg != UserDataNotMapped) : 0;
+            pPacketOp->dispatch.locData.commandIndex       =
                 pMeta->ProcessCommandIndex(UserDataNotMapped, UseConstantDrawIndex(), false);
+
             pPacketOp->dispatch.dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
             pPacketOp->dispatch.dispatchInitiator.bits.FORCE_START_AT_000 = 1;
             pPacketOp->dispatch.dispatchInitiator.bits.PING_PONG_EN       = options.pingPongEnable;
@@ -624,7 +633,7 @@ void IndirectCmdGenerator::PopulateExecuteIndirectParams(
         pMeta->ComputeVbSrdInitMemCopy(vbSlotMask);
     }
 
-    if (m_device.Parent()->ChipProperties().pfpUcodeVersion >= EiV2OffsetModeVertexBindingFixPfpVersion)
+    if (pfpVersion >= EiV2OffsetModeVertexBindingFixPfpVersion)
     {
         // This bit must be set (as long as we have indirect vertex buffer binding) for offset mode binding.
         pMetaData->vertexOffsetModeEnable = m_flags.useOffsetModeVertexBuffer && (pMetaData->buildSrd.count > 0);

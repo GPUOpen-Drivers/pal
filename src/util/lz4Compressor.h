@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "palListImpl.h"
+#include "palSysMemory.h"
 #include "palUtil.h"
 
 namespace Util
@@ -83,6 +85,29 @@ public:
         void* m_pStateHC;
     private:
         PAL_DISALLOW_COPY_AND_ASSIGN(ThreadLocalData);
+    };
+
+    class PointerList
+    {
+    public:
+        explicit PointerList(GenericAllocator*const pAllocator) : m_List(pAllocator) {}
+        void DeleteAll();
+        ~PointerList() { DeleteAll(); }
+
+        // Wrappers
+        // We cannot extend from List safely as its destructor is not virtual,
+        // yet we still need to use the destructor to clean up.
+        // So we use "has-a-List" pattern instead of "is-a-List",
+        // and need to manually define wrappers for the functions that we use.
+        typedef ListIterator<void**, GenericAllocator> Iterator;
+        Result PushBack(void** const & data) { return m_List.PushBack(data); }
+        Iterator Begin() const               { return m_List.Begin(); }
+        Iterator End() const                 { return m_List.End(); }
+        void Erase(Iterator* pIterator)      { m_List.Erase(pIterator); }
+    private:
+        PAL_DISALLOW_DEFAULT_CTOR(PointerList);
+        PAL_DISALLOW_COPY_AND_ASSIGN(PointerList);
+        List<void**, GenericAllocator> m_List;
     };
 
 private:

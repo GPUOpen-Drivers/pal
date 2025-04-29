@@ -411,6 +411,69 @@ Result RemoveOldestFilesOfDirUntilSize(
 }
 
 // =====================================================================================================================
+Result RemoveOldestFilesOfDirUntilSize(
+    StringView<char> dirPath,
+    Span<StatName>*  pFileInfos,
+    uint64           desiredSize)
+{
+    Result result = (pFileInfos == nullptr) ? Result::ErrorInvalidPointer : Result::Success;
+
+    if (result == Result::Success)
+    {
+        // First, let's count how big this list of files is
+        uint64 currentSize = 0;
+        for (const auto& [stat, _] : *pFileInfos)
+        {
+            currentSize += stat.size;
+        }
+
+        // if we're already under size then there's no additional work to do
+        if (currentSize > desiredSize)
+        {
+            // std::sort could throw std::bad_alloc
+            // so we're using std::qsort which operates in-place and doesn't throw
+            std::qsort(pFileInfos->Data(), pFileInfos->size(), sizeof(StatName),
+                [](const void* vpl, const void* vpr) -> int
+                {
+                    const StatName& l = *static_cast<const StatName*>(vpl);
+                    const StatName& r = *static_cast<const StatName*>(vpr);
+
+                    int ret = 0;
+                    if (l.stat.atime > r.stat.atime)
+                    {
+                        ret = -1;
+                    }
+                    else if (l.stat.atime < r.stat.atime)
+                    {
+                        ret = 1;
+                    }
+                    return ret;
+                });
+        }
+
+        // Now we go through the list again until we've deleted enough of them
+        while (currentSize > desiredSize)
+        {
+            const auto& [stat, name] = pFileInfos->Front();
+
+            // concatenate the directory plus fileName into one string
+            AutoBuffer<char, MaxPathStrLen, GenericAllocator> fullPath{ std::size(name) + dirPath.Length(), nullptr };
+            Strncpy(fullPath.Data(), dirPath.Data(), std::size(fullPath));
+            Strncat(fullPath.Data(), std::size(fullPath), name);
+
+            result = File::Remove(fullPath.Data());
+            if (result != Result::Success)
+            {
+                break;
+            }
+            currentSize -= stat.size;
+            *pFileInfos = pFileInfos->DropFront();
+        }
+    }
+    return result;
+}
+
+// =====================================================================================================================
 Result CreateLogDir(
     const char* pBaseDir,
     char*       pLogDir,

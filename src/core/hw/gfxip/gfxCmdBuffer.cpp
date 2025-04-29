@@ -79,7 +79,9 @@ GfxCmdBuffer::GfxCmdBuffer(
 #else
     m_splitBarriers(true),
 #endif
-    m_timestampGpuVa(0),
+    m_releaseMemTsGpuVa(0),
+    m_waitIdleTsGpuVa(0),
+    m_waitIdleTsValue(0),
     m_fceRefCountVec(device.GetPlatform()),
     m_cmdBufState{},
     m_computeState{},
@@ -221,7 +223,9 @@ Result GfxCmdBuffer::Reset(
     ResetFastClearReferenceCounts();
 
     m_acqRelFenceValGpuVa = 0;
-    m_timestampGpuVa      = 0;
+    m_releaseMemTsGpuVa   = 0;
+    m_waitIdleTsGpuVa     = 0;
+    m_waitIdleTsValue     = 0;
 
     // Do this before our parent class changes the allocator.
     ReturnGeneratedCommandChunks(returnGpuMemory);
@@ -438,18 +442,59 @@ Result GfxCmdBuffer::BeginCommandStreams(
 }
 
 // =====================================================================================================================
-gpusize GfxCmdBuffer::TimestampGpuVirtAddr()
+gpusize GfxCmdBuffer::GetWaitIdleTsGpuVa(
+    uint32** ppCmdSpace)
 {
-    if (m_timestampGpuVa == 0)
+    if (m_waitIdleTsGpuVa == 0)
     {
         // Allocate timestamp GPU memory from the command allocator.
         // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
         // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
         // to access, and sets m_status to a failure code.
-        m_timestampGpuVa = AllocateGpuScratchMem(2, 2);
+        m_waitIdleTsGpuVa = AllocateGpuScratchMem(1, 1);
+
+        // Reset to 0 on the first usage.
+        constexpr uint32 Zero = 0;
+        *ppCmdSpace += BuildWriteToZero(m_waitIdleTsGpuVa, 1, &Zero, *ppCmdSpace);
     }
 
-    return m_timestampGpuVa;
+    return m_waitIdleTsGpuVa;
+}
+
+// =====================================================================================================================
+gpusize GfxCmdBuffer::GetReleaseMemTsGpuVa()
+{
+    if (m_releaseMemTsGpuVa == 0)
+    {
+        // Allocate timestamp GPU memory from the command allocator.
+        // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
+        // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
+        // to access, and sets m_status to a failure code.
+        m_releaseMemTsGpuVa = AllocateGpuScratchMem(2, 2);
+    }
+
+    return m_releaseMemTsGpuVa;
+}
+
+// =====================================================================================================================
+gpusize GfxCmdBuffer::GetAcqRelFenceGpuVa(
+    ReleaseTokenType type,
+    uint32**         ppCmdSpace)
+{
+    if (m_acqRelFenceValGpuVa == 0)
+    {
+        // Allocate timestamp GPU memory from the command allocator.
+        // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
+        // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
+        // to access, and sets m_status to a failure code.
+        m_acqRelFenceValGpuVa = AllocateGpuScratchMem(ReleaseTokenCount, 1);
+
+        // Reset to 0 on the first usage.
+        constexpr uint32 Zeros[ReleaseTokenCount] = {};
+        *ppCmdSpace += BuildWriteToZero(m_acqRelFenceValGpuVa, ReleaseTokenCount, Zeros, *ppCmdSpace);
+    }
+
+    return (m_acqRelFenceValGpuVa + sizeof(uint32) * uint32(type));
 }
 
 // =====================================================================================================================
@@ -1010,7 +1055,7 @@ void GfxCmdBuffer::CmdClearDepthStencil(
     Result result = Result::Success;
 
 #if PAL_BUILD_GFX12
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp12)
+    if (IsGfx12(m_gfxIpLevel))
     {
         splitRangeCount = rangeCount;
         pSplitRanges    = pRanges;

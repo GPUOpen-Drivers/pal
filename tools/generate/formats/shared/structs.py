@@ -45,6 +45,7 @@ class IFmt:
         self.depth_stencil = False
         self.versioning = None
         self.ifdefs = []
+        self.private_name = None
 
     @classmethod
     def Default(cls):
@@ -68,6 +69,7 @@ class IFmt:
         ifmt.depth_stencil            = yaml_node.get("depthStencil", ifmt.depth_stencil)
         ifmt.versioning               = yaml_node.get("versioning", ifmt.versioning)
         ifmt.ifdefs                   = yaml_node.get('ifdefs', ifmt.ifdefs)
+        ifmt.private_name             = yaml_node.get('private_name', ifmt.private_name)
 
         return ifmt
 
@@ -108,18 +110,33 @@ class IFmt:
         if self.yuv_packed or self.yuv_planar:
             return "Yuv"
 
+        name = self.real_format_name.lower()
         for suffix in ("Undefined", "Unorm", "Snorm", "Uscaled", "Sscaled", "Uint", "Sint", "Float", "Srgb"):
-            if self.name.lower().endswith(suffix.lower()):
+            if name.endswith(suffix.lower()):
                 return suffix
 
+        if name.startswith("_reserved"):
+            return "Undefined"
+
         assert False, "What is this?"
+
+    @property
+    def generate_reserved(self) -> bool:
+        return self.private_name is not None
+
+    @property
+    def real_format_name(self) -> str:
+        if self.private_name is not None:
+            return self.private_name
+        else:
+            return self.name
 
     @property
     def ifdef_str(self) -> str:
         output = ""
 
         if self.versioning:
-            output += f"(PAL_CLIENT_INTERFACE_MAJOR_VERSION >= {ifmt.versioning})"
+            output += f"(PAL_CLIENT_INTERFACE_MAJOR_VERSION >= {self.versioning})"
 
         if self.ifdefs:
             if output:

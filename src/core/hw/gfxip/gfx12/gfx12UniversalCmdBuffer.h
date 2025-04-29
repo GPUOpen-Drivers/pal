@@ -451,6 +451,17 @@ public:
         uint32      mask,
         CompareFunc compareFunc) override;
 
+    virtual void CmdWaitBusAddressableMemoryMarker(
+        const IGpuMemory& gpuMemory,
+        uint32            data,
+        uint32            mask,
+        CompareFunc       compareFunc) override;
+
+    virtual void CmdUpdateBusAddressableMemoryMarker(
+        const IGpuMemory& dstGpuMemory,
+        gpusize           offset,
+        uint32            value) override;
+
     virtual void CmdIf(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
@@ -521,7 +532,7 @@ protected:
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
 
 private:
-    virtual ~UniversalCmdBuffer();
+    virtual ~UniversalCmdBuffer() override;
 
     // User data function pointers.
 
@@ -644,6 +655,12 @@ private:
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
     void CmdDispatchMeshTaskGfx();
+
+    virtual size_t BuildWriteToZero(
+        gpusize       dstAddr,
+        uint32        numDwords,
+        const uint32* pZeros,
+        uint32*       pCmdSpace) const override;
 
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
@@ -846,7 +863,7 @@ uint32* ValidateGraphicsUserData(
     uint32* CmdAceWaitDe(uint32* pCmdSpace);
     uint32* CmdDeWaitAce(uint32* pCmdSpace);
 
-    void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
+    virtual void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false) override;
     void AddDrawSqttMarkers(const ValidateDrawInfo& drawInfo);
 
     void SetShaderRingSize(const ShaderRingItemSizes& ringSizes);

@@ -104,10 +104,10 @@ public:
         DispatchInterleaveSize                  interleaveSize,
         CodeObjectUploader*                     pUploader);
 
+    template <bool IsAce>
     uint32* WriteShCommands(
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
-        bool                            regPairsSupported,
         const DynamicComputeShaderInfo& csInfo,
         bool                            prefetch) const;
 
@@ -136,14 +136,10 @@ private:
         HwRegInfo::Dynamic*             pDynamcRegs,
         const DynamicComputeShaderInfo& csInfo) const;
 
-    void AccumulateShCommandsDynamic(
-        PackedRegisterPair* pRegPairs,
-        uint32*             pNumRegs,
-        HwRegInfo::Dynamic  dynamicRegs) const;
-
+    template<typename T>
     void AccumulateShCommandsSetPath(
-        PackedRegisterPair* pRegPairs,
-        uint32*             pNumRegs) const;
+        T*      pRegPairs,
+        uint32* pNumRegs) const;
 
     uint32* WriteShCommandsDynamic(
         CmdStream*         pCmdStream,
@@ -176,20 +172,32 @@ private:
         ComputeShaderSignature* pSignature,
         const RegisterVector&   registers);
 
+    void SetupRegPairs();
+
     struct
     {
-        PrefetchMethod acePrefetchMethod :  2;
-        PrefetchMethod gfxPrefetchMethod :  2;
-        uint32         supportSpp        :  1;
-        uint32         isGfx11           :  1;
-        uint32         reserved1         :  2;
-        uint32         numCuPerSe        :  8;
-        uint32         maxWavesPerSe     : 16;
+        PrefetchMethod acePrefetchMethod   :  2;
+        PrefetchMethod gfxPrefetchMethod   :  2;
+        uint32         supportSpp          :  1;
+        uint32         isGfx11             :  1;
+        uint32         usePackedRegPairs   :  1;
+        uint32         useUnpackedRegPairs :  1;
+        uint32         numCuPerSe          :  8;
+        uint32         maxWavesPerSe       : 16;
     } m_flags;
 
     HwRegInfo m_regs;
     gpusize   m_prefetchAddr;
     gpusize   m_prefetchSize;
+
+    static constexpr uint32 Gfx11MaxNumShRegPairRegs   = NumShRegs;
+    static constexpr uint32 Gfx11MaxNumRs64PackedPairs = Pow2Align(Gfx11MaxNumShRegPairRegs, 2) / 2;
+    union
+    {
+        RegisterValuePair  m_gfx11UnpackedRegPairs[Gfx11MaxNumShRegPairRegs];
+        PackedRegisterPair m_gfx11PackedRegPairs[Gfx11MaxNumRs64PackedPairs];
+    };
+    uint32             m_gfx11NumPairsRegs;
 
     PerfDataInfo*const m_pCsPerfDataInfo; // CS performance data information.
     ShaderStageInfo*   m_pStageInfo;

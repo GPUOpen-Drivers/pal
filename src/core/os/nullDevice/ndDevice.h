@@ -318,9 +318,9 @@ public:
 
     virtual Result CreateDmaUploadRing() override { return Result::Success; };
 
-    static void FillGfx9ChipProperties(GpuChipProperties* pChipProps);
+    static void FillGfx9ChipProperties(GpuChipProperties* pChipProps, const PalPlatformSettings& platformSettings);
 #if PAL_BUILD_GFX12
-    static void FillGfx12ChipProperties(GpuChipProperties* pChipProps);
+    static void FillGfx12ChipProperties(GpuChipProperties* pChipProps, const PalPlatformSettings& platformSettings);
 #endif
 
 protected:

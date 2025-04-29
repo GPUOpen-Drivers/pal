@@ -86,14 +86,24 @@ enum Gfx10SpmSeBlockSelect : uint32
 };
 
 // There's a terrifyingly large number of UMCCH registers. This macro makes UpdateUmcchBlockInfo much more sane.
-#define SET_UMCCH_INSTANCE_REGS(Ns, Idx) SET_UMCCH_INSTANCE_REGS_WITH_CH(Ns, Idx, Idx)
-#define SET_UMCCH_INSTANCE_REGS_WITH_CH(Ns, Idx, Ch) \
-    pInfo->umcchRegAddr[Idx].perfMonCtlClk = Ns::mmUMCCH##Ch##_PerfMonCtlClk; \
-    pInfo->umcchRegAddr[Idx].perModule[0] = { Ns::mmUMCCH##Ch##_PerfMonCtl1, Ns::mmUMCCH##Ch##_PerfMonCtr1_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr1_Hi }; \
-    pInfo->umcchRegAddr[Idx].perModule[1] = { Ns::mmUMCCH##Ch##_PerfMonCtl2, Ns::mmUMCCH##Ch##_PerfMonCtr2_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr2_Hi }; \
-    pInfo->umcchRegAddr[Idx].perModule[2] = { Ns::mmUMCCH##Ch##_PerfMonCtl3, Ns::mmUMCCH##Ch##_PerfMonCtr3_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr3_Hi }; \
-    pInfo->umcchRegAddr[Idx].perModule[3] = { Ns::mmUMCCH##Ch##_PerfMonCtl4, Ns::mmUMCCH##Ch##_PerfMonCtr4_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr4_Hi }; \
-    pInfo->umcchRegAddr[Idx].perModule[4] = { Ns::mmUMCCH##Ch##_PerfMonCtl5, Ns::mmUMCCH##Ch##_PerfMonCtr5_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr5_Hi };
+// For discrete asics
+#define SET_UMCCH_INSTANCE_REGS(Ns, Ch) \
+    pInfo->umcchRegAddr[Ch].perfMonCtlClk = Ns::mmUMCCH##Ch##_PerfMonCtlClk; \
+    pInfo->umcchRegAddr[Ch].perModule[0] = { Ns::mmUMCCH##Ch##_PerfMonCtl1, Ns::mmUMCCH##Ch##_PerfMonCtr1_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr1_Hi }; \
+    pInfo->umcchRegAddr[Ch].perModule[1] = { Ns::mmUMCCH##Ch##_PerfMonCtl2, Ns::mmUMCCH##Ch##_PerfMonCtr2_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr2_Hi }; \
+    pInfo->umcchRegAddr[Ch].perModule[2] = { Ns::mmUMCCH##Ch##_PerfMonCtl3, Ns::mmUMCCH##Ch##_PerfMonCtr3_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr3_Hi }; \
+    pInfo->umcchRegAddr[Ch].perModule[3] = { Ns::mmUMCCH##Ch##_PerfMonCtl4, Ns::mmUMCCH##Ch##_PerfMonCtr4_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr4_Hi }; \
+    pInfo->umcchRegAddr[Ch].perModule[4] = { Ns::mmUMCCH##Ch##_PerfMonCtl5, Ns::mmUMCCH##Ch##_PerfMonCtr5_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr5_Hi };
+
+// There's a terrifyingly large number of UMCDAT registers. This macro makes UpdateUmcchBlockInfo much more sane.
+// For APU asics
+#define SET_UMCDAT_INSTANCE_REGS(Ns, Ch) \
+    pInfo->umcchRegAddr[Ch].perfMonCtlClk = Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtlClk; \
+    pInfo->umcchRegAddr[Ch].perModule[0] = { Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtl1, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr1_Lo, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr1_Hi }; \
+    pInfo->umcchRegAddr[Ch].perModule[1] = { Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtl2, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr2_Lo, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr2_Hi }; \
+    pInfo->umcchRegAddr[Ch].perModule[2] = { Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtl3, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr3_Lo, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr3_Hi }; \
+    pInfo->umcchRegAddr[Ch].perModule[3] = { Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtl4, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr4_Lo, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr4_Hi }; \
+    pInfo->umcchRegAddr[Ch].perModule[4] = { Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtl5, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr5_Lo, Ns::mmUMCDAT##Ch##_UMCDAT_PerfMonCtr5_Hi };
 
 // There are a large number of mmGE_PERFCOUNT registers. These two macros allow confirming equivalence without an
 // overwhelmingly large block of code
@@ -293,9 +303,15 @@ static const MaxEventIds& GetEventLimits(
         pOut = &Nv33MaxPerfEventIds;
         break;
     case Pal::AsicRevision::Phoenix1:
+#if PAL_BUILD_HAWK_POINT1
+    case Pal::AsicRevision::HawkPoint1:
+#endif
         pOut = &Phx1MaxPerfEventIds;
         break;
     case Pal::AsicRevision::Phoenix2:
+#if PAL_BUILD_HAWK_POINT2
+    case Pal::AsicRevision::HawkPoint2:
+#endif
         pOut = &Phx2MaxPerfEventIds;
         break;
     case Pal::AsicRevision::Strix1:
@@ -329,6 +345,9 @@ static void Gfx11UpdateRpbBlockInfo(
         }};
     }
     else if (IsPhoenix1(device)
+#if PAL_BUILD_HAWK_POINT1
+             || IsHawkPoint1(device)
+#endif
        )
     {
         pInfo->regAddr = { Phx1::mmRPB_PERFCOUNTER_RSLT_CNTL, {
@@ -340,6 +359,9 @@ static void Gfx11UpdateRpbBlockInfo(
     }
     else
     if (IsPhoenix2(device)
+#if PAL_BUILD_HAWK_POINT2
+        || IsHawkPoint2(device)
+#endif
        )
     {
         pInfo->regAddr = { Phx2::mmRPB_PERFCOUNTER_RSLT_CNTL, {

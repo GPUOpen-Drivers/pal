@@ -43,7 +43,7 @@
 ///            compatible, it is assumed that the client will default-initialize all structs.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 917
+#define PAL_INTERFACE_MAJOR_VERSION 925
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -206,6 +206,12 @@ enum class AsicRevision : uint32
     Raphael          = 0x34, ///< 10.3.6
     Phoenix1         = 0x35, ///< 11.0.3
     Phoenix2         = 0x38, ///< 11.0.3
+#if PAL_BUILD_HAWK_POINT1
+    HawkPoint1       = 0x39, ///< 11.0.3
+#endif
+#if PAL_BUILD_HAWK_POINT2
+    HawkPoint2       = 0x3A, ///< 11.0.3
+#endif
 #if PAL_BUILD_STRIX_HALO
     StrixHalo        = 0x3C, ///< 11.5.1
 #endif

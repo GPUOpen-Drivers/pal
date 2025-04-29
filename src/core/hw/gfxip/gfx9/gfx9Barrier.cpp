@@ -396,7 +396,6 @@ void BarrierMgr::ExpandColor(
 
     const EngineType            engineType  = pCmdBuf->GetEngineType();
     const auto&                 image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
-    const auto&                 gfx9Device  = *static_cast<Device*>(m_pGfxDevice);
     auto&                       gfx9Image   = static_cast<Image&>(*image.GetGfxImage());
     const auto&                 subresRange = transition.imageInfo.subresRange;
     const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(subresRange.startSubres);
@@ -525,7 +524,7 @@ void BarrierMgr::ExpandColor(
 
         if (dccDecompress)
         {
-            if (earlyPhase && gfx9Device.Settings().waDccCacheFlushAndInv)
+            if (earlyPhase && m_gfxDevice.Settings().waDccCacheFlushAndInv)
             {
                 uint32*  pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
@@ -593,7 +592,7 @@ void BarrierMgr::ExpandColor(
         }
         else if (fastClearEliminate)
         {
-            if (earlyPhase && gfx9Device.Settings().waDccCacheFlushAndInv && gfx9Image.HasDccData())
+            if (earlyPhase && m_gfxDevice.Settings().waDccCacheFlushAndInv && gfx9Image.HasDccData())
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
@@ -872,10 +871,8 @@ void BarrierMgr::IssueSyncs(
         pOperations->pipelineStalls.eopTsBottomOfPipe = 1;
         pOperations->pipelineStalls.waitOnTs          = 1;
 
-        const auto& gfx9Device = *static_cast<Device*>(m_pGfxDevice);
-
         // Handle cases where a stall is needed as a workaround before EOP with CB Flush event
-        if (isGfxSupported && TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
+        if (isGfxSupported && TestAnyFlagSet(m_gfxDevice.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
             TestAnyFlagSet(syncReqs.rbCaches, SyncCbWbInv))
         {
             constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreDepth };

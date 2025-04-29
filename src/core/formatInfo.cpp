@@ -285,8 +285,22 @@ void ConvertYuvColor(
     case ChNumFormat::YVY2:
         pColorOut[0] = (pColorIn[0] | (pColorIn[2] << 8) | (pColorIn[0] << 16) | (pColorIn[1] << 24));
         break;
-    case ChNumFormat::P412:
     case ChNumFormat::YV12:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+    case ChNumFormat::YUV_420P10:
+    case ChNumFormat::YUV_422P10:
+    case ChNumFormat::YUV_444P10:
+    case ChNumFormat::YUV_420P12:
+    case ChNumFormat::YUV_422P12:
+    case ChNumFormat::YUV_444P12:
+    case ChNumFormat::YUV_420P16:
+    case ChNumFormat::YUV_422P16:
+    case ChNumFormat::YUV_444P16:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+    case ChNumFormat::YV16:
+    case ChNumFormat::YV24:
+#endif
         if (plane == 0)
         {
             pColorOut[0] = pColorIn[0];
@@ -307,6 +321,9 @@ void ConvertYuvColor(
     case ChNumFormat::NV11:
     case ChNumFormat::NV12:
     case ChNumFormat::P208:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+    case ChNumFormat::NV24:
+#endif
         if (plane == 0)
         {
             pColorOut[0] = pColorIn[0];
@@ -339,6 +356,14 @@ void ConvertYuvColor(
     case ChNumFormat::P210:
     case ChNumFormat::P012:
     case ChNumFormat::P212:
+    case ChNumFormat::P412:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+    case ChNumFormat::P216:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+    case ChNumFormat::P410:
+    case ChNumFormat::P416:
+#endif
         if (plane == 0)
         {
             pColorOut[0] = pColorIn[0];
@@ -638,6 +663,28 @@ ChNumFormat PAL_STDCALL ConvertToUnorm(
         ChNumFormat::Undefined,             // ChNumFormat::Y210
         ChNumFormat::Undefined,             // ChNumFormat::Y416
         ChNumFormat::Undefined,             // ChNumFormat::Y410
+        ChNumFormat::Undefined,             // ChNumFormat::_ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        ChNumFormat::Undefined,             // ChNumFormat::P216
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P16
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        ChNumFormat::Undefined,             // ChNumFormat::YV16
+        ChNumFormat::Undefined,             // ChNumFormat::YV24
+        ChNumFormat::Undefined,             // ChNumFormat::NV24
+        ChNumFormat::Undefined,             // ChNumFormat::P410
+        ChNumFormat::Undefined,             // ChNumFormat::P416
+#endif
     };
 
     static_assert(ArrayLen(UnormTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -843,6 +890,28 @@ ChNumFormat PAL_STDCALL ConvertToSnorm(
         ChNumFormat::Undefined,             // ChNumFormat::Y210
         ChNumFormat::Undefined,             // ChNumFormat::Y416
         ChNumFormat::Undefined,             // ChNumFormat::Y410
+        ChNumFormat::Undefined,             // ChNumFormat::_ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        ChNumFormat::Undefined,             // ChNumFormat::P216
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P16
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        ChNumFormat::Undefined,             // ChNumFormat::YV16
+        ChNumFormat::Undefined,             // ChNumFormat::YV24
+        ChNumFormat::Undefined,             // ChNumFormat::NV24
+        ChNumFormat::Undefined,             // ChNumFormat::P410
+        ChNumFormat::Undefined,             // ChNumFormat::P416
+#endif
     };
 
     static_assert(ArrayLen(SnormTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1048,6 +1117,28 @@ ChNumFormat PAL_STDCALL ConvertToUscaled(
         ChNumFormat::Undefined,             // ChNumFormat::Y210
         ChNumFormat::Undefined,             // ChNumFormat::Y416
         ChNumFormat::Undefined,             // ChNumFormat::Y410
+        ChNumFormat::Undefined,             // ChNumFormat::_ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        ChNumFormat::Undefined,             // ChNumFormat::P216
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P16
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        ChNumFormat::Undefined,             // ChNumFormat::YV16
+        ChNumFormat::Undefined,             // ChNumFormat::YV24
+        ChNumFormat::Undefined,             // ChNumFormat::NV24
+        ChNumFormat::Undefined,             // ChNumFormat::P410
+        ChNumFormat::Undefined,             // ChNumFormat::P416
+#endif
     };
 
     static_assert(ArrayLen(UscaledTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1253,6 +1344,28 @@ ChNumFormat PAL_STDCALL ConvertToSscaled(
         ChNumFormat::Undefined,             // ChNumFormat::Y210
         ChNumFormat::Undefined,             // ChNumFormat::Y416
         ChNumFormat::Undefined,             // ChNumFormat::Y410
+        ChNumFormat::Undefined,             // ChNumFormat::_ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        ChNumFormat::Undefined,             // ChNumFormat::P216
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P16
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        ChNumFormat::Undefined,             // ChNumFormat::YV16
+        ChNumFormat::Undefined,             // ChNumFormat::YV24
+        ChNumFormat::Undefined,             // ChNumFormat::NV24
+        ChNumFormat::Undefined,             // ChNumFormat::P410
+        ChNumFormat::Undefined,             // ChNumFormat::P416
+#endif
     };
 
     static_assert(ArrayLen(SscaledTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1458,6 +1571,28 @@ ChNumFormat PAL_STDCALL ConvertToUint(
         ChNumFormat::Undefined,             // ChNumFormat::Y210
         ChNumFormat::Undefined,             // ChNumFormat::Y416
         ChNumFormat::Undefined,             // ChNumFormat::Y410
+        ChNumFormat::Undefined,             // ChNumFormat::_ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        ChNumFormat::Undefined,             // ChNumFormat::P216
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P16
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        ChNumFormat::Undefined,             // ChNumFormat::YV16
+        ChNumFormat::Undefined,             // ChNumFormat::YV24
+        ChNumFormat::Undefined,             // ChNumFormat::NV24
+        ChNumFormat::Undefined,             // ChNumFormat::P410
+        ChNumFormat::Undefined,             // ChNumFormat::P416
+#endif
     };
 
     static_assert(ArrayLen(UintTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1663,6 +1798,28 @@ ChNumFormat PAL_STDCALL ConvertToSint(
         ChNumFormat::Undefined,             // ChNumFormat::Y210
         ChNumFormat::Undefined,             // ChNumFormat::Y416
         ChNumFormat::Undefined,             // ChNumFormat::Y410
+        ChNumFormat::Undefined,             // ChNumFormat::_ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        ChNumFormat::Undefined,             // ChNumFormat::P216
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P16
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        ChNumFormat::Undefined,             // ChNumFormat::YV16
+        ChNumFormat::Undefined,             // ChNumFormat::YV24
+        ChNumFormat::Undefined,             // ChNumFormat::NV24
+        ChNumFormat::Undefined,             // ChNumFormat::P410
+        ChNumFormat::Undefined,             // ChNumFormat::P416
+#endif
     };
 
     static_assert(ArrayLen(SintTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1868,6 +2025,28 @@ ChNumFormat PAL_STDCALL ConvertToFloat(
         ChNumFormat::Undefined,             // ChNumFormat::Y210
         ChNumFormat::Undefined,             // ChNumFormat::Y416
         ChNumFormat::Undefined,             // ChNumFormat::Y410
+        ChNumFormat::Undefined,             // ChNumFormat::_ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        ChNumFormat::Undefined,             // ChNumFormat::P216
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P16
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        ChNumFormat::Undefined,             // ChNumFormat::YV16
+        ChNumFormat::Undefined,             // ChNumFormat::YV24
+        ChNumFormat::Undefined,             // ChNumFormat::NV24
+        ChNumFormat::Undefined,             // ChNumFormat::P410
+        ChNumFormat::Undefined,             // ChNumFormat::P416
+#endif
     };
 
     static_assert(ArrayLen(FloatTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -2073,6 +2252,28 @@ ChNumFormat PAL_STDCALL ConvertToSrgb(
         ChNumFormat::Undefined,             // ChNumFormat::Y210
         ChNumFormat::Undefined,             // ChNumFormat::Y416
         ChNumFormat::Undefined,             // ChNumFormat::Y410
+        ChNumFormat::Undefined,             // ChNumFormat::_ReservedBE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+        ChNumFormat::Undefined,             // ChNumFormat::P216
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P10
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P12
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_420P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_422P16
+        ChNumFormat::Undefined,             // ChNumFormat::YUV_444P16
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+        ChNumFormat::Undefined,             // ChNumFormat::YV16
+        ChNumFormat::Undefined,             // ChNumFormat::YV24
+        ChNumFormat::Undefined,             // ChNumFormat::NV24
+        ChNumFormat::Undefined,             // ChNumFormat::P410
+        ChNumFormat::Undefined,             // ChNumFormat::P416
+#endif
     };
 
     static_assert(ArrayLen(SrgbTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -2178,6 +2379,9 @@ bool ShareChFmt(
     case ChNumFormat::P210:
     case ChNumFormat::P012:
     case ChNumFormat::P212:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+    case ChNumFormat::P216:
+#endif
     case ChNumFormat::P412:
     case ChNumFormat::U8V8_Snorm_L8W8_Unorm:
     case ChNumFormat::U10V10W10_Snorm_A2_Unorm:
@@ -2185,6 +2389,24 @@ bool ShareChFmt(
     case ChNumFormat::Y210:
     case ChNumFormat::Y416:
     case ChNumFormat::Y410:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+    case ChNumFormat::YUV_420P10:
+    case ChNumFormat::YUV_422P10:
+    case ChNumFormat::YUV_444P10:
+    case ChNumFormat::YUV_420P12:
+    case ChNumFormat::YUV_422P12:
+    case ChNumFormat::YUV_444P12:
+    case ChNumFormat::YUV_420P16:
+    case ChNumFormat::YUV_422P16:
+    case ChNumFormat::YUV_444P16:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+    case ChNumFormat::YV16:
+    case ChNumFormat::YV24:
+    case ChNumFormat::NV24:
+    case ChNumFormat::P410:
+    case ChNumFormat::P416:
+#endif
         isSame = (srcFormat == dstFormat);
         break;
     case ChNumFormat::X1_Unorm:
@@ -2494,7 +2716,42 @@ bool IsMm12Format(
     case ChNumFormat::P012:
     case ChNumFormat::P212:
     case ChNumFormat::P412:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+    case ChNumFormat::YUV_420P12:
+    case ChNumFormat::YUV_422P12:
+    case ChNumFormat::YUV_444P12:
+#endif
         return true;
+    default:
+        break;
+    }
+    return false;
+}
+
+// =====================================================================================================================
+// Determines whether the format is an MM12 format
+bool IsMm10Format(
+    ChNumFormat format)
+{
+    switch (format)
+    {
+    case ChNumFormat::X16_MM10_Unorm:
+    case ChNumFormat::X16_MM10_Uint:
+    case ChNumFormat::X16Y16_MM10_Unorm:
+    case ChNumFormat::X16Y16_MM10_Uint:
+    case ChNumFormat::P010:
+    case ChNumFormat::P210:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+    case ChNumFormat::YUV_420P10:
+    case ChNumFormat::YUV_422P10:
+    case ChNumFormat::YUV_444P10:
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+    case ChNumFormat::P410:
+#endif
+        return true;
+    default:
+        break;
     }
     return false;
 }

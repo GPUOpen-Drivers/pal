@@ -37,6 +37,10 @@
 #include <cstdint>
 #include <cstdlib>
 
+#if SWD_STRINGIFY
+#include <cstring>
+#endif
+
 // Forward declarations:
 union Gfx12SwWarDetection;
 
@@ -89,61 +93,61 @@ union Gfx12SwWarDetection
 {
     struct
     {
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t controlCp4xDDIDNotSupported_A_                                                                                                                 : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t shaderSqShaderSqcShaderSqgSQ_SQCAndSQGLegacyPerfCounterUsageIsBrokenWithNewGRBMArch__A_                                                        : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t sioSpiBci12_12412_125GLGWhenSpiGrpLaunchGuaranteeEnable_csGlgDisableIsSetAndGSTriggersGLG_UnexpectedSoftlockMaskIsSetOnHSShader_A_             : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppScIssueWithWALKALIGN8PRIMFITSST_1And64KScreenSpace_A_                                                                                        : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppScDBD16comp2ndDrawFailedWithFastSet_ZFrom0_50__A_                                                                                            : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t geoGeTessOnGESPIGsgrpMismatchDueToSEStateBeingOutOfSync_A_                                                                                     : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t controlImuIMUBusyNotConsideringRsmuFifoTransaction_A_                                                                                          : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t controlImuIMUBusyNotConsideringRsmuFifoTransaction_B_                                                                                          : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t textureTaGFX12RTTACanIncorrectlyCullProceduralNodes_A_                                                                                         : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppDbECRRTLFixForConservativeZPASSCounts_A_                                                                                                     : 1;
 #else
         uint32_t                                                                                                                                                : 1;
@@ -151,67 +155,67 @@ union Gfx12SwWarDetection
 
         uint32_t                                                                                                                                                : 1;
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t cmmGl2AtomicOpcodeCONDSUBNoRtnIsNotSupported_A_                                                                                                : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppDbudbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t cmmGl2GL2CPERFSELSECTORSPerformanceCounterRTLBug_A_                                                                                            : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t shaderSqShaderSqcsGetpcB64DoesntSignExtendTheResult_CausingSubsequentMemoryAccessToFail_A_                                                     : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t controlCpRS64GFX12CPGRTLBugInCpgParserRs64Block_A_                                                                                             : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t geoGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_                                                                      : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppDbShaderSqSioSpiBciPixelWaitSyncPRECOLORModeLeadsToExportHang_A_                                                                             : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t cmmGl2RequestsToSameAddressNotOrderedForIOSpace_A_                                                                                             : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t geoGeGeoPaUpdateToPHMQProgrammingGuideRelatedToTheProgrammingOfPHRingRegisters_A_                                                              : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppDbMEMDIFFTOOLZSurfaceMismatchWithXorSwizzleBits_A_                                                                                           : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t textureTcpGfx12MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                     : 1;
 #else
         uint32_t                                                                                                                                                : 1;
@@ -219,37 +223,37 @@ union Gfx12SwWarDetection
 
         uint32_t                                                                                                                                                : 1;
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t shaderSqGFX11GFX12TrapAfterInstructionIsSometimesNotReportedCorrectly_A_                                                                       : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t geoGeGeoPaPpScSioPcSioSpiBciSioSxBackPressureFromSCPC_SCSPICanCauseDeadlock_A_                                                                 : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t shaderSqSSLEEPVARAndSALLOCVGPRAliasWithCertainSQRegisterAddresses_A_                                                                           : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t gcDvIBHangAtASetkillInstructionWhenTheWaveIsInTrapAfterInstModeAndTrapOnEndIsSet_A_                                                            : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t shaderSqVALUSGPRReadFifosGatherMaskDoesNotUpdateCorrectly_A_                                                                                   : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppDbDataCorruptionDBFailedToMarkCacheValidForFastSetsTiles_A_                                                                                  : 1;
 #else
         uint32_t                                                                                                                                                : 1;
@@ -259,7 +263,7 @@ union Gfx12SwWarDetection
 
         uint32_t                                                                                                                                                : 1;
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t selectAllBlocksThatAreAffectedShaderSpsingleuseVdstFalsePositiveKillWhenVOPDInstructionIsPresentInTheSIMD_A_                                   : 1;
 #else
         uint32_t                                                                                                                                                : 1;
@@ -269,49 +273,49 @@ union Gfx12SwWarDetection
 
         uint32_t                                                                                                                                                : 1;
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t shaderSpInlineConstantsDoNotWorkForPseudoScalarTransF16Opcodes_A_                                                                              : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t shaderSqSQSHGlobalLoadTransposeWritesToOutOfRangeVGPR_A_                                                                                       : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppDbTSCEvictionTimeoutCanLeadToSCHangDueToHiZSCacheInflightCountCorruption_A_                                                                  : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_A_                                                                       : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_B_                                                                       : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_C_                                                                       : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppDbDBStencilCorruptionDueToMSAA_ZFASTNOOP_StencilFASTSET_A_                                                                                   : 1;
 #else
         uint32_t                                                                                                                                                : 1;
 #endif
 
-#if (0 && 0) || (SWD_BUILD_NAVI48&& 0)  || SWD_BUILD_NAVI48
+#if   SWD_BUILD_NAVI48
         uint32_t ppScIncorrectHiStencilUpdateEquationForSResultsOrCanLeadToImageCorruption__A_                                                                  : 1;
 #else
         uint32_t                                                                                                                                                : 1;
@@ -401,6 +405,243 @@ static void Gfx12OverrideDefaults(
 }
 
 } // namespace swd_internal
+
+#if SWD_STRINGIFY
+// =====================================================================================================================
+std::string StringifyActiveGfx12Workarounds(
+    const Gfx12SwWarDetection& workarounds)
+{
+    std::string output = "Workarounds enabled for Gfx12:\n";
+
+#if   SWD_BUILD_NAVI48
+    if (workarounds.controlCp4xDDIDNotSupported_A_ != 0)
+    {
+        output += " - controlCp4xDDIDNotSupported_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.shaderSqShaderSqcShaderSqgSQ_SQCAndSQGLegacyPerfCounterUsageIsBrokenWithNewGRBMArch__A_ != 0)
+    {
+        output += " - shaderSqShaderSqcShaderSqgSQ_SQCAndSQGLegacyPerfCounterUsageIsBrokenWithNewGRBMArch__A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.sioSpiBci12_12412_125GLGWhenSpiGrpLaunchGuaranteeEnable_csGlgDisableIsSetAndGSTriggersGLG_UnexpectedSoftlockMaskIsSetOnHSShader_A_ != 0)
+    {
+        output += " - sioSpiBci12_12412_125GLGWhenSpiGrpLaunchGuaranteeEnable_csGlgDisableIsSetAndGSTriggersGLG_UnexpectedSoftlockMaskIsSetOnHSShader_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppScIssueWithWALKALIGN8PRIMFITSST_1And64KScreenSpace_A_ != 0)
+    {
+        output += " - ppScIssueWithWALKALIGN8PRIMFITSST_1And64KScreenSpace_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppScDBD16comp2ndDrawFailedWithFastSet_ZFrom0_50__A_ != 0)
+    {
+        output += " - ppScDBD16comp2ndDrawFailedWithFastSet_ZFrom0_50__A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.geoGeTessOnGESPIGsgrpMismatchDueToSEStateBeingOutOfSync_A_ != 0)
+    {
+        output += " - geoGeTessOnGESPIGsgrpMismatchDueToSEStateBeingOutOfSync_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.controlImuIMUBusyNotConsideringRsmuFifoTransaction_A_ != 0)
+    {
+        output += " - controlImuIMUBusyNotConsideringRsmuFifoTransaction_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.controlImuIMUBusyNotConsideringRsmuFifoTransaction_B_ != 0)
+    {
+        output += " - controlImuIMUBusyNotConsideringRsmuFifoTransaction_B_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.textureTaGFX12RTTACanIncorrectlyCullProceduralNodes_A_ != 0)
+    {
+        output += " - textureTaGFX12RTTACanIncorrectlyCullProceduralNodes_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppDbECRRTLFixForConservativeZPASSCounts_A_ != 0)
+    {
+        output += " - ppDbECRRTLFixForConservativeZPASSCounts_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.cmmGl2AtomicOpcodeCONDSUBNoRtnIsNotSupported_A_ != 0)
+    {
+        output += " - cmmGl2AtomicOpcodeCONDSUBNoRtnIsNotSupported_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppDbudbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ != 0)
+    {
+        output += " - ppDbudbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.cmmGl2GL2CPERFSELSECTORSPerformanceCounterRTLBug_A_ != 0)
+    {
+        output += " - cmmGl2GL2CPERFSELSECTORSPerformanceCounterRTLBug_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.shaderSqShaderSqcsGetpcB64DoesntSignExtendTheResult_CausingSubsequentMemoryAccessToFail_A_ != 0)
+    {
+        output += " - shaderSqShaderSqcsGetpcB64DoesntSignExtendTheResult_CausingSubsequentMemoryAccessToFail_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.controlCpRS64GFX12CPGRTLBugInCpgParserRs64Block_A_ != 0)
+    {
+        output += " - controlCpRS64GFX12CPGRTLBugInCpgParserRs64Block_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.geoGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_ != 0)
+    {
+        output += " - geoGeDRAWOPAQUERegUpdatesWithin5CyclesOnDifferentContextsCausesGEIssue_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppDbShaderSqSioSpiBciPixelWaitSyncPRECOLORModeLeadsToExportHang_A_ != 0)
+    {
+        output += " - ppDbShaderSqSioSpiBciPixelWaitSyncPRECOLORModeLeadsToExportHang_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.cmmGl2RequestsToSameAddressNotOrderedForIOSpace_A_ != 0)
+    {
+        output += " - cmmGl2RequestsToSameAddressNotOrderedForIOSpace_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.geoGeGeoPaUpdateToPHMQProgrammingGuideRelatedToTheProgrammingOfPHRingRegisters_A_ != 0)
+    {
+        output += " - geoGeGeoPaUpdateToPHMQProgrammingGuideRelatedToTheProgrammingOfPHRingRegisters_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppDbMEMDIFFTOOLZSurfaceMismatchWithXorSwizzleBits_A_ != 0)
+    {
+        output += " - ppDbMEMDIFFTOOLZSurfaceMismatchWithXorSwizzleBits_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.textureTcpGfx12MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_ != 0)
+    {
+        output += " - textureTcpGfx12MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.shaderSqGFX11GFX12TrapAfterInstructionIsSometimesNotReportedCorrectly_A_ != 0)
+    {
+        output += " - shaderSqGFX11GFX12TrapAfterInstructionIsSometimesNotReportedCorrectly_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.geoGeGeoPaPpScSioPcSioSpiBciSioSxBackPressureFromSCPC_SCSPICanCauseDeadlock_A_ != 0)
+    {
+        output += " - geoGeGeoPaPpScSioPcSioSpiBciSioSxBackPressureFromSCPC_SCSPICanCauseDeadlock_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.shaderSqSSLEEPVARAndSALLOCVGPRAliasWithCertainSQRegisterAddresses_A_ != 0)
+    {
+        output += " - shaderSqSSLEEPVARAndSALLOCVGPRAliasWithCertainSQRegisterAddresses_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.gcDvIBHangAtASetkillInstructionWhenTheWaveIsInTrapAfterInstModeAndTrapOnEndIsSet_A_ != 0)
+    {
+        output += " - gcDvIBHangAtASetkillInstructionWhenTheWaveIsInTrapAfterInstModeAndTrapOnEndIsSet_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.shaderSqVALUSGPRReadFifosGatherMaskDoesNotUpdateCorrectly_A_ != 0)
+    {
+        output += " - shaderSqVALUSGPRReadFifosGatherMaskDoesNotUpdateCorrectly_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppDbDataCorruptionDBFailedToMarkCacheValidForFastSetsTiles_A_ != 0)
+    {
+        output += " - ppDbDataCorruptionDBFailedToMarkCacheValidForFastSetsTiles_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.selectAllBlocksThatAreAffectedShaderSpsingleuseVdstFalsePositiveKillWhenVOPDInstructionIsPresentInTheSIMD_A_ != 0)
+    {
+        output += " - selectAllBlocksThatAreAffectedShaderSpsingleuseVdstFalsePositiveKillWhenVOPDInstructionIsPresentInTheSIMD_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.shaderSpInlineConstantsDoNotWorkForPseudoScalarTransF16Opcodes_A_ != 0)
+    {
+        output += " - shaderSpInlineConstantsDoNotWorkForPseudoScalarTransF16Opcodes_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.shaderSqSQSHGlobalLoadTransposeWritesToOutOfRangeVGPR_A_ != 0)
+    {
+        output += " - shaderSqSQSHGlobalLoadTransposeWritesToOutOfRangeVGPR_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppDbTSCEvictionTimeoutCanLeadToSCHangDueToHiZSCacheInflightCountCorruption_A_ != 0)
+    {
+        output += " - ppDbTSCEvictionTimeoutCanLeadToSCHangDueToHiZSCacheInflightCountCorruption_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_A_ != 0)
+    {
+        output += " - allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_B_ != 0)
+    {
+        output += " - allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_B_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_C_ != 0)
+    {
+        output += " - allSubsystems4xSBufferLoadU16WithStridedBuffersReturns0InsteadOfValue_C_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppDbDBStencilCorruptionDueToMSAA_ZFASTNOOP_StencilFASTSET_A_ != 0)
+    {
+        output += " - ppDbDBStencilCorruptionDueToMSAA_ZFASTNOOP_StencilFASTSET_A_\n";
+    }
+#endif
+#if   SWD_BUILD_NAVI48
+    if (workarounds.ppScIncorrectHiStencilUpdateEquationForSResultsOrCanLeadToImageCorruption__A_ != 0)
+    {
+        output += " - ppScIncorrectHiStencilUpdateEquationForSResultsOrCanLeadToImageCorruption__A_\n";
+    }
+#endif
+
+    return output;
+}
+
+// =====================================================================================================================
+std::string StringifyActiveGfx12Workarounds(
+    const uint32_t* pWorkarounds)
+{
+    Gfx12SwWarDetection workarounds = {};
+    memcpy(&workarounds.u32All[0], pWorkarounds, Gfx12StructDwords * sizeof(uint32_t));
+    return StringifyActiveGfx12Workarounds(workarounds);
+}
+#endif
 
 // =====================================================================================================================
 bool DetermineGfx12Target(

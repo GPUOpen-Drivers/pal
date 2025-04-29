@@ -250,6 +250,7 @@ private:
     const CmdUtil& m_cmdUtil;
     uint32*        m_pPerfCounterWindowLastPacket;
     bool           m_perfCounterWindowEnabled;
+    const bool     m_usePerfCounterWindow;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdStream);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdStream);
