@@ -102,6 +102,9 @@ enum class AmdGpuMachineType : uint8
 #if PAL_BUILD_STRIX_HALO
     Gfx1151 = 0x4A,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1151
 #endif
+#if PAL_BUILD_NAVI44
+    Gfx1200   = 0x4D,  ///< IDK
+#endif
 #if PAL_BUILD_NAVI48
     Gfx1201   = 0x4E,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1200
 #endif
@@ -179,6 +182,10 @@ enum GfxIpStepping : uint16
     GfxIpSteppingStrix         = 0,
 #if PAL_BUILD_STRIX_HALO
     GfxIpSteppingStrixHalo     = 1,
+#endif
+
+#if PAL_BUILD_NAVI44
+    GfxIpSteppingNavi44        = 0,
 #endif
 
 #if PAL_BUILD_NAVI48
@@ -865,3 +872,4 @@ enum class ZOrder : uint8
 
  } //PalAbi
  } //Pal
+ 

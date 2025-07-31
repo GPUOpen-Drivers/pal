@@ -108,6 +108,9 @@ constexpr GpuInfo GpuInfoLookupTable[] =
 #if PAL_BUILD_NAVI48
     { AsicRevision::Navi48,     NullGpuId::Navi48,    GfxIpLevel::GfxIp12,   FAMILY_NV4, NAVI48_P,     PRID_NV_NAVI48_00,      GfxEngineGfx9, DEVICE_ID_NAVI48_94, "NAVI48:gfx1201" },
 #endif
+#if PAL_BUILD_NAVI44
+    { AsicRevision::Navi44,     NullGpuId::Navi44,    GfxIpLevel::GfxIp12,   FAMILY_NV4, NAVI44_P,     PRID_NV_NAVI44_00,      GfxEngineGfx9, DEVICE_ID_NAVI44_7590, "NAVI44:gfx1200" },
+#endif
 };
 
 // =====================================================================================================================

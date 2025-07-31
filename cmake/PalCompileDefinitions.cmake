@@ -84,6 +84,11 @@ function(pal_compile_definitions_gpu TARGET)
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI48=$<BOOL:${PAL_BUILD_NAVI48}>)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI48=$<BOOL:${CHIP_HDR_NAVI48}>)
 #endif
+
+#if PAL_BUILD_NAVI44
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI44=$<BOOL:${PAL_BUILD_NAVI44}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI44=$<BOOL:${CHIP_HDR_NAVI44}>)
+#endif
 #endif
 
     endif()

@@ -114,6 +114,9 @@ enum class NullGpuId : uint32
 #if PAL_BUILD_NAVI48
     Navi48,        ///< 12.0.1
 #endif
+#if PAL_BUILD_NAVI44
+    Navi44,        ///< 12.0.0
+#endif
 #endif
 #if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif
@@ -214,6 +217,9 @@ enum class AsicRevision : uint32
 #endif
 #if PAL_BUILD_STRIX_HALO
     StrixHalo        = 0x3C, ///< 11.5.1
+#endif
+#if PAL_BUILD_NAVI44
+    Navi44           = 0x3D, ///< 12.0.0
 #endif
 #if PAL_BUILD_NAVI48
     Navi48           = 0x3E, ///< 12.0.1

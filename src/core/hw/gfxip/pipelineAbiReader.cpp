@@ -332,8 +332,7 @@ Result PipelineAbiReader::GetMetadata(
                     pRawMetadata = pDesc;
                     metadataSize = descSize;
 
-                    result =
-                        PalAbi::GetPalMetadataVersion(pReader, pDesc, descSize, &metadataMajorVer, &metadataMinorVer);
+                    result = PalAbi::GetPalMetadataVersion(pReader, pDesc, descSize, &metadataMajorVer, &metadataMinorVer);
 
                     break;
                 }
@@ -452,7 +451,7 @@ void PipelineAbiReader::GetGfxIpVersion(
     ) const
 {
     AmdGpuMachineType machineType = static_cast<AmdGpuMachineType>(GetElfReader().GetHeader().e_flags);
-    MachineTypeToGfxIpVersion(machineType, pGfxIpMajorVer, pGfxIpMinorVer, pGfxIpStepping);
+    Util::Abi::MachineTypeToGfxIpVersion(machineType, pGfxIpMajorVer, pGfxIpMinorVer, pGfxIpStepping);
 }
 
 // =====================================================================================================================

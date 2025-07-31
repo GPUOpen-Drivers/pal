@@ -100,8 +100,12 @@
 #define AMDGPU_STRIX_HALO_RANGE    0xC0, 0xFF // 192 <= x < 255 (tentative)
 #endif
 
+// Gfx12
 #if PAL_BUILD_NAVI48
 #define AMDGPU_NAVI48_RANGE        0x50, 0xff
+#endif
+#if PAL_BUILD_NAVI44
+#define AMDGPU_NAVI44_RANGE        0x01, 0x50 // 1 <= x < 80
 #endif
 
 #define AMDGPU_EXPAND_FIX(x) x
@@ -148,6 +152,10 @@
 #define ASICREV_IS_NAVI48(r)           ASICREV_IS(r, NAVI48)
 #endif
 
+#if PAL_BUILD_NAVI44
+#define ASICREV_IS_NAVI44(r)           ASICREV_IS(r, NAVI44)
+#endif
+
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
 
@@ -184,8 +192,12 @@
 #define AMDGPU_IS_STRIX_HALO(f,r)     AMDGPU_IS(f, r, STX, STRIX_HALO)
 #endif
 
+// Gfx12
 #if PAL_BUILD_NAVI48
 #define AMDGPU_IS_NAVI48(f, r)        AMDGPU_IS(f, r, NV4, NAVI48)
+#endif
+#if PAL_BUILD_NAVI44
+#define AMDGPU_IS_NAVI44(f, r)        AMDGPU_IS(f, r, NV4, NAVI44)
 #endif
 
 // Device IDs
@@ -224,6 +236,10 @@
 #define DEVICE_ID_NAVI48_94             0x94
 #endif
 
+#if PAL_BUILD_NAVI44
+#define DEVICE_ID_NAVI44_7590           0x7590
+#endif
+
 // DEVICE_IS(deviceId, deviceName)
 #define DEVICE_IS(d, dn) (d == DEVICE_ID_##dn)
 
@@ -257,6 +273,11 @@
 #define STRIX1_P                  0x10
 #if PAL_BUILD_STRIX_HALO
 #define STRIX_HALO_P              0xC0
+#endif
+
+// Gfx12
+#if PAL_BUILD_NAVI44
+#define NAVI44_P                  0x50
 #endif
 
 #if PAL_BUILD_NAVI48
@@ -330,8 +351,13 @@
 #define PRID_STX_STRIX_HALO_00      0x00
 #endif
 
+// Gfx12
 #if PAL_BUILD_NAVI48
 #define PRID_NV_NAVI48_00      0x00
+#endif
+
+#if PAL_BUILD_NAVI44
+#define PRID_NV_NAVI44_00      0x00
 #endif
 
 // VARIANT_IS(prid, variantName)

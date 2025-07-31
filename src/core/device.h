@@ -2425,6 +2425,13 @@ inline bool IsNavi48(const Device& device)
     return AMDGPU_IS_NAVI48(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 #endif
+
+#if PAL_BUILD_NAVI44
+inline bool IsNavi44(const Device& device)
+{
+    return AMDGPU_IS_NAVI44(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+#endif
 #endif
 
 constexpr bool IsGfx10(GfxIpLevel gfxLevel)

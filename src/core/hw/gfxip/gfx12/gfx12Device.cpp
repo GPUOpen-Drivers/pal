@@ -392,6 +392,34 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.mallSizeInBytes = 64_MiB;
 
         pInfo->gfxip.tccSizeInBytes = 8_MiB; // gl2c_total_cache_size_KB
+    } 
+#endif
+#if PAL_BUILD_NAVI44
+    if (AMDGPU_IS_NAVI44(pInfo->familyId, pInfo->eRevId))
+    {
+        uint32 stepping = Abi::GfxIpSteppingNavi44;
+
+        pInfo->gfx9.rbPlus = 1;
+
+        pInfo->gpuType                             = GpuType::Discrete;
+        pInfo->revision                            = AsicRevision::Navi44;
+        pInfo->gfxStepping                         = stepping;
+        pInfo->gfxTriple.stepping                  = stepping;
+        pInfo->gfx9.numShaderEngines               = 2;
+        pInfo->gfx9.numSdpInterfaces               = 32;
+        pInfo->gfx9.maxNumCuPerSh                  = 16;
+        pInfo->gfx9.maxNumRbPerSe                  = 4;
+
+        // The GL2C is the TCC
+        pInfo->gfx9.gfx10.numGl2a                  = 2;
+        pInfo->gfx9.gfx10.numGl2c                  = 16;
+        pInfo->gfx9.numTccBlocks                   = pInfo->gfx9.gfx10.numGl2c;
+
+        pInfo->gfx9.gfx10.numWgpAboveSpi = 2;
+        pInfo->gfx9.gfx10.numWgpBelowSpi = 0;
+
+        pInfo->gfxip.mallSizeInBytes = 32_MiB;
+        pInfo->gfxip.tccSizeInBytes = 4_MiB;
     }
     else
 #endif

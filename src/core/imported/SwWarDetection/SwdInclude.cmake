@@ -77,6 +77,11 @@ function(swd_add_to_target TARGET PREFIX)
     target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI48=$<BOOL:${${PREFIX}_SWD_BUILD_NAVI48}>)
 #endif
 
+#if SWD_BUILD_NAVI4X && SWD_BUILD_GFX12 && SWD_BUILD_NAVI44
+    swd_bp(${PREFIX}_SWD_BUILD_NAVI44 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_NAVI4X;${PREFIX}_SWD_BUILD_GFX12")
+    target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI44=$<BOOL:${${PREFIX}_SWD_BUILD_NAVI44}>)
+#endif
+
     target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)
     set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
 #if SWD_BUILD_GFX12

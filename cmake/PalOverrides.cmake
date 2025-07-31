@@ -98,6 +98,12 @@ if(PAL_BUILD_GFX12)
     set(PAL_SWD_BUILD_NAVI48        ${PAL_BUILD_NAVI48})
 #endif
 
+#if PAL_BUILD_NAVI44
+    pal_set_or(ADDR_GFX12_BUILD     ${PAL_BUILD_NAVI44})
+    pal_set_or(PAL_SWD_BUILD_NAVI4X ${PAL_BUILD_NAVI44})
+    set(PAL_SWD_BUILD_NAVI44       ${PAL_BUILD_NAVI44})
+#endif
+
 endif() # PAL_BUILD_GFX12
 #endif
 

@@ -124,6 +124,11 @@ static const MaxEventIds& GetEventLimits(
         pOut = &Nv48MaxPerfEventIds;
         break;
 #endif
+#if PAL_BUILD_NAVI44
+    case Pal::AsicRevision::Navi44:
+        pOut = &Nv48MaxPerfEventIds;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS(); // What chip is this?
         pOut = &UnknownMaxEventIds;

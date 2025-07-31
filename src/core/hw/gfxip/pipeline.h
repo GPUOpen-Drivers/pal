@@ -122,7 +122,7 @@ static Util::Abi::ApiShaderType PalShaderTypeToAbiShaderType(ShaderType stage)
 inline bool PipelineSupportsGenericEntryPoint(
     const Util::PalAbi::CodeObjectMetadata& metadata)
 {
-    return Util::PalAbi::PalMetadataVersionAtLeast(metadata, 3, 6);
+    return PalMetadataVersionAtLeast(metadata, 3, 6);
 }
 
 constexpr uint32 MaxGfxShaderLibraryCount = 3;

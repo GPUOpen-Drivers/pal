@@ -9269,7 +9269,7 @@ enum PerfCtrId
     MaxPerfCtrId                             = 40,
 };
 
-#if CHIP_HDR_NAVI48
+#if CHIP_HDR_NAVI48 || CHIP_HDR_NAVI44
 constexpr unsigned int Nv48MaxPerfEventIds[MaxPerfCtrId] =
 {
     CB_PERF_SEL_EXPORT_KILLED_BY_NULL_TARGET_SHADER_MASK,
