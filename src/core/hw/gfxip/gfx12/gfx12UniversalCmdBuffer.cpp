@@ -1357,6 +1357,13 @@ void UniversalCmdBuffer::WriteViewports(
         }
         else
 #endif
+        if (static_cast<DepthClampMode>(m_graphicsState.depthClampMode) == DepthClampMode::Viewport &&
+            vpParams.depthClampOverride.minDepth <= vpParams.depthClampOverride.maxDepth)
+        {
+            viewportRegs.vp[i].zMin.f32All = vpParams.depthClampOverride.minDepth;
+            viewportRegs.vp[i].zMax.f32All = vpParams.depthClampOverride.maxDepth;
+        }
+        else
         {
             viewportRegs.vp[i].zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
             viewportRegs.vp[i].zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);

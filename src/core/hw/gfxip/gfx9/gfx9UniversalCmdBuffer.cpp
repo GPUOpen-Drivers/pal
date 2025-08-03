@@ -7711,6 +7711,13 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         }
         else
 #endif
+        if (static_cast<DepthClampMode>(m_graphicsState.depthClampMode) == DepthClampMode::Viewport &&
+            params.depthClampOverride.minDepth <= params.depthClampOverride.maxDepth)
+        {
+            pZMinMaxImg->zMin.f32All = params.depthClampOverride.minDepth;
+            pZMinMaxImg->zMax.f32All = params.depthClampOverride.maxDepth;
+        }
+        else
         {
             pZMinMaxImg->zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
             pZMinMaxImg->zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);

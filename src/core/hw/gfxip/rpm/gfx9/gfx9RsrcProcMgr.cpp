@@ -1185,6 +1185,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         viewportInfo.vertClipRatio         = FLT_MAX;
         viewportInfo.vertDiscardRatio      = 1.0f;
         viewportInfo.depthRange            = DepthRange::ZeroToOne;
+        viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
         ScissorRectParams scissorInfo      = { };
         scissorInfo.count                  = 1;
@@ -2020,6 +2021,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     viewportInfo.vertClipRatio    = FLT_MAX;
     viewportInfo.vertDiscardRatio = 1.0f;
     viewportInfo.depthRange       = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = {};
     scissorInfo.count = 1;
@@ -2248,6 +2250,7 @@ void RsrcProcMgr::HwlResolveImageGraphics(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -2771,6 +2774,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo      = { };
     scissorInfo.count                  = 1;

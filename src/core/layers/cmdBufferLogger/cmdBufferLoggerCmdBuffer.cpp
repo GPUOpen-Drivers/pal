@@ -2142,6 +2142,12 @@ static void ViewportParamsToString(
     Snprintf(pString, StringLength, " depthRange       = %s",
              (params.depthRange == DepthRange::ZeroToOne) ? "ZeroToOne" : "NegativeOneToOne");
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(" depthClampOverride = {");
+    Snprintf(pString, StringLength, " \tminDepth = %f", viewport.depthClampOverride.minDepth);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    Snprintf(pString, StringLength, " \tmaxDepth = %f", viewport.depthClampOverride.maxDepth);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(" } // depthClampOverride");
 
     pCmdBuffer->GetNextLayer()->CmdCommentString("] // params");
 

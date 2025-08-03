@@ -4147,6 +4147,16 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const DepthClamp& value)
+{
+    BeginMap(false);
+    KeyAndValue("minDepth", value.minDepth);
+    KeyAndValue("maxDepth", value.maxDepth);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const ViewportParams& value)
 {
     BeginMap(false);
@@ -4170,6 +4180,7 @@ void LogContext::Struct(
     KeyAndValue("vertDiscardRatio", value.vertDiscardRatio);
     KeyAndValue("horzClipRatio", value.horzClipRatio);
     KeyAndValue("vertClipRatio", value.vertClipRatio);
+    KeyAndValue("depthClampOverride", value.depthClampOverride);
     EndMap();
 }
 

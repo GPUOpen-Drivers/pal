@@ -244,6 +244,8 @@ void UniversalCmdBuffer::ResetState()
     m_graphicsState.viewportState.vertClipRatio    = 1.0f;
     m_graphicsState.viewportState.vertDiscardRatio = 1.0f;
 
+    // No depth clamp override by default
+    m_graphicsState.viewportState.depthClampOverride = { 1.0f, 0.0f };
 }
 
 // =====================================================================================================================
@@ -746,6 +748,8 @@ void UniversalCmdBuffer::SetGraphicsState(
         (restoreViewports.vertDiscardRatio != currentViewports.vertDiscardRatio) ||
         (restoreViewports.horzClipRatio    != currentViewports.horzClipRatio)    ||
         (restoreViewports.vertClipRatio    != currentViewports.vertClipRatio)    ||
+        (restoreViewports.depthClampOverride.minDepth != currentViewports.depthClampOverride.minDepth) ||
+        (restoreViewports.depthClampOverride.maxDepth != currentViewports.depthClampOverride.maxDepth) ||
         (memcmp(&restoreViewports.viewports[0],
                 &currentViewports.viewports[0],
                 restoreViewports.count * sizeof(restoreViewports.viewports[0])) != 0))

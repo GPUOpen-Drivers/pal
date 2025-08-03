@@ -1859,6 +1859,13 @@ struct Viewport
     PointOrigin origin;    ///< Origin of the viewport relative to NDC. UpperLeft or LowerLeft.
 };
 
+/// Specifies range for user-defined depth clamp
+struct DepthClamp
+{
+    float minDepth; ///< Minimum depth value after viewport transform.
+    float maxDepth; ///< Maximum depth value after viewport transform.
+};
+
 /// Specifies the viewport transform parameters for setting a single viewport.
 /// @see ICmdBuffer::CmdSetViewport
 struct ViewportParams
@@ -1872,6 +1879,8 @@ struct ViewportParams
     float      horzClipRatio;           ///< The ratio between guardband clip rect width and viewport width.
     float      vertClipRatio;           ///< The ratio between guardband clip rect height and viewport height.
     DepthRange depthRange;              ///< Specifies the target range of Z values
+    DepthClamp depthClampOverride;      ///< Specifies the clamp range of Z values for DepthClampMode::Viewport.
+                                        ///  minDepth > maxDepth means that the override is not active.
     // Define viewports array at the end of the structure as it is common to only access the first N from the CPU.
     Viewport   viewports[MaxViewports]; ///< Array of desciptors for each viewport.
 };

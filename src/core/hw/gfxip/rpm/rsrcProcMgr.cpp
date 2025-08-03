@@ -3368,6 +3368,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -3450,6 +3451,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -5595,6 +5597,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo    = { };
     scissorInfo.count                = 1;
@@ -5876,6 +5879,7 @@ void RsrcProcMgr::SlowClearGraphics(
         viewportInfo.vertClipRatio         = FLT_MAX;
         viewportInfo.vertDiscardRatio      = 1.0f;
         viewportInfo.depthRange            = DepthRange::ZeroToOne;
+        viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
         const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
         ColorTargetViewCreateInfo colorViewInfo       = { };
@@ -6016,6 +6020,7 @@ void RsrcProcMgr::GenericColorBlit(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ColorTargetViewInternalCreateInfo colorViewInfoInternal = { };
     colorViewInfoInternal.flags.dccDecompress   = (pipeline == RpmGfxPipeline::DccDecompress);
@@ -6381,6 +6386,7 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -6593,6 +6599,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -6868,6 +6875,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = {};
     scissorInfo.count             = 1;
@@ -7660,6 +7668,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -7988,6 +7997,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
     viewportInfo.depthRange            = DepthRange::ZeroToOne;
+    viewportInfo.depthClampOverride    = { 1.0f, 0.0f };
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
